@@ -38,7 +38,11 @@ NS_OBJECT_ENSURE_REGISTERED(P4InputQueueBufferDisc);
 TypeId
 P4InputQueueBufferDisc::GetTypeId()
 {
-    static TypeId tid = TypeId("ns3::P4InputQueueBufferDisc");
+    static TypeId tid = TypeId("ns3::P4InputQueueBufferDisc")
+                            .SetParent<QueueDisc>()
+                            .SetGroupName("TrafficControl")
+                            .AddConstructor<P4InputQueueBufferDisc>();
+    ;
     return tid;
 }
 
@@ -129,7 +133,7 @@ P4InputQueueBufferDisc::CheckConfig()
 
     if (GetNQueueDiscClasses() == 0)
     {
-        // create 3 fifo queue discs
+        // create 2 fifo queue discs
         ObjectFactory factory;
         factory.SetTypeId("ns3::FifoQueueDisc");
         for (uint8_t i = 0; i < 2; i++)
