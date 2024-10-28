@@ -65,6 +65,7 @@ class P4InputQueueBufferDisc : public QueueDisc
 
   private:
     bool DoEnqueue(Ptr<QueueDiscItem> item) override;
+    bool DoEnqueue(Ptr<QueueDiscItem> item, PacketType packet_type);
     Ptr<QueueDiscItem> DoDequeue() override;
     Ptr<const QueueDiscItem> DoPeek() override;
     bool CheckConfig() override;

@@ -58,7 +58,7 @@ P4InputQueueBufferDisc::~P4InputQueueBufferDisc()
 }
 
 bool
-P4InputQueueBufferDisc::DoEnqueue(Ptr<QueueDiscItem> item)
+P4InputQueueBufferDisc::DoEnqueue(Ptr<QueueDiscItem> item, PacketType packet_type)
 {
     NS_LOG_FUNCTION(this << item);
 
@@ -67,7 +67,7 @@ P4InputQueueBufferDisc::DoEnqueue(Ptr<QueueDiscItem> item)
 
     NS_ASSERT_MSG(band < GetNQueueDiscClasses(), "Selected band out of range");
     bool retval = GetQueueDiscClass(band)->GetQueueDisc()->Enqueue(item);
-
+    
     // If Queue::Enqueue fails, QueueDisc::Drop is called by the child queue disc
     // because QueueDisc::AddQueueDiscClass sets the drop callback
 
