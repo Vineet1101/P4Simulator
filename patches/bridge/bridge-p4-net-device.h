@@ -109,7 +109,7 @@ class BridgeP4NetDevice : public NetDevice
     * \param netdevice
     * \return the port number of the p4 bridge device
     */
-    uint32_t GetPortNumber(Ptr<NetDevice>) const;
+    uint32_t GetPortNumber(Ptr<NetDevice> port) const;
 
     /**
      * \brief Gets the n-th bridged port.
@@ -127,6 +127,9 @@ class BridgeP4NetDevice : public NetDevice
     */
     void SendPacket(Ptr<Packet> packetOut, int outPort, uint16_t protocol, Address const &destination);
 
+
+    void SendNs3Packet(Ptr<Packet> packetOut, int outPort, uint16_t protocol, Address const &destination);
+    
     // inherited from NetDevice base class.
     void SetIfIndex(const uint32_t index) override;
     uint32_t GetIfIndex() const override;

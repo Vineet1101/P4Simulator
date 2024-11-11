@@ -21,6 +21,8 @@
 
 #include "bridge-p4-net-device.h"
 
+#include "ns3/ethernet-header.h"
+
 #include "ns3/boolean.h"
 #include "ns3/channel.h"
 #include "ns3/log.h"
@@ -109,6 +111,8 @@ BridgeP4NetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
         m_rxCallback(this, packet, protocol, src);
     }
 
+    // \TODO Pass the packet to the p4 switch core function
+
 }
 
 
@@ -151,6 +155,19 @@ BridgeP4NetDevice::AddBridgePort(Ptr<NetDevice> bridgePort)
                                     true);
     m_ports.push_back(bridgePort);
     m_channel->AddChannel(bridgePort->GetChannel());
+}
+
+uint32_t 
+BridgeP4NetDevice::GetPortNumber(Ptr<NetDevice> port) const
+{
+    int portsNum = GetNBridgePorts();
+	for (int i = 0; i < portsNum; i++) {
+		if (GetBridgePort(i) == port)
+			NS_LOG_DEBUG("Port found: " << i);
+            return i;
+	}
+    NS_LOG_ERROR("Port not found");
+	return -1;
 }
 
 void
@@ -299,6 +316,35 @@ BridgeP4NetDevice::SendFrom(Ptr<Packet> packet,
 
     return true;
 }
+
+void 
+BridgeP4NetDevice::SendPacket(Ptr<Packet> packetOut, int outPort, uint16_t protocol, Address const &destination)
+{
+    this->SendNs3Packet(packetOut, outPort, protocol, destination);
+}
+
+
+void
+BridgeP4NetDevice::SendNs3Packet(Ptr<Packet> packetOut, int outPort, uint16_t protocol, Address const &destination) 
+{
+    NS_LOG_DEBUG("Sending ns3 packet to port " << outPort);
+    if (packetOut)
+	{
+        // \TODO remove Ethernet header
+		EthernetHeader eeh;
+		packetOut->RemoveHeader(eeh);
+
+		if (outPort != 511)
+		{
+			NS_LOG_DEBUG("EgressPortNum: " << outPort);
+			Ptr<NetDevice> outNetDevice = GetBridgePort(outPort);
+			outNetDevice->Send(packetOut->Copy(), destination, protocol);
+		}
+	}
+	else
+        NS_LOG_DEBUG("Null Packet!");
+}
+
 
 Ptr<Node>
 BridgeP4NetDevice::GetNode() const
