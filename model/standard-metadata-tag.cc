@@ -2,6 +2,8 @@
 #include "standard-metadata-tag.h"
 #include "ns3/log.h"
 
+#include <bm/bm_sim/phv.h>
+#include <bm/bm_sim/packet.h>
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE("StandardMetadataTag");
@@ -82,6 +84,8 @@ void StandardMetadataTag::Print(std::ostream &os) const {
 
 void StandardMetadataTag::GetMetadataFromBMPacket(std::unique_ptr<bm::Packet>&& bm_packet)
 {
+    bm::PHV* phv = bm_packet->get_phv();
+
     m_metadata.ingress_port = phv->has_field("standard_metadata.ingress_port") ?
         phv->get_field("standard_metadata.ingress_port").get_uint() : 0u;
 
@@ -132,7 +136,7 @@ void StandardMetadataTag::GetMetadataFromBMPacket(std::unique_ptr<bm::Packet>&& 
         StandardMetadata::NO_ERROR;
 }
 
-void StandardMetadataTag::WriteMetadataToBMPacket(std::unique_ptr<bm::Packet>&& bm_packet)
+void StandardMetadataTag::WriteMetadataToBMPacket(std::unique_ptr<bm::Packet>&& bm_packet) const
 {
     bm::PHV* phv = bm_packet->get_phv();
     phv->get_field("standard_metadata.ingress_port").set(m_metadata.ingress_port);

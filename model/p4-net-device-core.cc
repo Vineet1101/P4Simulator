@@ -24,9 +24,14 @@
 
 #include "p4-net-device-core.h"
 
-#include "queue-item.h"
-#include "register_access.h"
+// #include "queue-item.h"
 #include "standard-metadata-tag.h"
+#include "ns3/ethernet-header.h"
+#include "ns3/socket.h"
+#include "ns3/simulator.h"
+
+#include "register_access.h"
+#include "global.h"
 
 #include <bm/bm_runtime/bm_runtime.h>
 #include <bm/bm_sim/options_parse.h>
@@ -83,37 +88,56 @@ REGISTER_HASH(bmv2_hash);
 // UID and bm::Packet UID, and after new ns3 packets creates, update the new value of
 // ns3::Packet UID for mapping.
 uint64_t P4NetDeviceCore::packet_id = 0;
-static std::unordered_map<uint64_t, PacketInfo> uidMap;
-std::unordered_map<uint64_t, uint64_t> reverseUidMap;
-
 // int P4NetDeviceCore::thrift_port = 8090; // @TODO - Remove this
 
-P4NetDeviceCore::P4NetDeviceCore(std::unique_ptr<P4NetDevice> netDevice) : net_device(std::move(netDevice))
-{
+P4NetDeviceCore::P4NetDeviceCore(P4NetDevice* netDevice){
     NS_LOG_FUNCTION(this);
+
+    m_pNetDevice = netDevice;
+
+    // Set custom Priomap: {0, 1, 2, 3, 4, 5, 6, ..., 15}, but we only use 0-7 bands
+    Priomap priomap;
+    for (uint8_t i = 0; i < 16; ++i) {
+        if (i < 8) {
+            priomap[i] = i; // Map priority i to its own band for priorities below 8
+        } else {
+            priomap[i] = 0; // Map priority 8 and above to band 0
+        }
+    }
+    queue_buffer.SetAttribute("Priomap", PriomapValue(priomap));
+
 }
+
 int
 P4NetDeviceCore::init(int argc, char* argv[])
 {
     NS_LOG_FUNCTION(this);
     int status = 0;
 
-    switch (P4GlobalVar::g_populateFlowTableWay)
-    {
-    case LOCAL_CALL:
+    //  Several methods of populating flowtable
+    if (P4GlobalVar::g_populateFlowTableWay == LOCAL_CALL) {
         // Handle "exact" match table initialization only
         status = InitFromCommandLineOptionsLocal(argc, argv, m_argParser);
-        break;
-
-    case RUNTIME_CLI:
-        // Thrift server setup for runtime CLI to populate the flowtable
-        // @todo - Implement if compatible with sswitch_runtime
-        // status = init_from_command_line_options(argc, argv, m_argParser);
-        // int thriftPort = get_runtime_port();
+    } else if (P4GlobalVar::g_populateFlowTableWay == RUNTIME_CLI) {
+        /**
+         * @brief start thrift server , use runtime_CLI populate flowtable
+         * This method is from src
+         * This will connect to the simple_switch thrift server and input the command.
+         * by now the bm::switch and the bm::simple_switch is not the same thing, so
+         *  the "sswitch_runtime::get_handler()" by now can not use. @todo -mingyu
+         */
+        
+        // status = this->init_from_command_line_options(argc, argv, m_argParser);
+        // int thriftPort = this->get_runtime_port();
+        // std::cout << "thrift port : " << thriftPort << std::endl;
         // bm_runtime::start_server(this, thriftPort);
-        break;
-
-    case NS3PIFOTM:
+        // //@todo BUG: THIS MAY CHANGED THE API
+        // using ::sswitch_runtime::SimpleSwitchIf;
+        // using ::sswitch_runtime::SimpleSwitchProcessor;
+        // bm_runtime::add_service<SimpleSwitchIf, SimpleSwitchProcessor>(
+        //         "simple_switch", sswitch_runtime::get_handler(this));
+        
+    } else if (P4GlobalVar::g_populateFlowTableWay == NS3PIFOTM) {
         // JSON file-based flow table population, NS3-PIFO-TM based
         static int thrift_port = 8090;
         bm::OptionsParser opt_parser;
@@ -137,12 +161,11 @@ P4NetDeviceCore::init(int argc, char* argv[])
                 std::cerr << "Error executing command." << std::endl;
             }
         }
-        break;
-
-    default:
+    } else {
         NS_LOG_ERROR("ERROR: P4 Model switch init failed in P4NetDeviceCore::init.");
         return -1;
     }
+
 
     if (status != 0)
     {
@@ -174,7 +197,7 @@ P4NetDeviceCore::InitFromCommandLineOptionsLocal(int argc, char* argv[], bm::Tar
 }
 
 void
-P4NetDeviceCore::run_cli(const std::string& commandsFile) override
+P4NetDeviceCore::run_cli(const std::string& commandsFile)
 {
     int port = get_runtime_port();
     bm_runtime::start_server(this, port);
@@ -201,7 +224,7 @@ P4NetDeviceCore::start_and_return_()
     check_queueing_metadata();
 }
 
-void P4NetDeviceCore::check_queueing_metadata
+void P4NetDeviceCore::check_queueing_metadata()
 {
     // TODO(antonin): add qid in required fields
     bool enq_timestamp_e = field_exists("queueing_metadata", "enq_timestamp");
@@ -236,7 +259,7 @@ P4NetDeviceCore::ReceivePacket(Ptr<Packet> packetIn,
     NS_LOG_FUNCTION(this);
 
     // save the ns3 packet uid and the port, protocol, destination
-    uint64_t ns3Uid = ns_packet->GetUid();
+    uint64_t ns3Uid = packetIn->GetUid();
     PacketInfo pkts_info = {inPort, protocol, destination, 0};
     uidMap[ns3Uid] = pkts_info;
 
@@ -254,19 +277,24 @@ P4NetDeviceCore::enqueue(port_t egress_port,
 
     Ptr<Packet> ns_packet = get_ns3_packet(std::move(bm_packet));
 
+    // add priority tag for the packet
+    ns3::SocketPriorityTag priorityTag;
+    priorityTag.SetPriority(priority); // Set the priority value
+    ns_packet->AddPacketTag(priorityTag); // Attach the tag to the packet
+
     // Enqueue the packet in the queue buffer
-    Ptr<QueueItem> queue_item = QueueItem(ns_packet);
-    if (queue_buffer[priority].DoEnqueue(queue_item))
+    Ptr<QueueItem> queue_item = CreateObject<QueueItem>(ns_packet);
+
+    if (queue_buffer.Enqueue(queue_item)) 
     {
+        // enqueue success
         NS_LOG_INFO("Packet enqueued in P4QueueDisc, Port: " << egress_port
                                                              << ", Priority: " << priority);
-        return true;
     }
     else
     {
         NS_LOG_WARN("QueueDisc P4QueueDisc is full, dropping packet, Port: "
                     << egress_port << ", Priority: " << priority);
-        return false;
     }
 }
 
@@ -318,8 +346,8 @@ P4NetDeviceCore::parser_ingress_processing(Ptr<Packet> packetIn)
     {
         phv->get_field("queueing_metadata.enq_timestamp").set(Simulator::Now().GetMicroSeconds());
 
-        priority = phv->has_field(SSWITCH_PRIORITY_QUEUEING_SRC)
-                       ? phv->get_field(SSWITCH_PRIORITY_QUEUEING_SRC).get<size_t>()
+        priority = phv->has_field("intrinsic_metadata.priority")
+                       ? phv->get_field("intrinsic_metadata.priority").get<size_t>()
                        : 0u;
         if (priority >= nb_queues_per_port)
         {
@@ -327,7 +355,7 @@ P4NetDeviceCore::parser_ingress_processing(Ptr<Packet> packetIn)
             return;
         }
         phv->get_field("queueing_metadata.enq_qdepth")
-            .set(queue_buffer->GetQueueDiscClass(band)->GetQueueDisc()->GetNPackets()); // @TODO
+            .set(queue_buffer.GetQueueDiscClass(band)->GetQueueDisc()->GetNPackets()); // @TODO
     }
 
     enqueue(egress_port, std::move(bm_packet), priority);
@@ -339,8 +367,7 @@ P4NetDeviceCore::egress_deparser_processing()
     NS_LOG_FUNCTION("Dequeue packet from QueueBuffer");
     // Here need the ID.
     Ptr<QueueDiscItem> item =
-        this->queue_buffer
-            ->Dequeue(); // \TODO get the NetDevice ID (egress port) and priority of the pacekts
+        queue_buffer.Dequeue(); // \TODO get the NetDevice ID (egress port) and priority of the pacekts
     if (item == nullptr)
     {
         NS_LOG_WARN("GetQueueBuffer is empty, no packet to dequeue");
@@ -367,8 +394,8 @@ P4NetDeviceCore::egress_deparser_processing()
         uint64_t now = Simulator::Now().GetMicroSeconds();
         phv->get_field("queueing_metadata.deq_timedelta").set(now - enq_timestamp);
 
-        priority = phv->has_field(SSWITCH_PRIORITY_QUEUEING_SRC)
-                       ? phv->get_field(SSWITCH_PRIORITY_QUEUEING_SRC).get<size_t>()
+        size_t priority = phv->has_field("intrinsic_metadata.priority")
+                       ? phv->get_field("intrinsic_metadata.priority").get<size_t>()
                        : 0u;
         if (priority >= nb_queues_per_port)
         {
@@ -414,7 +441,9 @@ P4NetDeviceCore::egress_deparser_processing()
     Ptr<Packet> ns_packet = get_ns3_packet(std::move(bm_packet), &pkts_info);
 
     // send pkts out from the NetDevice
-    net_device->Send(ns_packet, pkts_info.destination, pkts_info.protocol);
+    EthernetHeader eeh;
+    ns_packet->RemoveHeader(eeh);
+    m_pNetDevice->Send(ns_packet, pkts_info.destination, pkts_info.protocol);
 }
 
 // std::unique_ptr<bm::Packet>
@@ -460,7 +489,7 @@ std::unique_ptr<bm::Packet> P4NetDeviceCore::get_bm_packet(Ptr<Packet> ns_packet
     uint64_t bmUid = ++packet_id;
     uint64_t ns3Uid = ns_packet->GetUid();
     PacketInfo pkts_info = uidMap[ns3Uid];
-    pkts_info.bmUid = bmUid;
+    pkts_info.packet_id = bmUid;
     uidMap[ns3Uid] = pkts_info;
     reverseUidMap[bmUid] = ns3Uid;
 
@@ -468,21 +497,23 @@ std::unique_ptr<bm::Packet> P4NetDeviceCore::get_bm_packet(Ptr<Packet> ns_packet
     int len = ns_packet->GetSize();
     
     // Use std::vector instead of new[] to automatically manage memory
-    std::vector<uint8_t> pkt_buffer(len);
-    ns_packet->CopyData(pkt_buffer.data(), len);
+    uint8_t* pkt_buffer = new uint8_t[len];
+    ns_packet->CopyData(pkt_buffer, len);
+
+    bm::PacketBuffer buffer(len + 512, (char*)pkt_buffer, len);
 
     std::unique_ptr<bm::Packet> bm_packet =
-        new_packet_ptr(in_port, bmUid, bm::PacketBuffer(len + 512, reinterpret_cast<char*>(pkt_buffer.data()), len));
+        new_packet_ptr(in_port, bmUid, len, std::move(buffer));
 
     // Add metadata
     StandardMetadataTag metadata_tag;
-    metadata_tag.WriteMetadataToBMPacket(bm_packet);
+    metadata_tag.WriteMetadataToBMPacket(std::move(bm_packet));
 
     return bm_packet;
 }
 
 Ptr<Packet>
-P4Switch::get_ns3_packet(std::unique_ptr<bm::Packet> bm_packet)
+P4NetDeviceCore::get_ns3_packet(std::unique_ptr<bm::Packet> bm_packet)
 {
     // Create a new ns3::Packet using the data buffer
     char* bm_buf = bm_packet.get()->data();
@@ -499,7 +530,7 @@ P4Switch::get_ns3_packet(std::unique_ptr<bm::Packet> bm_packet)
         uint64_t oldNs3Uid = it->second;
         PacketInfo pkts_info = uidMap[oldNs3Uid];
 
-        if (pkts_info.bmUid != bmUid)
+        if (pkts_info.packet_id != bmUid)
         {
             NS_LOG_ERROR("The bm::Packet UID in the mapping table is not consistent.");
         }
@@ -515,7 +546,7 @@ P4Switch::get_ns3_packet(std::unique_ptr<bm::Packet> bm_packet)
 
     // Add Tag with Metadata information to the ns_packet
     StandardMetadataTag metadata_tag;
-    metadata_tag.GetMetadataFromBMPacket(bm_packet);
+    metadata_tag.GetMetadataFromBMPacket(std::move(bm_packet));
     ns_packet->AddPacketTag(metadata_tag);
 
     return ns_packet;
@@ -539,7 +570,7 @@ P4NetDeviceCore::get_ns3_packet(std::unique_ptr<bm::Packet> bm_packet, PacketInf
         // Directly update the value at the pointer pkts_info
         *pkts_info = uidMap[oldNs3Uid];
 
-        if (pkts_info->bmUid != bmUid)
+        if (pkts_info->packet_id != bmUid)
         {
             NS_LOG_ERROR("The bm::Packet UID in the mapping table is not consistent.");
         }
@@ -557,50 +588,50 @@ P4NetDeviceCore::get_ns3_packet(std::unique_ptr<bm::Packet> bm_packet, PacketInf
     return ns_packet;
 }
 
-int
-P4NetDeviceCore::set_egress_priority_queue_depth(size_t port,
-                                                 size_t priority,
-                                                 const size_t depth_pkts)
-{
-    egress_buffers.set_capacity(port, priority, depth_pkts);
-    return 0;
-}
+// int
+// P4NetDeviceCore::set_egress_priority_queue_depth(size_t port,
+//                                                  size_t priority,
+//                                                  const size_t depth_pkts)
+// {
+//     egress_buffers.set_capacity(port, priority, depth_pkts);
+//     return 0;
+// }
 
-int
-P4NetDeviceCore::set_egress_queue_depth(size_t port, const size_t depth_pkts)
-{
-    egress_buffers.set_capacity(port, depth_pkts);
-    return 0;
-}
+// int
+// P4NetDeviceCore::set_egress_queue_depth(size_t port, const size_t depth_pkts)
+// {
+//     egress_buffers.set_capacity(port, depth_pkts);
+//     return 0;
+// }
 
-int
-P4NetDeviceCore::set_all_egress_queue_depths(const size_t depth_pkts)
-{
-    egress_buffers.set_capacity_for_all(depth_pkts);
-    return 0;
-}
+// int
+// P4NetDeviceCore::set_all_egress_queue_depths(const size_t depth_pkts)
+// {
+//     egress_buffers.set_capacity_for_all(depth_pkts);
+//     return 0;
+// }
 
-int
-P4NetDeviceCore::set_egress_priority_queue_rate(size_t port,
-                                                size_t priority,
-                                                const uint64_t rate_pps)
-{
-    egress_buffers.set_rate(port, priority, rate_pps);
-    return 0;
-}
+// int
+// P4NetDeviceCore::set_egress_priority_queue_rate(size_t port,
+//                                                 size_t priority,
+//                                                 const uint64_t rate_pps)
+// {
+//     egress_buffers.set_rate(port, priority, rate_pps);
+//     return 0;
+// }
 
-int
-P4NetDeviceCore::set_egress_queue_rate(size_t port, const uint64_t rate_pps)
-{
-    egress_buffers.set_rate(port, rate_pps);
-    return 0;
-}
+// int
+// P4NetDeviceCore::set_egress_queue_rate(size_t port, const uint64_t rate_pps)
+// {
+//     egress_buffers.set_rate(port, rate_pps);
+//     return 0;
+// }
 
-int
-P4NetDeviceCore::set_all_egress_queue_rates(const uint64_t rate_pps)
-{
-    egress_buffers.set_rate_for_all(rate_pps);
-    return 0;
-}
+// int
+// P4NetDeviceCore::set_all_egress_queue_rates(const uint64_t rate_pps)
+// {
+//     egress_buffers.set_rate_for_all(rate_pps);
+//     return 0;
+// }
 
 } // namespace ns3

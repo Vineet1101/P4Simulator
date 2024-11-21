@@ -21,8 +21,9 @@
 #ifndef P4_NETDEVICE_CORE_H
 #define P4_NETDEVICE_CORE_H
 
+#include "p4-net-device.h"
 #include "standard-metadata-tag.h"
-#include "traffic-control/p4-queue-disc.h"
+#include "ns3/prio-queue-disc.h"
 
 #include <bm/bm_sim/packet.h>
 #include <bm/bm_sim/switch.h>
@@ -30,6 +31,24 @@
 namespace ns3
 {
 
+// struct PacketInfo
+// {
+//   int inPort;
+//   uint16_t protocol;
+//   Address destination;
+//   int64_t packet_id;
+// };
+
+enum class PacketType
+{
+    NORMAL,
+    RESUBMIT,
+    RECIRCULATE,
+    SENTINEL // signal for the ingress thread to terminate
+};
+
+
+// class P4NetDevice;
 
 /**
  * \ingroup p4-pipeline
@@ -40,7 +59,7 @@ class P4NetDeviceCore : public bm::Switch
 {
   public:
     // by default, swapping is off
-    P4NetDeviceCore(std::unique_ptr<P4NetDevice> netDevice);
+    P4NetDeviceCore(P4NetDevice* netDevice);
 
     ~P4NetDeviceCore();
 
@@ -48,10 +67,18 @@ class P4NetDeviceCore : public bm::Switch
     int init(int argc, char* argv[]);
     int InitFromCommandLineOptionsLocal(int argc, char* argv[], bm::TargetParserBasic* tp = nullptr);
 
+    struct PacketInfo
+    {
+        int in_port;
+        uint16_t protocol;
+        Address destination;
+        int64_t packet_id;
+    };
+
     /**
      * \brief Run the provided CLI commands to populate table entries
      */
-    void run_cli(const std::string& commandsFile) override;
+    void run_cli(const std::string& commandsFile);
 
     int receive_(port_t port_num, const char* buffer, int len) override;
 
@@ -70,12 +97,12 @@ class P4NetDeviceCore : public bm::Switch
 
     void check_queueing_metadata();
 
-    int set_egress_priority_queue_depth(size_t port, size_t priority, const size_t depth_pkts);
-    int set_egress_queue_depth(size_t port, const size_t depth_pkts);
-    int set_all_egress_queue_depths(const size_t depth_pkts);
-    int set_egress_priority_queue_rate(size_t port, size_t priority, const uint64_t rate_pps);
-    int set_egress_queue_rate(size_t port, const uint64_t rate_pps);
-    int set_all_egress_queue_rates(const uint64_t rate_pps);
+    // int set_egress_priority_queue_depth(size_t port, size_t priority, const size_t depth_pkts);
+    // int set_egress_queue_depth(size_t port, const size_t depth_pkts);
+    // int set_all_egress_queue_depths(const size_t depth_pkts);
+    // int set_egress_priority_queue_rate(size_t port, size_t priority, const uint64_t rate_pps);
+    // int set_egress_queue_rate(size_t port, const uint64_t rate_pps);
+    // int set_all_egress_queue_rates(const uint64_t rate_pps);
 
     /**
      * This function P4NetDeviceCore::get_bm_packet converts the NS-3 packet ns_packet to bm::Packet
@@ -94,28 +121,39 @@ class P4NetDeviceCore : public bm::Switch
     P4NetDeviceCore(P4NetDeviceCore&&) = delete;
     P4NetDeviceCore&& operator=(P4NetDeviceCore&&) = delete;
 
-    struct PacketInfo
-    {
-        int inPort;
-        uint16_t protocol;
-        Address destination;
-        int64_t packet_id;
-    };
-
   protected:
     static uint64_t packet_id;
     static int thrift_port;
 
   private:
-    bool skip_tracing = true;          // whether to skip tracing
-    bool with_queueing_metadata{true}; // whether to include queueing metadata
 
-    size_t nb_queues_per_port{8}; // 3 bit for the queue number, max value is 8
+  enum PktInstanceType {
+			PKT_INSTANCE_TYPE_NORMAL,
+			PKT_INSTANCE_TYPE_INGRESS_CLONE,
+			PKT_INSTANCE_TYPE_EGRESS_CLONE,
+			PKT_INSTANCE_TYPE_COALESCED,
+			PKT_INSTANCE_TYPE_RECIRC,
+			PKT_INSTANCE_TYPE_REPLICATION,
+			PKT_INSTANCE_TYPE_RESUBMIT,
+		};
+  
+  std::unordered_map<uint64_t, PacketInfo> uidMap;
+  std::unordered_map<uint64_t, uint64_t> reverseUidMap;
 
-    std::vector<Address> destination_list; //!< list for address, using by index
+  bm::TargetParserBasic * m_argParser; 		    //!< Structure of parsers
 
-    P4QueueDisc queue_buffer;
-    std::unique_ptr<P4NetDevice> net_device;
+  bool skip_tracing = true;          // whether to skip tracing
+  bool with_queueing_metadata{true}; // whether to include queueing metadata
+
+  int drop_port = 511;
+
+  size_t nb_queues_per_port{8}; // 3 bit for the queue number, max value is 8
+
+  std::vector<Address> destination_list; //!< list for address, using by index
+
+  PrioQueueDisc queue_buffer;
+  P4NetDevice* m_pNetDevice;
+
 };
 
 } // namespace ns3
