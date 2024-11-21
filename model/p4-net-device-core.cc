@@ -99,9 +99,9 @@ P4NetDeviceCore::P4NetDeviceCore(P4NetDevice* netDevice){
     Priomap priomap;
     for (uint8_t i = 0; i < 16; ++i) {
         if (i < 8) {
-            priomap[i] = i; // Map priority i to its own band for priorities below 8
+            priomap[i] = 7 - i; // Map priority i to its own band for priorities below 8
         } else {
-            priomap[i] = 0; // Map priority 8 and above to band 0
+            priomap[i] = 7; // Map priority 8 and above to band 0
         }
     }
     queue_buffer.SetAttribute("Priomap", PriomapValue(priomap));
@@ -355,7 +355,7 @@ P4NetDeviceCore::parser_ingress_processing(Ptr<Packet> packetIn)
             return;
         }
         phv->get_field("queueing_metadata.enq_qdepth")
-            .set(queue_buffer.GetQueueDiscClass(band)->GetQueueDisc()->GetNPackets()); // @TODO
+            .set(queue_buffer.GetQueueDiscClass(priority)->GetQueueDisc()->GetNPackets()); // @TODO
     }
 
     enqueue(egress_port, std::move(bm_packet), priority);
@@ -505,6 +505,8 @@ std::unique_ptr<bm::Packet> P4NetDeviceCore::get_bm_packet(Ptr<Packet> ns_packet
     std::unique_ptr<bm::Packet> bm_packet =
         new_packet_ptr(in_port, bmUid, len, std::move(buffer));
 
+    delete[] pkt_buffer;
+    
     // Add metadata
     StandardMetadataTag metadata_tag;
     metadata_tag.WriteMetadataToBMPacket(std::move(bm_packet));

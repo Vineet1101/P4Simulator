@@ -22,13 +22,16 @@
 #ifndef P4_SWITCH_CORE_H
 #define P4_SWITCH_CORE_H
 
+#include "bridge-p4-net-device.h"
 #include "fifo-queue-disc.h"
 #include "standard-metadata-tag.h"
-#include "traffic-control/p4-input-queue-buffer.h"
-#include "traffic-control/p4-queue-disc.h"
+
+#include "ns3/prio-queue-disc.h"
 
 #include <bm/bm_sim/packet.h>
 #include <bm/bm_sim/switch.h>
+// #include <bm/bm_sim/queueing.h> // rewrite with ns3 queuedisc
+
 
 namespace ns3
 {
@@ -36,34 +39,12 @@ namespace ns3
 
 struct PacketInfo
     {
-        int inPort,
+        int in_port;
         uint16_t protocol;
         Address destination;
         int64_t packet_id;
     };
 
-enum class PacketType
-    {
-        NORMAL,
-        RESUBMIT,
-        RECIRCULATE,
-        SENTINEL // signal for the ingress thread to terminate
-    };
-
-std::string PacketTypeToString(PacketType type)
-{
-    switch (type)
-    {
-    case PacketType::CONTROL:
-        return "CONTROL";
-    case PacketType::DATA:
-        return "DATA";
-    case PacketType::MANAGEMENT:
-        return "MANAGEMENT";
-    default:
-        return "UNKNOWN";
-    }
-}
 
 /**
  * \ingroup p4-pipeline
@@ -73,13 +54,24 @@ std::string PacketTypeToString(PacketType type)
 class P4Switch : public bm::Switch
 {
   public:
-    // by default, swapping is off
-    P4Switch(P4NetDevice* netDevice,
-             bool enable_swap = false,
-             port_t drop_port = default_drop_port,
-             size_t nb_queues_per_port = default_nb_queues_per_port);
+    P4Switch(BridgeP4NetDevice* netDevice);
 
     ~P4Switch();
+
+    struct MirroringSessionConfig {
+			port_t egress_port;
+			bool egress_port_valid;
+			unsigned int mgid;
+			bool mgid_valid;
+		};
+
+    enum class PacketType
+    {
+        NORMAL,
+        RESUBMIT,
+        RECIRCULATE,
+        SENTINEL // signal for the ingress thread to terminate
+    };
 
     /**
      * \brief Run the provided CLI commands to populate table entries
@@ -98,7 +90,7 @@ class P4Switch : public bm::Switch
 
     // void reset_target_state_() override;
 
-    // void swap_notify_() override;
+    void swap_notify_() override;
 
     // bool mirroring_add_session(mirror_id_t mirror_id, const MirroringSessionConfig& config);
 
@@ -112,11 +104,6 @@ class P4Switch : public bm::Switch
     // int set_egress_priority_queue_rate(size_t port, size_t priority, const uint64_t rate_pps);
     // int set_egress_queue_rate(size_t port, const uint64_t rate_pps);
     // int set_all_egress_queue_rates(const uint64_t rate_pps);
-
-    port_t get_drop_port() const
-    {
-        return drop_port;
-    }
 
     int ReceivePacket(Ptr<Packet> packetIn,
                       int inPort,
@@ -136,11 +123,11 @@ class P4Switch : public bm::Switch
                                   uint16_t protocol,
                                   const Address& destination);
 
-    void input_buffer(Ptr<Packet> packetIn);
+    void push_input_buffer(Ptr<Packet> packetIn);
 
-    void input_buffer(std::unique_ptr<bm::Packet>&& bm_packet, PacketType packet_type);
+    void push_input_buffer_with_priority(std::unique_ptr<bm::Packet>&& bm_packet, PacketType packet_type);
 
-    void transmit_buffer(std::unique_ptr<bm::Packet>&& bm_packet);
+    void push_transmit_buffer(std::unique_ptr<bm::Packet>&& bm_packet);
 
     void parser_ingress_processing();
 
@@ -148,17 +135,12 @@ class P4Switch : public bm::Switch
 
     void egress_deparser_processing();
 
-    bool mirroring_add_session(mirror_id_t mirror_id, const MirroringSessionConfig& config);
+    bool mirroring_add_session(int mirror_id, const MirroringSessionConfig& config);
 
-    bool mirroring_delete_session(mirror_id_t mirror_id);
+    bool mirroring_delete_session(int mirror_id);
 
-    bool mirroring_get_session(mirror_id_t mirror_id, MirroringSessionConfig* config) const;
+    bool mirroring_get_session(int mirror_id, MirroringSessionConfig* config) const;
     
-    void copy_field_list_and_set_type(
-			const std::unique_ptr<bm::Packet> &packet,
-			const std::unique_ptr<bm::Packet> &packet_copy,
-			PktInstanceType copy_type, p4object_id_t field_list_id);
-
     void multicast(bm::Packet *packet, unsigned int mgid);
 
     void check_queueing_metadata();
@@ -187,22 +169,45 @@ class P4Switch : public bm::Switch
     P4Switch(P4Switch&&) = delete;
     P4Switch&& operator=(P4Switch&&) = delete;
 
+    static constexpr port_t default_drop_port = 511;
+
   protected:
     static bm::packet_id_t packet_id;
     static int thrift_port;
 
   private:
+    
+    enum PktInstanceType {
+			PKT_INSTANCE_TYPE_NORMAL,
+			PKT_INSTANCE_TYPE_INGRESS_CLONE,
+			PKT_INSTANCE_TYPE_EGRESS_CLONE,
+			PKT_INSTANCE_TYPE_COALESCED,
+			PKT_INSTANCE_TYPE_RECIRC,
+			PKT_INSTANCE_TYPE_REPLICATION,
+			PKT_INSTANCE_TYPE_RESUBMIT,
+		};
+
+    void copy_field_list_and_set_type(
+			const std::unique_ptr<bm::Packet> &packet,
+			const std::unique_ptr<bm::Packet> &packet_copy,
+			PktInstanceType copy_type, int field_list_id);
+
+    bm::TargetParserBasic * m_argParser; 		    //!< Structure of parsers
+
     bool skip_tracing = true;          // whether to skip tracing
     bool with_queueing_metadata{true}; // whether to include queueing metadata
 
     size_t nb_queues_per_port{8}; // 3 bit for the queue number, max value is 8
+    
     std::unique_ptr<MirroringSessions> mirroring_sessions;
 
     std::vector<Address> destination_list; //!< list for address, using by index
 
-    P4InputQueueBufferDisc input_buffer;
+    PrioQueueDisc input_buffer; // two queues for control and data packets
     std::vector<P4QueueDisc> queue_buffers;
     FifoQueueDisc transmit_buffer;
+
+    BridgeP4NetDevice* m_pNetDevice;
 };
 
 } // namespace ns3
