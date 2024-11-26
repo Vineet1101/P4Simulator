@@ -18,22 +18,19 @@
  * Authors: Stephen Ibanez <sibanez@stanford.edu>
  *          Mingyu Ma <mingyu.ma@tu-dresden.de>
  *
- * \TODO GetNanoSeconds or GetMicroSeconds?
- *
  */
 
 #include "p4-switch-core.h"
 
-#include "global.h"
-#include "priority-port-tag.h"
+#include "queue-item.h"
 #include "register_access.h"
 #include "standard-metadata-tag.h"
 
-#include "ns3/ethernet-header.h"
-#include "ns3/simulator.h"
-#include "ns3/socket.h"
+#include "global.h"
 
 #include <bm/bm_runtime/bm_runtime.h>
+// #include <bm/bm_sim/event_logger.h>
+// #include <bm/bm_sim/logger.h>
 #include <bm/bm_sim/options_parse.h>
 #include <bm/bm_sim/parser.h>
 #include <bm/bm_sim/phv.h>
@@ -92,35 +89,6 @@ static std::unordered_map<uint64_t, PacketInfo> uidMap;
 std::unordered_map<uint64_t, uint64_t> reverseUidMap;
 
 int P4Switch::thrift_port = 9090;
-
-P4Switch::P4Switch(BridgeP4NetDevice* netDevice)
-{
-    NS_LOG_FUNCTION(this);
-
-    m_pNetDevice = netDevice;
-
-    input_buffer = CreateObject<PrioQueueDisc>();
-    queue_buffer = CreateObject<NSP4PriQueueDisc>();
-    transmit_buffer = CreateObject<FifoQueueDisc>();
-
-    input_buffer->Initialize();
-    Priomap input_buffer_priomap{0}; // set priority for input buffer
-    input_buffer_priomap[0] =
-        1; // default with lowest priority (band = 1), the highest priority is 0
-    input_buffer->SetAttribute("Priomap", PriomapValue(input_buffer_priomap));
-
-    queue_buffer->Initialize();
-    transmit_buffer->Initialize();
-}
-
-P4Switch::~P4Switch()
-{
-    input_buffer = nullptr;
-    queue_buffer = nullptr;
-    transmit_buffer = nullptr;
-
-    NS_LOG_INFO("MyClass: Buffers destroyed");
-}
 
 int
 P4Switch::init(int argc, char* argv[])
@@ -272,8 +240,7 @@ P4Switch::swap_notify_()
     check_queueing_metadata();
 }
 
-void
-P4Switch::check_queueing_metadata()
+void P4Switch::check_queueing_metadata
 {
     // TODO(antonin): add qid in required fields
     bool enq_timestamp_e = field_exists("queueing_metadata", "enq_timestamp");
@@ -308,70 +275,65 @@ P4Switch::ReceivePacket(Ptr<Packet> packetIn,
     NS_LOG_FUNCTION(this);
 
     // Add MetaData for all the packets comes in the P4 switch
-    StandardMetadataTag metadata_tag;
-    packetIn->AddPacketTag(metadata_tag);
+    StandardMetadataTag meta_tag;
+    packetIn.AddPacketTag(meta_tag);
 
     // save the ns3 packet uid and the port, protocol, destination
-    uint64_t ns3Uid = packetIn->GetUid();
+    uint64_t ns3Uid = ns_packet->GetUid();
     PacketInfo pkts_info = {inPort, protocol, destination, 0};
     uidMap[ns3Uid] = pkts_info;
 
     // process the packet in the pipeline
-    input_buffer->Enqueue(packetIn);
+    this->input_buffer(packetIn);
     return 0;
 }
 
 void
-P4Switch::push_input_buffer(Ptr<Packet> ns_packet)
+P4Switch::input_buffer(Ptr<Packet> ns_packet)
 {
     // Process the normal pkts, with normal priority
     NS_LOG_FUNCTION(this);
+    Ptr<QueueItem> queue_item = QueueItem(ns_packet);
+    PacketType packet_type = PacketType::NORMAL;
 
-    // Add priority tag for the packet
-    ns3::SocketPriorityTag priorityTag;
-    priorityTag.SetPriority(static_cast<uint8_t>(PacketType::NORMAL)); // Set the priority value
-    ns_packet->AddPacketTag(priorityTag); // Attach the tag to the packet
-
-    // Enqueue the packet in the queue buffer
-    Ptr<QueueItem> queue_item = CreateObject<QueueItem>(ns_packet);
-
-    if (input_buffer->Enqueue(queue_item))
+    if (P4InputQueueBufferDisc->DoEnqueue(queue_item, packet_type) == QueueDiscItem::ENQUEUED)
     {
-        NS_LOG_INFO("Packet enqueued in P4 InputQueueBuffer");
+        NS_LOG_INFO("Packet enqueued in P4InputQueueBufferDisc, PacketType: "
+                    << PacketTypeToString(packet_type));
+        return true;
     }
     else
     {
-        NS_LOG_WARN("QueueDisc P4InputQueueBufferDisc is full, dropping packet");
+        NS_LOG_WARN("QueueDisc P4InputQueueBufferDisc is full, dropping packet, PacketType: "
+                    << PacketTypeToString(packet_type));
+        return false;
     }
 }
 
 void
-P4Switch::push_input_buffer_with_priority(std::unique_ptr<bm::Packet>&& bm_packet,
-                                          PacketType packet_type)
+P4Switch::input_buffer(std::unique_ptr<bm::Packet>&& bm_packet, PacketType packet_type)
 {
     // Process the Re-submit, Re-circulate pkts, with high priority
     Ptr<Packet> ns_packet = this->get_ns3_packet(std::move(bm_packet));
 
     // Taken MetaData from processed p4_packete, then add for ns3_packet
     StandardMetadataTag meta_tag;
-    meta_tag.GetMetadataFromBMPacket(std::move(bm_packet));
+    meta_tag.GetMetadataFromBMPacket(bm_packet);
     ns_packet->AddPacketTag(meta_tag);
 
-    // add priority tag for the packet
-    ns3::SocketPriorityTag priorityTag;
-    priorityTag.SetPriority(static_cast<uint8_t>(packet_type)); // Set the priority value
-    ns_packet->AddPacketTag(priorityTag);                       // Attach the tag to the packet
+    Ptr<QueueItem> queue_item = QueueItem(ns_packet);
 
-    // Enqueue the packet in the queue buffer
-    Ptr<QueueItem> queue_item = CreateObject<QueueItem>(ns_packet);
-
-    if (input_buffer->Enqueue(queue_item))
+    if (this->input_buffer.DoEnqueue(queue_item, packet_type) == QueueDiscItem::ENQUEUED)
     {
-        NS_LOG_INFO("Packet enqueued in P4 InputQueueBuffer");
+        NS_LOG_INFO("Packet enqueued in P4InputQueueBufferDisc, PacketType: "
+                    << PacketTypeToString(packet_type));
+        return true;
     }
     else
     {
-        NS_LOG_WARN("QueueDisc P4InputQueueBufferDisc is full, dropping packet");
+        NS_LOG_WARN("QueueDisc P4InputQueueBufferDisc is full, dropping packet, PacketType: "
+                    << PacketTypeToString(packet_type));
+        return false;
     }
 }
 
@@ -387,55 +349,57 @@ P4Switch::enqueue(port_t egress_port, std::unique_ptr<bm::Packet>&& bm_packet)
     if (with_queueing_metadata)
     {
         phv->get_field("queueing_metadata.enq_timestamp").set(Simulator::Now().GetMicroSeconds());
-
-        priority = phv->has_field("intrinsic_metadata.priority")
-                       ? phv->get_field("intrinsic_metadata.priority").get<size_t>()
-                       : 0u;
+        
+        priority = phv->has_field(SSWITCH_PRIORITY_QUEUEING_SRC)
+                          ? phv->get_field(SSWITCH_PRIORITY_QUEUEING_SRC).get<size_t>()
+                          : 0u;
         if (priority >= nb_queues_per_port)
         {
             NS_LOG_ERROR("Priority out of range, dropping packet");
             return;
         }
         phv->get_field("queueing_metadata.enq_qdepth")
-            .set(this->queue_buffer->GetQueueSize(egress_port, priority));
+            .set(this->queue_buffers[egress_port][priority]->GetNPackets());
     }
 
     Ptr<Packet> ns_packet = get_ns3_packet(std::move(bm_packet));
-    ns3::PriorityPortTag priorityPortTag{static_cast<uint8_t>(priority), egress_port};
-    ns_packet->AddPacketTag(priorityPortTag);
 
     // put into the egress buffer with priority
-    Ptr<QueueItem> queue_item = CreateObject<QueueItem>(ns_packet);
-    if (queue_buffer->Enqueue(queue_item))
+    Ptr<QueueItem> queue_item = QueueItem(ns_packet);
+    if (this->queue_buffers[egress_port][priority].DoEnqueue(queue_item) == QueueDiscItem::ENQUEUED)
     {
         NS_LOG_INFO("Packet enqueued in P4QueueDisc, Port: " << egress_port
                                                              << ", Priority: " << priority);
+        return true;
     }
     else
     {
         NS_LOG_WARN("QueueDisc P4QueueDisc is full, dropping packet, Port: "
                     << egress_port << ", Priority: " << priority);
+        return false;
     }
 }
 
 void
-P4Switch::push_transmit_buffer(std::unique_ptr<bm::Packet>&& bm_packet)
+P4Switch::transmit_buffer(std::unique_ptr<bm::Packet>&& bm_packet)
 {
     NS_LOG_FUNCTION(this);
     // Re-submit, Re-circulate with high priority
-    // Ptr<Packet> ns_packet = this->get_ns3_packet(std::move(bm_packet));
+    Ptr<Packet> ns_packet = this->get_ns3_packet(bm_packet);
 
-    // // Now the MetaData Tag can be ignored
+    // Now the MetaData Tag can be ignored
 
-    // Ptr<QueueItem> queue_item = CreateObject<QueueItem>(ns_packet);
-    // if (this->transmit_buffer.Enqueue(queue_item) == QueueDiscItem::ENQUEUED)
-    // {
-    //     NS_LOG_INFO("Packet enqueued in TransmitBuffer");
-    // }
-    // else
-    // {
-    //     NS_LOG_WARN("QueueDisc TransmitBuffer is full, dropping packet");
-    // }
+    Ptr<QueueItem> queue_item = QueueItem(ns_packet);
+    if (this->transmit_buffer.DoEnqueue(queue_item) == QueueDiscItem::ENQUEUED)
+    {
+        NS_LOG_INFO("Packet enqueued in TransmitBuffer");
+        return true;
+    }
+    else
+    {
+        NS_LOG_WARN("QueueDisc TransmitBuffer is full, dropping packet");
+        return false;
+    }
 }
 
 void
@@ -443,7 +407,7 @@ P4Switch::parser_ingress_processing()
 {
     NS_LOG_FUNCTION(this);
 
-    Ptr<QueueDiscItem> item = this->input_buffer->Dequeue();
+    Ptr<QueueDiscItem> item = this->input_buffer.Dequeue();
     if (item == nullptr)
     {
         NS_LOG_WARN("P4InputQueueBufferDisc is empty, no packet to dequeue");
@@ -517,12 +481,12 @@ P4Switch::parser_ingress_processing()
         // actual session id.
         clone_mirror_session_id &= RegisterAccess::MIRROR_SESSION_ID_MASK;
         bool is_session_configured =
-            mirroring_get_session(static_cast<int>(clone_mirror_session_id), &config);
+            mirroring_get_session(static_cast<mirror_id_t>(clone_mirror_session_id), &config);
         if (is_session_configured)
         {
             const bm::Packet::buffer_state_t packet_out_state = bm_packet->save_buffer_state();
             bm_packet->restore_buffer_state(packet_in_state);
-            int field_list_id = clone_field_list;
+            bm::p4object_id_t field_list_id = clone_field_list;
             std::unique_ptr<bm::Packet> bm_packet_copy = bm_packet->clone_no_phv_ptr();
             RegisterAccess::clear_all(bm_packet_copy.get());
             bm_packet_copy->set_register(RegisterAccess::PACKET_LENGTH_REG_IDX,
@@ -574,7 +538,7 @@ P4Switch::parser_ingress_processing()
         // get the packet ready for being parsed again at the beginning of
         // ingress
         bm_packet->restore_buffer_state(packet_in_state);
-        int field_list_id = resubmit_flag;
+        p4object_id_t field_list_id = resubmit_flag;
         RegisterAccess::set_resubmit_flag(bm_packet.get(), 0);
         // TODO(antonin): a copy is not needed here, but I don't yet have an
         // optimized way of doing this
@@ -587,8 +551,7 @@ P4Switch::parser_ingress_processing()
         RegisterAccess::clear_all(bm_packet_copy.get());
         bm_packet_copy->set_register(RegisterAccess::PACKET_LENGTH_REG_IDX, ingress_packet_size);
         phv_copy->get_field("standard_metadata.packet_length").set(ingress_packet_size);
-
-        this->push_input_buffer_with_priority(std::move(bm_packet_copy), PacketType::RESUBMIT);
+        this->input_buffer(std::move(bm_packet_copy), PacketType::RESUBMIT);
         return;
     }
 
@@ -606,7 +569,7 @@ P4Switch::parser_ingress_processing()
     port_t egress_port = egress_spec;
     NS_LOG_DEBUG("Egress port is " << egress_port);
 
-    if (egress_port == default_drop_port)
+    if (egress_port == drop_port)
     {
         // drop packet
         NS_LOG_DEBUG("Dropping packet at the end of ingress");
@@ -623,9 +586,7 @@ P4Switch::egress_deparser_processing()
 {
     NS_LOG_FUNCTION("Dequeue packet from QueueBuffer");
     // Here need the ID.
-    Ptr<QueueDiscItem> item =
-        this->queue_buffer
-            ->Dequeue();
+    Ptr<QueueDiscItem> item = this->queue_buffers->Dequeue(); // \TODO get the NetDevice ID (egress port) and priority of the pacekts
     if (item == nullptr)
     {
         NS_LOG_WARN("GetQueueBuffer is empty, no packet to dequeue");
@@ -633,15 +594,6 @@ P4Switch::egress_deparser_processing()
     }
     Ptr<Packet> dequeued_ns_packet = item->GetPacket();
     NS_LOG_INFO("Packet dequeued from GetQueueBuffer");
-
-    PriorityPortTag tag;
-    if (!dequeued_ns_packet->PeekPacketTag(tag))
-    {
-        NS_LOG_WARN("Packet does not contain a PriorityPortTag");
-        return;
-    }
-    port_t port = tag.GetPort();
-    size_t priority = tag.GetPriority();
 
     // ns save packets id.
     auto bm_packet = get_bm_packet(dequeued_ns_packet);
@@ -663,18 +615,18 @@ P4Switch::egress_deparser_processing()
         uint64_t now = Simulator::Now().GetMicroSeconds();
         phv->get_field("queueing_metadata.deq_timedelta").set(now - enq_timestamp);
 
-        size_t priority = phv->has_field("intrinsic_metadata.priority")
-                              ? phv->get_field("intrinsic_metadata.priority").get<size_t>()
-                              : 0u;
+        priority = phv->has_field(SSWITCH_PRIORITY_QUEUEING_SRC)
+                          ? phv->get_field(SSWITCH_PRIORITY_QUEUEING_SRC).get<size_t>()
+                          : 0u;
         if (priority >= nb_queues_per_port)
         {
-            NS_LOG_ERROR("Priority out of range (nb_queues_per_port = " << nb_queues_per_port
-                                                                        << "), dropping packet");
+            NS_LOG_ERROR("Priority out of range (nb_queues_per_port = " << nb_queues_per_port << "), dropping packet");
             return;
         }
-
-        phv->get_field("queueing_metadata.deq_qdepth")
-            .set(this->queue_buffer->GetQueueSize(port ,priority));
+        
+        // \TODO Get the port of the packet
+        
+        phv->get_field("queueing_metadata.deq_qdepth").set(this->queue_buffers[port][priority].GetNPackets());
         if (phv->has_field("queueing_metadata.qid"))
         {
             auto& qid_f = phv->get_field("queueing_metadata.qid");
@@ -682,6 +634,8 @@ P4Switch::egress_deparser_processing()
         }
     }
 
+    // \TODO add port to the packet
+    int port = 511;
     phv->get_field("standard_metadata.egress_port").set(port);
 
     bm::Field& f_egress_spec = phv->get_field("standard_metadata.egress_spec");
@@ -708,10 +662,10 @@ P4Switch::egress_deparser_processing()
         // actual session id.
         clone_mirror_session_id &= RegisterAccess::MIRROR_SESSION_ID_MASK;
         bool is_session_configured =
-            mirroring_get_session(static_cast<int>(clone_mirror_session_id), &config);
+            mirroring_get_session(static_cast<mirror_id_t>(clone_mirror_session_id), &config);
         if (is_session_configured)
         {
-            int field_list_id = clone_field_list;
+            p4object_id_t field_list_id = clone_field_list;
             std::unique_ptr<bm::Packet> packet_copy =
                 bm_packet->clone_with_phv_reset_metadata_ptr();
             bm::PHV* phv_copy = packet_copy->get_phv();
@@ -719,17 +673,17 @@ P4Switch::egress_deparser_processing()
             field_list->copy_fields_between_phvs(phv_copy, phv);
             phv_copy->get_field("standard_metadata.instance_type")
                 .set(PKT_INSTANCE_TYPE_EGRESS_CLONE);
-            auto packet_size = bm_packet->get_register(RegisterAccess::PACKET_LENGTH_REG_IDX);
+            auto packet_size = packet->get_register(RegisterAccess::PACKET_LENGTH_REG_IDX);
             RegisterAccess::clear_all(packet_copy.get());
             packet_copy->set_register(RegisterAccess::PACKET_LENGTH_REG_IDX, packet_size);
             if (config.mgid_valid)
             {
-                NS_LOG_DEBUG("Cloning packet to MGID " << config.mgid);
+                NS_LOG_DEBUG("Cloning packet to MGID {}" << config.mgid);
                 multicast(packet_copy.get(), config.mgid);
             }
             if (config.egress_port_valid)
             {
-                NS_LOG_DEBUG("Cloning packet to egress port " << config.egress_port);
+                NS_LOG_DEBUG("Cloning packet to egress port {}", config.egress_port);
                 // TODO This create a copy packet(new bm packet), but the UID mapping may need to
                 // be updated in map.
                 enqueue(config.egress_port, std::move(packet_copy));
@@ -739,7 +693,7 @@ P4Switch::egress_deparser_processing()
 
     // TODO(antonin): should not be done like this in egress pipeline
     port_t egress_spec = f_egress_spec.get_uint();
-    if (egress_spec == default_drop_port)
+    if (egress_spec == drop_port)
     {
         // drop packet
         NS_LOG_DEBUG("Dropping packet at the end of egress");
@@ -754,13 +708,13 @@ P4Switch::egress_deparser_processing()
     {
         NS_LOG_DEBUG("Recirculating packet");
 
-        int field_list_id = recirculate_flag;
+        p4object_id_t field_list_id = recirculate_flag;
         RegisterAccess::set_recirculate_flag(bm_packet.get(), 0);
         bm::FieldList* field_list = this->get_field_list(field_list_id);
         // TODO(antonin): just like for resubmit, there is no need for a copy
         // here, but it is more convenient for this first prototype
         std::unique_ptr<bm::Packet> packet_copy = bm_packet->clone_no_phv_ptr();
-        bm::PHV* phv_copy = packet_copy->get_phv();
+        PHV* phv_copy = packet_copy->get_phv();
         phv_copy->reset_metadata();
         field_list->copy_fields_between_phvs(phv_copy, phv);
         phv_copy->get_field("standard_metadata.instance_type").set(PKT_INSTANCE_TYPE_RECIRC);
@@ -771,11 +725,11 @@ P4Switch::egress_deparser_processing()
         // TODO(antonin): really it may be better to create a new packet here or
         // to fold this functionality into the Packet class?
         packet_copy->set_ingress_length(packet_size);
-
-        this->push_input_buffer_with_priority(std::move(packet_copy), PacketType::RECIRCULATE);
+        this->input_buffer(std::move(packet_copy), PacketType::RECIRCULATE);
         return;
     }
 
+    
     // output_buffer.push_front(std::move(packet));
     // \TODO put pkts into the egress buffer with priority
 }
@@ -785,13 +739,13 @@ P4Switch::get_bm_packet(Ptr<Packet> ns_packet)
 {
     // Remove Tag with Metadata information from the ns_packet
     StandardMetadataTag metadata_tag;
-    ns_packet->PeekPacketTag(metadata_tag);
+    ns_packet->GetTag(metadata_tag);
     ns_packet->RemovePacketTag(metadata_tag);
 
     // UID mapping
     uint64_t ns3Uid = ns_packet->GetUid();
     PacketInfo pkts_info = uidMap[ns3Uid];
-    uint64_t bmUid = pkts_info.packet_id;
+    uint64_t bmUid = pkts_info.bmUid;
     reverseUidMap[bmUid] = ns3Uid;
 
     int in_port = pkts_info.in_port;
@@ -799,24 +753,20 @@ P4Switch::get_bm_packet(Ptr<Packet> ns_packet)
     // \TODO remove the reverseUidMap when the packet is sended out.
 
     int len = ns_packet->GetSize();
-    uint8_t* pkt_buffer = new uint8_t[len];
-    ns_packet->CopyData(pkt_buffer, len);
+    uint8_t* pkt_buffer = new uint8_t[ns3_pkt_length];
+    ns_packet->CopyData(pkt_buffer, ns3_pkt_length);
 
     // we limit the packet buffer to original size + 512 bytes, which means we
     // cannot add more than 512 bytes of header data to the packet, which should
     // be more than enough
-    uint8_t* pkt_buffer = new uint8_t[len];
-    ns_packet->CopyData(pkt_buffer, len);
-
-    bm::PacketBuffer buffer(len + 512, (char*)pkt_buffer, len);
-
-    std::unique_ptr<bm::Packet> bm_packet = new_packet_ptr(in_port, bmUid, len, std::move(buffer));
-
+    std::unique_ptr<bm::Packet> bm_packet =
+        new_packet_ptr(in_port,
+                       bmUid,
+                       bm::PacketBuffer(ns3_pkt_length + 512, (char*)pkt_buffer, ns3_pkt_length));
     delete[] pkt_buffer;
 
-    // Add metadata
-    StandardMetadataTag metadata_tag;
-    metadata_tag.WriteMetadataToBMPacket(std::move(bm_packet));
+    // Add the metadata to the bm_packet
+    metadata_tag.WriteMetadataToBMPacket(bm_packet);
 
     return bm_packet;
 }
@@ -826,35 +776,34 @@ P4Switch::get_bm_packet_from_ingress(Ptr<Packet> ns_packet)
 {
     // Remove Tag with Metadata information from the ns_packet
     StandardMetadataTag metadata_tag;
-    ns_packet->PeekPacketTag(metadata_tag);
+    ns_packet->GetTag(metadata_tag);
     ns_packet->RemovePacketTag(metadata_tag);
 
     // begin to set for the UID mapping
     uint64_t bmUid = ++packet_id;
     uint64_t ns3Uid = ns_packet->GetUid();
     PacketInfo pkts_info = uidMap[ns3Uid];
-    pkts_info.packet_id = bmUid;
+    pkts_info.bmUid = bmUid;
     uidMap[ns3Uid] = pkts_info;
     reverseUidMap[bmUid] = ns3Uid;
 
     int in_port = pkts_info.in_port;
 
     int len = ns_packet->GetSize();
-    uint8_t* pkt_buffer = new uint8_t[len];
-    ns_packet->CopyData(pkt_buffer, len);
+    uint8_t* pkt_buffer = new uint8_t[ns3_pkt_length];
+    ns_packet->CopyData(pkt_buffer, ns3_pkt_length);
 
     // we limit the packet buffer to original size + 512 bytes, which means we
     // cannot add more than 512 bytes of header data to the packet, which should
     // be more than enough
-    uint8_t* pkt_buffer = new uint8_t[len];
-    ns_packet->CopyData(pkt_buffer, len);
-    bm::PacketBuffer buffer(len + 512, (char*)pkt_buffer, len);
-    std::unique_ptr<bm::Packet> bm_packet = new_packet_ptr(in_port, bmUid, len, std::move(buffer));
+    std::unique_ptr<bm::Packet> bm_packet =
+        new_packet_ptr(in_port,
+                       bmUid,
+                       bm::PacketBuffer(ns3_pkt_length + 512, (char*)pkt_buffer, ns3_pkt_length));
     delete[] pkt_buffer;
 
-    // Add metadata
-    StandardMetadataTag metadata_tag;
-    metadata_tag.WriteMetadataToBMPacket(std::move(bm_packet));
+    // Add the metadata to the bm_packet
+    metadata_tag.WriteMetadataToBMPacket(bm_packet);
 
     return bm_packet;
 }
@@ -877,7 +826,7 @@ P4Switch::get_ns3_packet(std::unique_ptr<bm::Packet> bm_packet)
         uint64_t oldNs3Uid = it->second;
         PacketInfo pkts_info = uidMap[oldNs3Uid];
 
-        if (pkts_info.packet_id != bmUid)
+        if (pkts_info.bmUid != bmUid)
         {
             NS_LOG_ERROR("The bm::Packet UID in the mapping table is not consistent.");
         }
@@ -895,7 +844,7 @@ P4Switch::get_ns3_packet(std::unique_ptr<bm::Packet> bm_packet)
 
     // Add Tag with Metadata information to the ns_packet
     StandardMetadataTag metadata_tag;
-    metadata_tag.GetMetadataFromBMPacket(std::move(bm_packet));
+    metadata_tag.GetMetadataFromBMPacket(bm_packet);
     ns_packet->AddPacketTag(metadata_tag);
 
     return ns_packet;
@@ -905,7 +854,7 @@ void
 P4Switch::copy_field_list_and_set_type(const std::unique_ptr<bm::Packet>& packet,
                                        const std::unique_ptr<bm::Packet>& packet_copy,
                                        PktInstanceType copy_type,
-                                       int field_list_id)
+                                       p4object_id_t field_list_id)
 {
     bm::PHV* phv_copy = packet_copy->get_phv();
     phv_copy->reset_metadata();
@@ -918,86 +867,86 @@ void
 P4Switch::multicast(bm::Packet* packet, unsigned int mgid)
 {
     NS_LOG_FUNCTION(this);
-    // auto* phv = packet->get_phv();
-    // auto& f_rid = phv->get_field("intrinsic_metadata.egress_rid");
-    // const auto pre_out = pre->replicate({mgid});
-    // auto packet_size = packet->get_register(RegisterAccess::PACKET_LENGTH_REG_IDX);
+    auto* phv = packet->get_phv();
+    auto& f_rid = phv->get_field("intrinsic_metadata.egress_rid");
+    const auto pre_out = pre->replicate({mgid});
+    auto packet_size = packet->get_register(RegisterAccess::PACKET_LENGTH_REG_IDX);
 
-    // // \TODO using ns3 queue getNqueues to get the number of queues
-    // for (const auto& out : pre_out)
-    // {
-    //     auto egress_port = out.egress_port;
+    // \TODO using ns3 queue getNqueues to get the number of queues
+    for (const auto& out : pre_out)
+    {
+        auto egress_port = out.egress_port;
 
-    //     NS_LOG_DEBUG("Multicasting packet to egress port "
-    //                  << egress_port << ", Packet ID: " << packet->get_packet_id()
-    //                  << ", Size: " << packet->get_data_size() << " bytes");
+        NS_LOG_DEBUG("Multicasting packet to egress port "
+                     << egress_port << ", Packet ID: " << packet->get_packet_id()
+                     << ", Size: " << packet->get_data_size() << " bytes");
 
-    //     f_rid.set(out.rid);
-    //     std::unique_ptr<bm::Packet> packet_copy = packet->clone_with_phv_ptr();
-    //     RegisterAccess::clear_all(packet_copy.get());
-    //     packet_copy->set_register(RegisterAccess::PACKET_LENGTH_REG_IDX, packet_size);
-    //     enqueue(egress_port, std::move(packet_copy));
-    // }
+        f_rid.set(out.rid);
+        std::unique_ptr<bm::Packet> packet_copy = packet->clone_with_phv_ptr();
+        RegisterAccess::clear_all(packet_copy.get());
+        packet_copy->set_register(RegisterAccess::PACKET_LENGTH_REG_IDX, packet_size);
+        enqueue(egress_port, std::move(packet_copy));
+    }
 }
 
-// bool
-// P4Switch::mirroring_add_session(mirror_id_t mirror_id, const MirroringSessionConfig& config)
-// {
-//     return mirroring_sessions->add_session(mirror_id, config);
-// }
+bool
+P4Switch::mirroring_add_session(mirror_id_t mirror_id, const MirroringSessionConfig& config)
+{
+    return mirroring_sessions->add_session(mirror_id, config);
+}
 
-// bool
-// P4Switch::mirroring_delete_session(mirror_id_t mirror_id)
-// {
-//     return mirroring_sessions->delete_session(mirror_id);
-// }
+bool
+P4Switch::mirroring_delete_session(mirror_id_t mirror_id)
+{
+    return mirroring_sessions->delete_session(mirror_id);
+}
 
-// bool
-// P4Switch::mirroring_get_session(mirror_id_t mirror_id, MirroringSessionConfig* config) const
-// {
-//     return mirroring_sessions->get_session(mirror_id, config);
-// }
+bool
+P4Switch::mirroring_get_session(mirror_id_t mirror_id, MirroringSessionConfig* config) const
+{
+    return mirroring_sessions->get_session(mirror_id, config);
+}
 
-// int
-// P4Switch::set_egress_priority_queue_depth(size_t port, size_t priority, const size_t depth_pkts)
-// {
-//     queue_buffer.set_capacity(port, priority, depth_pkts);
-//     return 0;
-// }
+int
+P4Switch::set_egress_priority_queue_depth(size_t port, size_t priority, const size_t depth_pkts)
+{
+    egress_buffers.set_capacity(port, priority, depth_pkts);
+    return 0;
+}
 
-// int
-// P4Switch::set_egress_queue_depth(size_t port, const size_t depth_pkts)
-// {
-//     queue_buffer.set_capacity(port, depth_pkts);
-//     return 0;
-// }
+int
+P4Switch::set_egress_queue_depth(size_t port, const size_t depth_pkts)
+{
+    egress_buffers.set_capacity(port, depth_pkts);
+    return 0;
+}
 
-// int
-// P4Switch::set_all_egress_queue_depths(const size_t depth_pkts)
-// {
-//     queue_buffer.set_capacity_for_all(depth_pkts);
-//     return 0;
-// }
+int
+P4Switch::set_all_egress_queue_depths(const size_t depth_pkts)
+{
+    egress_buffers.set_capacity_for_all(depth_pkts);
+    return 0;
+}
 
-// int
-// P4Switch::set_egress_priority_queue_rate(size_t port, size_t priority, const uint64_t rate_pps)
-// {
-//     queue_buffer.set_rate(port, priority, rate_pps);
-//     return 0;
-// }
+int
+P4Switch::set_egress_priority_queue_rate(size_t port, size_t priority, const uint64_t rate_pps)
+{
+    egress_buffers.set_rate(port, priority, rate_pps);
+    return 0;
+}
 
-// int
-// P4Switch::set_egress_queue_rate(size_t port, const uint64_t rate_pps)
-// {
-//     egress_buffers.set_rate(port, rate_pps);
-//     return 0;
-// }
+int
+P4Switch::set_egress_queue_rate(size_t port, const uint64_t rate_pps)
+{
+    egress_buffers.set_rate(port, rate_pps);
+    return 0;
+}
 
-// int
-// P4Switch::set_all_egress_queue_rates(const uint64_t rate_pps)
-// {
-//     egress_buffers.set_rate_for_all(rate_pps);
-//     return 0;
-// }
+int
+P4Switch::set_all_egress_queue_rates(const uint64_t rate_pps)
+{
+    egress_buffers.set_rate_for_all(rate_pps);
+    return 0;
+}
 
 } // namespace ns3

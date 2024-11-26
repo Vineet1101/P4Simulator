@@ -304,6 +304,7 @@ BridgeP4NetDevice::SendFrom(Ptr<Packet> packet,
     //     }
     // }
 
+    // 广播数据包
     // data was not unicast or no state has been learned for that mac
     // address => flood through all ports.
     Ptr<Packet> pktCopy;
