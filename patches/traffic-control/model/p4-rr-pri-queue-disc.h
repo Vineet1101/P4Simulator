@@ -1,8 +1,9 @@
-#ifndef NS3_NS_QUEUEING_LOGIC_PRI_RL_QUEUE_DISC_H
-#define NS3_NS_QUEUEING_LOGIC_PRI_RL_QUEUE_DISC_H
+#ifndef NS3_P4_RR_PRI_QUEUE_DISC_H
+#define NS3_P4_RR_PRI_QUEUE_DISC_H
 
 #include "ns3/packet.h"
 #include "ns3/queue-disc.h"
+#include "ns3/random-variable-stream.h"
 
 #include <queue>
 #include <vector>
@@ -21,7 +22,7 @@ static constexpr const char* LIMIT_EXCEEDED_DROP = "Overlimit drop"; //!< Overli
  * used as a queue, but this cannot accurately control the simulation time.
  *
  */
-class NSQueueingLogicPriRLQueueDisc : public QueueDisc
+class NSP4PriQueueDisc : public QueueDisc
 {
   public:
     /**
@@ -33,9 +34,9 @@ class NSQueueingLogicPriRLQueueDisc : public QueueDisc
     /**
      * \brief P4 PrioQueueDisc constructor
      */
-    NSQueueingLogicPriRLQueueDisc();
+    NSP4PriQueueDisc();
 
-    ~NSQueueingLogicPriRLQueueDisc();
+    ~NSP4PriQueueDisc();
 
     /**
      * \brief Get the queue lenght of the queue for a given priority
@@ -43,7 +44,7 @@ class NSQueueingLogicPriRLQueueDisc : public QueueDisc
      * \param priority the priority
      * \return queue lenght
      */
-    uint32_t GetQueueSize(size_t priority) const;
+    uint32_t GetQueueSize(uint8_t port, uint8_t priority) const;
 
     /**
      * \brief Get the capacity of the queue for a given priority
@@ -51,7 +52,7 @@ class NSQueueingLogicPriRLQueueDisc : public QueueDisc
      * \param priority the priority
      * \return the capacity of the queue [number of packets]
      */
-    uint32_t GetQueueCapacity(size_t priority) const;
+    uint32_t GetQueueCapacity(uint8_t port, uint8_t priority) const;
 
     /**
      * \brief Get the rate of the queue for a given priority
@@ -59,7 +60,7 @@ class NSQueueingLogicPriRLQueueDisc : public QueueDisc
      * \param priority the priority
      * \return rate[PPS], the rate of the queue
      */
-    uint64_t GetQueueRate(size_t priority) const;
+    uint64_t GetQueueRate(uint8_t port, uint8_t priority) const;
 
     /**
      * \brief Set the capacity of the queue for a given priority
@@ -67,7 +68,7 @@ class NSQueueingLogicPriRLQueueDisc : public QueueDisc
      * \param priority the priority
      * \param the capacity of the queue [number of packets]
      */
-    void SetQueueCapacity(size_t priority, uint32_t capacity);
+    void SetQueueCapacity(uint8_t port, uint8_t priority, uint32_t capacity);
 
     /**
      * \brief Set the rate of the queue for a given priority
@@ -75,15 +76,13 @@ class NSQueueingLogicPriRLQueueDisc : public QueueDisc
      * \param priority the priority
      * \param rate[PPS], the rate of the queue
      */
-    void SetQueueRate(size_t priority, uint64_t ratePps);
+    void SetQueueRate(uint8_t port, uint8_t priority, uint64_t ratePps);
 
   protected:
     bool DoEnqueue(Ptr<QueueDiscItem> item) override;
     Ptr<QueueDiscItem> DoDequeue(void) override;
-
     Ptr<const QueueDiscItem> DoPeek(void) const;
     bool CheckConfig(void) override;
-
     virtual void InitializeParams(void) override;
 
   private:
@@ -109,17 +108,12 @@ class NSQueueingLogicPriRLQueueDisc : public QueueDisc
 
     struct FifoQueue
     {
-        FifoQueue(size_t nbPorts)
-            : queueLengthPort(nbPorts, 0)
-        {
-        }
-
         std::queue<QueueElement> queue;
         uint32_t size{0};
         uint32_t capacity{1000};
         uint64_t ratePps{1000};
         Time delayTime;
-        std::vector<uint32_t> queueLengthPort; // queuelenght for each port
+        uint32_t queueLengthPort;
     };
 
     /**
@@ -131,15 +125,24 @@ class NSQueueingLogicPriRLQueueDisc : public QueueDisc
     Time CalculateNextSendTime(const FifoQueue& priorityQueue) const;
 
     /**
+     * \brief Get the next port to send a packet
+     *
+     * \return the next port to dequeue a packet
+     */
+    uint8_t GetNextPort() const;
+
+    /**
      * \brief Convert rate to time
      */
     static constexpr Time RateToTime(uint64_t pps);
 
-    std::vector<FifoQueue> m_priorityQueues; // priority queues for all ports
-    size_t m_nbPorts{32};                    // default max 32 ports for switch
-    size_t m_nbPriorities{8};                // default 8 priorities <3 bit>
+    std::vector<std::vector<FifoQueue>> m_priorityQueues; // priority queues for all ports
+    uint8_t m_nbPorts{4};                                 // default 4 ports for switch
+    uint8_t m_nbPriorities{8};                            // default 8 priorities <3 bit>
+
+    Ptr<UniformRandomVariable> m_rng; // Random number generator
 };
 
 } // namespace ns3
 
-#endif // NS3_NS_QUEUEING_LOGIC_PRI_RL_QUEUE_DISC_H
+#endif // NS3_P4_RR_PRI_QUEUE_DISC_H
