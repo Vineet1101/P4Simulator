@@ -41,14 +41,16 @@ class NSP4PriQueueDisc : public QueueDisc
     /**
      * \brief Get the queue lenght of the queue for a given priority
      *
+     * \param port the port
      * \param priority the priority
-     * \return queue lenght
+     *
      */
     uint32_t GetQueueSize(uint8_t port, uint8_t priority) const;
 
     /**
      * \brief Get the capacity of the queue for a given priority
      *
+     * \param port the port
      * \param priority the priority
      * \return the capacity of the queue [number of packets]
      */
@@ -57,6 +59,7 @@ class NSP4PriQueueDisc : public QueueDisc
     /**
      * \brief Get the rate of the queue for a given priority
      *
+     * \param port the port
      * \param priority the priority
      * \return rate[PPS], the rate of the queue
      */
@@ -65,6 +68,7 @@ class NSP4PriQueueDisc : public QueueDisc
     /**
      * \brief Set the capacity of the queue for a given priority
      *
+     * \param port the port
      * \param priority the priority
      * \param the capacity of the queue [number of packets]
      */
@@ -73,6 +77,7 @@ class NSP4PriQueueDisc : public QueueDisc
     /**
      * \brief Set the rate of the queue for a given priority
      *
+     * \param port the port
      * \param priority the priority
      * \param rate[PPS], the rate of the queue
      */
@@ -106,6 +111,10 @@ class NSP4PriQueueDisc : public QueueDisc
         }
     };
 
+    /**
+     * \brief FifoQueue structure
+     *
+     */
     struct FifoQueue
     {
         std::queue<QueueElement> queue;
@@ -139,8 +148,7 @@ class NSP4PriQueueDisc : public QueueDisc
     std::vector<std::vector<FifoQueue>> m_priorityQueues; // priority queues for all ports
     uint8_t m_nbPorts{4};                                 // default 4 ports for switch
     uint8_t m_nbPriorities{8};                            // default 8 priorities <3 bit>
-
-    Ptr<UniformRandomVariable> m_rng; // Random number generator
+    Ptr<UniformRandomVariable> m_rng;                     // Random number generator
 };
 
 } // namespace ns3

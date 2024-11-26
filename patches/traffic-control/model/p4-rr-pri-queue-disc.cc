@@ -17,21 +17,24 @@ NS_OBJECT_ENSURE_REGISTERED(NSP4PriQueueDisc);
 TypeId
 NSP4PriQueueDisc::GetTypeId(void)
 {
-    static TypeId tid =
-        TypeId("ns3::NSP4PriQueueDisc")
-            .SetParent<QueueDisc>()
-            .SetGroupName("TrafficControl")
-            .AddConstructor<NSP4PriQueueDisc>()
-            .AddAttribute("NumPorts",
-                          "Number of ports to manage.",
-                          UintegerValue(4),
-                          MakeUintegerAccessor(&NSP4PriQueueDisc::m_nbPorts),
-                          MakeUintegerChecker<uint8_t>())
-            .AddAttribute("NumPriorities",
-                          "Number of virtual queue to manage for each port (default 8).",
-                          UintegerValue(8),
-                          MakeUintegerAccessor(&NSP4PriQueueDisc::m_nbPriorities),
-                          MakeUintegerChecker<uint8_t>());
+    static TypeId tid = TypeId("ns3::NSP4PriQueueDisc")
+                            .SetParent<QueueDisc>()
+                            .SetGroupName("TrafficControl")
+                            .AddConstructor<NSP4PriQueueDisc>()
+                            .AddAttribute("NumPorts",
+                                          "Number of ports to manage.",
+                                          UintegerValue(4),
+                                          MakeUintegerAccessor(&NSP4PriQueueDisc::m_nbPorts),
+                                          MakeUintegerChecker<uint8_t>());
+
+    // here we block to change the virtual queues number for each port, P4 with
+    // 3 bits for the queue number, max value is 8
+
+    // .AddAttribute("NumPriorities",
+    //               "Number of virtual queue to manage for each port (default 8).",
+    //               UintegerValue(8),
+    //               MakeUintegerAccessor(&NSP4PriQueueDisc::m_nbPriorities),
+    //               MakeUintegerChecker<uint8_t>());
 
     return tid;
 }
