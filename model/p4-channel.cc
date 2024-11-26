@@ -101,7 +101,7 @@ P4Channel::TransmitStart(Ptr<const Packet> p, Ptr<P4NetDevice> src, Time txTime)
 
     Simulator::ScheduleWithContext(m_link[wire].m_dst->GetNode()->GetId(),
                                    txTime + m_delay,
-                                   &P4NetDevice::Receive,
+                                   &P4NetDevice::ReceivePackets,
                                    m_link[wire].m_dst,
                                    p->Copy());
 
