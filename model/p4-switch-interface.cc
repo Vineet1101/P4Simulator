@@ -1,9 +1,13 @@
 #include "p4-switch-interface.h"
-
 #include "format-utils.h"
 #include "p4-exception-handle.h"
 
 #include "ns3/log.h"
+
+#include <bm/bm_sim/options_parse.h>
+#include <bm/bm_runtime/bm_runtime.h>
+#include <bm/bm_sim/switch.h>
+
 
 #include <fstream>
 #include <iostream>
@@ -871,11 +875,203 @@ P4SwitchInterface::ParseRateConfig(const std::string& rateBurstStr)
     return rateConfig;
 }
 
-void
-P4SwitchInterface::Init()
+// void
+// P4SwitchInterface::Init()
+// {	
+// 	// Initialize the P4 core model
+
+// 	int status = 0;
+    
+// 	//  Several methods of populating flowtable
+//     if (populateFLowTableWay_ == LOCAL_CALL)
+//     {
+//         /**
+//          * @brief This mode can only deal with "exact" matching table, the "lpm" matching
+//          * and other method can not use. @todo -mingyu
+//          */
+// 		std::vector<char*> args;
+// 		args.push_back(nullptr);
+// 		args.push_back(jsonPath_.data());
+// 		p4Core_->InitFromCommandLineOptionsLocal(static_cast<int>(args.size()), args.data());
+
+// 		ReadP4Info();
+// 		PopulateFlowTable();
+// 		// ViewFlowtableEntryNum();
+//     }
+//     else if (populateFLowTableWay_ == RUNTIME_CLI)
+//     {
+//         /**
+//          * @brief start thrift server , use runtime_CLI populate flowtable
+//          * This method is from src
+//          * This will connect to the simple_switch thrift server and input the command.
+//          * by now the bm::switch and the bm::simple_switch is not the same thing, so
+//          *  the "sswitch_runtime::get_handler()" by now can not use. @todo -mingyu
+//          */
+
+//         // status = this->init_from_command_line_options(argc, argv, m_argParser);
+//         // int thriftPort = this->get_runtime_port();
+//         // std::cout << "thrift port : " << thriftPort << std::endl;
+//         // bm_runtime::start_server(this, thriftPort);
+//         // //@todo BUG: THIS MAY CHANGED THE API
+//         // using ::sswitch_runtime::SimpleSwitchIf;
+//         // using ::sswitch_runtime::SimpleSwitchProcessor;
+//         // bm_runtime::add_service<SimpleSwitchIf, SimpleSwitchProcessor>(
+//         //         "simple_switch", sswitch_runtime::get_handler(this));
+//     }
+//     else if (populateFLowTableWay_ == NS3PIFOTM)
+//     {
+//         /**
+//          * @brief This method for setting the json file and populate the flow table
+//          * It is taken from "ns3-PIFO-TM", check in github: https://github.com/PIFO-TM/ns3-bmv2
+//          */
+
+//         static int p4_switch_ctrl_plane_thrift_port =
+//             9090; // the thrift port will from 9090 increase with 1.
+
+//         bm::OptionsParser opt_parser;
+//         opt_parser.config_file_path = P4GlobalVar::g_p4JsonPath;
+//         opt_parser.debugger_addr = std::string("ipc:///tmp/bmv2-") +
+//                                    std::to_string(p4_switch_ctrl_plane_thrift_port) +
+//                                    std::string("-debug.ipc");
+//         opt_parser.notifications_addr = std::string("ipc:///tmp/bmv2-") +
+//                                         std::to_string(p4_switch_ctrl_plane_thrift_port) +
+//                                         std::string("-notifications.ipc");
+//         opt_parser.file_logger = std::string("/tmp/bmv2-") +
+//                                  std::to_string(p4_switch_ctrl_plane_thrift_port) +
+//                                  std::string("-pipeline.log");
+//         opt_parser.thrift_port = p4_switch_ctrl_plane_thrift_port++;
+//         opt_parser.console_logging = true;
+
+//         //! Initialize the switch using an bm::OptionsParser instance.
+//         int status = p4Core_->init_from_options_parser(opt_parser);
+//         if (status != 0)
+//         {
+//             std::exit(status);
+//         }
+
+//         int port = p4Core_->get_runtime_port();
+//         bm_runtime::start_server(p4Core_, port);
+
+//         // std::string cmd = "simple_switch_CLI --thrift-port " + std::to_string(port)
+//         //                  + " < " + P4GlobalVar::g_flowTablePath; // this will have
+//         // log file output for tables
+
+//         std::string cmd = "simple_switch_CLI --thrift-port " + std::to_string(port) + " < " +
+//                           P4GlobalVar::g_flowTablePath + " > /dev/null 2>&1";
+//         int resultsys = std::system(cmd.c_str());
+//         if (resultsys != 0)
+//         {
+//             std::cerr << "Error executing command." << std::endl;
+//         }
+//         // bm_runtime::stop_server();
+//     }
+
+//     if (status != 0)
+//     {
+//         NS_LOG_LOGIC("ERROR: the P4 Model switch init failed in P4Switch::init.");
+//         std::exit(status);
+//         return;
+//     }
+// }
+
+void P4SwitchInterface::Init()
 {
-    ReadP4Info();
-    PopulateFlowTable();
-    // ViewFlowtableEntryNum();
+    NS_LOG_FUNCTION(this); // Log function entry
+
+    int status = 0; // Status flag for initialization
+
+	std::vector<char*> args;
+	args.push_back(nullptr);
+	args.push_back(jsonPath_.data());
+
+	// Initialize P4 core with local command line options
+	p4Core_->InitFromCommandLineOptionsLocal(static_cast<int>(args.size()), args.data());
+
+    // Initialize P4 core model based on the flow table population method
+    if (populateFLowTableWay_ == LOCAL_CALL)
+    {
+        /**
+         * @brief LOCAL_CALL mode supports only "exact" match tables. 
+         * Other match types like "lpm" are not supported in this mode.
+         */
+        NS_LOG_INFO("Initializing P4Switch with LOCAL_CALL mode.");
+		
+        // Read and populate flow table
+        ReadP4Info();
+        PopulateFlowTable();
+    }
+    else if (populateFLowTableWay_ == RUNTIME_CLI)
+    {
+        /**
+         * @brief RUNTIME_CLI mode starts a Thrift server and uses runtime_CLI
+         * commands to populate the flow table.
+         */
+        NS_LOG_INFO("Initializing P4Switch with RUNTIME_CLI mode.");
+        // Code for RUNTIME_CLI initialization is currently commented out.
+        // Uncomment and adapt as needed based on specific requirements.
+        // TODO: Implement RUNTIME_CLI initialization logic
+    }
+    else if (populateFLowTableWay_ == NS3PIFOTM)
+    {
+        /**
+         * @brief NS3PIFOTM mode initializes the switch using a JSON file
+         * and populates the flow table using P4GlobalVar paths.
+         */
+        NS_LOG_INFO("Initializing P4Switch with NS3PIFOTM mode.");
+
+        static int p4_switch_ctrl_plane_thrift_port = 9090;
+
+        bm::OptionsParser opt_parser;
+        opt_parser.config_file_path = P4GlobalVar::g_p4JsonPath;
+        opt_parser.debugger_addr = "ipc:///tmp/bmv2-" +
+                                   std::to_string(p4_switch_ctrl_plane_thrift_port) +
+                                   "-debug.ipc";
+        opt_parser.notifications_addr = "ipc:///tmp/bmv2-" +
+                                        std::to_string(p4_switch_ctrl_plane_thrift_port) +
+                                        "-notifications.ipc";
+        opt_parser.file_logger = "/tmp/bmv2-" +
+                                 std::to_string(p4_switch_ctrl_plane_thrift_port) +
+                                 "-pipeline.log";
+        opt_parser.thrift_port = p4_switch_ctrl_plane_thrift_port++;
+        opt_parser.console_logging = true;
+
+        // Initialize the switch
+        status = p4Core_->init_from_options_parser(opt_parser);
+        if (status != 0)
+        {
+            NS_LOG_ERROR("Failed to initialize P4Switch with NS3PIFOTM mode.");
+            return; // Avoid exiting simulation
+        }
+
+        // Start the runtime server
+        int port = p4Core_->get_runtime_port();
+        bm_runtime::start_server(p4Core_, port);
+
+        // Execute CLI command to populate the flow table
+        std::string cmd = "simple_switch_CLI --thrift-port " + std::to_string(port) +
+                          " < " + P4GlobalVar::g_flowTablePath + " > /dev/null 2>&1";
+        int result = std::system(cmd.c_str());
+        if (result != 0)
+        {
+            NS_LOG_ERROR("Error executing flow table population command: " << cmd);
+        }
+
+        // Note: Consider stopping the server if needed
+        // bm_runtime::stop_server();
+    }
+    else
+    {
+        NS_LOG_WARN("Unknown populateFlowTableWay_ method specified.");
+    }
+
+    if (status != 0)
+    {
+        NS_LOG_ERROR("P4Switch initialization failed with status: " << status);
+        return;
+    }
+
+    NS_LOG_INFO("P4Switch initialization completed successfully.");
 }
+
+
 } // namespace ns3

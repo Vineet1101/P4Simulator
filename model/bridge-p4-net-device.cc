@@ -21,6 +21,7 @@
 #include "bridge-p4-net-device.h"
 
 #include "global.h"
+#include "p4-switch-interface.h"
 
 #include "ns3/boolean.h"
 #include "ns3/channel.h"
@@ -69,15 +70,35 @@ BridgeP4NetDevice::BridgeP4NetDevice()
 
     m_p4Switch = new P4Switch(this);
 
-    // \TODO interface init & LOCAL_CALL
+    P4SwitchInterface* p4SwitchInterface = P4GlobalVar::g_p4Controller.AddP4Switch();
+    p4SwitchInterface->SetP4NetDeviceCore(m_p4Switch); //!< Pointer to the P4 core model.
+    p4SwitchInterface->SetJsonPath(
+        P4GlobalVar::g_p4JsonPath); //!< Path to the P4 JSON configuration file.
+    p4SwitchInterface->SetP4InfoPath(P4GlobalVar::g_p4MatchTypePath); //!< Path to the P4 info file.
+    p4SwitchInterface->SetFlowTablePath(
+        P4GlobalVar::g_flowTablePath); //!< Path to the flow table file.
+    p4SwitchInterface->SetViewFlowTablePath(
+        P4GlobalVar::g_viewFlowTablePath); //!< Path to the view flow table file.
+    p4SwitchInterface->SetNetworkFunc(P4GlobalVar::g_networkFunc); //!< Network function ID.
+    p4SwitchInterface->SetPopulateFlowTableWay(
+        P4GlobalVar::g_populateFlowTableWay); //!< Method to populate the flow table.
 
-    std::string jsonPath = P4GlobalVar::g_p4JsonPath;
-    std::vector<char*> args;
-    args.push_back(nullptr);
-    args.push_back(jsonPath.data());
+    // std::string jsonPath = P4GlobalVar::g_p4JsonPath;
+    // std::vector<char*> args;
+    // args.push_back(nullptr);
+    // args.push_back(jsonPath.data());
+    // m_p4Switch->init(static_cast<int>(args.size()), args.data());
 
-    m_p4Switch->init(static_cast<int>(args.size()), args.data());
+    p4SwitchInterface->Init(); // init the switch with p4 configure files (*.json)
+    
     m_p4Switch->start_and_return_();
+
+    // // Init P4Model Flow Table
+    // if (P4GlobalVar::g_populateFlowTableWay == LOCAL_CALL)
+    //     p4SwitchInterface->Init();
+
+    // Clear the local pointer to avoid accidental use; the object is managed by P4Controller
+    p4SwitchInterface = nullptr;
 
     NS_LOG_LOGIC("A P4 Netdevice was initialized.");
 }

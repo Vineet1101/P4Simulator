@@ -47,7 +47,6 @@ struct PacketInfo
         int64_t packet_id;
     };
 
-
 /**
  * \ingroup p4-pipeline
  *
@@ -111,14 +110,15 @@ class P4Switch : public bm::Switch
                       int inPort,
                       uint16_t protocol,
                       const Address& destination);
-    int init(int argc, char* argv[]);
+    
+    // !!! Deprecated function, see p4-switch-interface.cc for the new init function
+    // int init(int argc, char* argv[]);
 
     /**
      * \brief configure switch with json file
      */
     int InitFromCommandLineOptionsLocal(int argc,
-                                        char* argv[],
-                                        bm::TargetParserBasic* tp = nullptr);
+                                        char* argv[]);
 
     void packets_process_pipeline(Ptr<Packet> packetIn,
                                   int inPort,

@@ -5,6 +5,7 @@
 #include "p4-controller.h"
 #include "p4-switch-core.h"
 #include "switch-api.h"
+#include "global.h"
 
 #include "ns3/object.h"
 
@@ -89,6 +90,11 @@ class P4SwitchInterface : public Object
         jsonPath_ = path;
     }
 
+    void SetP4InfoPath(const std::string& path)
+    {
+        p4InfoPath_ = path;
+    }
+
     void SetFlowTablePath(const std::string& path)
     {
         flowTablePath_ = path;
@@ -102,6 +108,11 @@ class P4SwitchInterface : public Object
     void SetNetworkFunc(unsigned int func)
     {
         networkFunc_ = func;
+    }
+
+    void SetPopulateFlowTableWay(uint way)
+    {
+        populateFLowTableWay_ = way;
     }
 
     // Getters
@@ -133,6 +144,11 @@ class P4SwitchInterface : public Object
     unsigned int GetNetworkFunc() const
     {
         return networkFunc_;
+    }
+
+    uint GetPopulateFlowTableWay() const
+    {
+        return populateFLowTableWay_;
     }
 
     // Flow table and switch operations
@@ -178,6 +194,8 @@ class P4SwitchInterface : public Object
     std::string p4InfoPath_;        //!< Path to the P4 info file.
     std::string flowTablePath_;     //!< Path to the flow table file.
     std::string viewFlowTablePath_; //!< Path to the view flow table file.
+    uint populateFLowTableWay_ = 0; //!< Method to populate the flow table.
+
     unsigned int networkFunc_ = 0;  //!< Network function ID.
 
     std::unordered_map<std::string, Meter> meters_;         //!< Map of meter configurations.
