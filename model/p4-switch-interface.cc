@@ -30,11 +30,11 @@ namespace ns3 {
 
 	P4SwitchInterface::~P4SwitchInterface()
 	{
-        //********TO DO (Whether need delete m_p4core)*******************
-		/*if(m_p4core!=nullptr)
+        //********TO DO (Whether need delete p4Core_)*******************
+		/*if(p4Core_!=nullptr)
 		{
-			delete m_p4core;
-			m_p4core=nullptr;
+			delete p4Core_;
+			p4Core_=nullptr;
 		}*/
         //***************************************************************
 		NS_LOG_FUNCTION(this);
@@ -43,10 +43,10 @@ namespace ns3 {
 	void P4SwitchInterface::PopulateFlowTable()
 	{
 		std::fstream fp;
-		fp.open(m_flowTablePath);
+		fp.open(flowTablePath_);
 		if (!fp)
 		{
-			std::cout << "in P4Model::PopulateFlowTable, " << m_flowTablePath << " can't open." << std::endl;
+			std::cout << "in P4Model::PopulateFlowTable, " << flowTablePath_ << " can't open." << std::endl;
 		}
 		else
 		{
@@ -63,11 +63,11 @@ namespace ns3 {
 	void P4SwitchInterface::ReadP4Info()
 	{
 		std::ifstream topgen;
-		topgen.open(m_p4InfoPath);
+		topgen.open(p4InfoPath_);
 
 		if (!topgen.is_open())
 		{
-			std::cout << m_p4InfoPath << " can not open!" << std::endl;
+			std::cout << p4InfoPath_ << " can not open!" << std::endl;
 			abort();
 		}
 
@@ -92,31 +92,31 @@ namespace ns3 {
                                 lineBuffer>>tableName>>matchType;
                                 if (matchType.compare("exact") == 0)
                                 {
-                                        m_flowTable[tableName].matchType = bm::MatchKeyParam::Type::EXACT;
+                                        flowTables_[tableName].matchType = bm::MatchKeyParam::Type::EXACT;
                                 }
                                 else
                                 {
                                         if (matchType.compare("lpm") == 0)
                                         {
-                                                m_flowTable[tableName].matchType = bm::MatchKeyParam::Type::LPM;
+                                                flowTables_[tableName].matchType = bm::MatchKeyParam::Type::LPM;
                                         }
                                         else
                                         {
                                                 if (matchType.compare("ternary") == 0)
                                                 {
-                                                        m_flowTable[tableName].matchType = bm::MatchKeyParam::Type::TERNARY;
+                                                        flowTables_[tableName].matchType = bm::MatchKeyParam::Type::TERNARY;
                                                 }
                                                 else
                                                 {
                                                         if (matchType.compare("valid") == 0)
                                                         {
-                                                                m_flowTable[tableName].matchType = bm::MatchKeyParam::Type::VALID;
+                                                                flowTables_[tableName].matchType = bm::MatchKeyParam::Type::VALID;
                                                         }
                                                         else
                                                         {
                                                                 if (matchType.compare("range") == 0)
                                                                 {
-                                                                        m_flowTable[tableName].matchType = bm::MatchKeyParam::Type::RANGE;
+                                                                        flowTables_[tableName].matchType = bm::MatchKeyParam::Type::RANGE;
                                                                 }
                                                                 else
                                                                 {
@@ -131,11 +131,11 @@ namespace ns3 {
                         if(elementType.compare("meter")==0)
                         {
                                 lineBuffer>>meterName>>isDirect>>tableName;
-								m_meter[meterName].tableName=tableName;
+								meters_[meterName].tableName=tableName;
                                 if(isDirect==1)
-                                        m_meter[meterName].isDirect=true;
+                                        meters_[meterName].isDirect=true;
                                 else
-                                        m_meter[meterName].isDirect=false;
+                                        meters_[meterName].isDirect=false;
                                 continue;
                         }
                         if(elementType.compare("counter")==0)
@@ -143,13 +143,13 @@ namespace ns3 {
                                 lineBuffer>>counterName>>isDirect>>tableName;
                                 if(isDirect==1)
                                 {
-                                        m_counter[counterName].isDirect=true;
-                                        m_counter[counterName].tableName=tableName;
+                                        counters_[counterName].isDirect=true;
+                                        counters_[counterName].tableName=tableName;
                                 }
                                 else
                                 {
-                                        m_counter[counterName].isDirect=false;
-                                        m_counter[counterName].tableName=tableName;
+                                        counters_[counterName].isDirect=false;
+                                        counters_[counterName].tableName=tableName;
                                 }
                                 
                                 continue;
@@ -164,8 +164,8 @@ namespace ns3 {
 	void P4SwitchInterface::ViewFlowtableEntryNum()
 	{
 		//table_num_entries <table name>
-		typedef std::unordered_map<std::string, FlowTable_t>::iterator FlowTableIter_t;
-		for (FlowTableIter_t iter = m_flowTable.begin(); iter != m_flowTable.end(); ++iter)
+		typedef std::unordered_map<std::string, FlowTable>::iterator FlowTableIter_t;
+		for (FlowTableIter_t iter = flowTables_.begin(); iter != flowTables_.end(); ++iter)
 		{
 			std::string parm("table_num_entries ");
 			ParseAttainFlowTableInfoCommand(parm + iter->first);
@@ -179,10 +179,10 @@ namespace ns3 {
 	void P4SwitchInterface::AttainSwitchFlowTableInfo()
 	{
 		std::fstream fp;
-		fp.open(m_viewFlowTablePath);
+		fp.open(viewFlowTablePath_);
 		if (!fp)
 		{
-			std::cout << "AttainSwitchFlowTableInfo, " << m_viewFlowTablePath << " can't open." << std::endl;
+			std::cout << "AttainSwitchFlowTableInfo, " << viewFlowTablePath_ << " can't open." << std::endl;
 		}
 		else
 		{
@@ -195,7 +195,7 @@ namespace ns3 {
 		}
 	}
 
-	void P4SwitchInterface::ParseAttainFlowTableInfoCommand(const std::string commandRow)
+	void P4SwitchInterface::ParseAttainFlowTableInfoCommand(const std::string& commandRow)
 	{
 		std::vector<std::string> parms;
 		int lastP = 0, curP = 0;
@@ -215,7 +215,7 @@ namespace ns3 {
 		{
 			unsigned int commandType = SwitchApi::g_apiMap[parms[0]];
 			try {
-				if (m_p4core == nullptr)
+				if (p4Core_ == nullptr)
 					throw P4Exception(P4ErrorCode::P4_SWITCH_POINTER_NULL);
 				switch (commandType)
 				{
@@ -224,7 +224,7 @@ namespace ns3 {
 						if (parms.size() == 2)
 						{
 							size_t num_entries;
-							if (m_p4core->mt_get_num_entries(0, parms[1], &num_entries) != bm::MatchErrorCode::SUCCESS)
+							if (p4Core_->mt_get_num_entries(0, parms[1], &num_entries) != bm::MatchErrorCode::SUCCESS)
 								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 							std::cout << parms[1] << " entry num: " << num_entries << std::endl;
 						}
@@ -252,7 +252,7 @@ namespace ns3 {
 					try {
 						if (parms.size() == 2)
 						{
-							if (m_p4core->mt_clear_entries(0, parms[1], false) != bm::MatchErrorCode::SUCCESS)
+							if (p4Core_->mt_clear_entries(0, parms[1], false) != bm::MatchErrorCode::SUCCESS)
 								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 						}
 						else
@@ -279,13 +279,13 @@ namespace ns3 {
 					try {
 						if (parms.size() == 3)
 						{
-							if (m_meter.count(parms[1]) > 0)
+							if (meters_.count(parms[1]) > 0)
 							{
-								if (m_meter[parms[1]].isDirect)//direct
+								if (meters_[parms[1]].isDirect)//direct
 								{
 									bm::entry_handle_t handle(StrToInt(parms[2]));
 									std::vector<bm::Meter::rate_config_t> configs;
-									if (m_p4core->mt_get_meter_rates(0, m_meter[parms[1]].tableName, handle, &configs) != bm::MatchErrorCode::SUCCESS)
+									if (p4Core_->mt_get_meter_rates(0, meters_[parms[1]].tableName, handle, &configs) != bm::MatchErrorCode::SUCCESS)
 										throw P4Exception(P4ErrorCode::NO_SUCCESS);
 									for (size_t i = 0; i < configs.size(); i++)
 									{
@@ -296,7 +296,7 @@ namespace ns3 {
 								{
 									size_t idx(StrToInt(parms[2]));
 									std::vector<bm::Meter::rate_config_t> configs;
-									if (m_p4core->meter_get_rates(0, parms[1], idx, &configs) != 0)
+									if (p4Core_->meter_get_rates(0, parms[1], idx, &configs) != 0)
 										throw P4Exception(P4ErrorCode::NO_SUCCESS);
 									for (size_t i = 0; i < configs.size(); i++)
 									{
@@ -331,14 +331,14 @@ namespace ns3 {
 					try {
 						if (parms.size() == 3)
 						{
-							if (m_counter.count(parms[1]) > 0)
+							if (counters_.count(parms[1]) > 0)
 							{
-								if (m_counter[parms[1]].isDirect)//direct
+								if (counters_[parms[1]].isDirect)//direct
 								{
 									bm::entry_handle_t handle(StrToInt(parms[2]));
 									bm::MatchTableAbstract::counter_value_t bytes;
 									bm::MatchTableAbstract::counter_value_t packets;
-									if (m_p4core->mt_read_counters(0, m_counter[parms[1]].tableName, handle, &bytes, &packets) != bm::MatchErrorCode::SUCCESS)
+									if (p4Core_->mt_read_counters(0, counters_[parms[1]].tableName, handle, &bytes, &packets) != bm::MatchErrorCode::SUCCESS)
 										throw P4Exception(P4ErrorCode::NO_SUCCESS);
 									std::cout << "counter " << parms[1] << "[" << handle << "] size:" << bytes << " bytes " << packets << " packets" << std::endl;
 								}
@@ -347,7 +347,7 @@ namespace ns3 {
 									size_t index(StrToInt(parms[2]));
 									bm::MatchTableAbstract::counter_value_t bytes;
 									bm::MatchTableAbstract::counter_value_t packets;
-									if (m_p4core->read_counters(0, parms[1], index, &bytes, &packets) != 0)
+									if (p4Core_->read_counters(0, parms[1], index, &bytes, &packets) != 0)
 										throw P4Exception(P4ErrorCode::NO_SUCCESS);
 									std::cout << "counter " << parms[1] << "[" << index << "] size:" << bytes << " bytes " << packets << " packets" << std::endl;
 								}
@@ -379,16 +379,16 @@ namespace ns3 {
 					try {
 						if (parms.size() == 2)
 						{
-							if (m_counter.count(parms[1]) > 0)
+							if (counters_.count(parms[1]) > 0)
 							{
-								if (m_counter[parms[1]].isDirect)//direct
+								if (counters_[parms[1]].isDirect)//direct
 								{
-									if (m_p4core->mt_reset_counters(0, m_counter[parms[1]].tableName) != bm::MatchErrorCode::SUCCESS)
+									if (p4Core_->mt_reset_counters(0, counters_[parms[1]].tableName) != bm::MatchErrorCode::SUCCESS)
 										throw P4Exception(P4ErrorCode::NO_SUCCESS);
 								}
 								else //indirect
 								{
-									if (m_p4core->reset_counters(0, parms[1]) != 0)
+									if (p4Core_->reset_counters(0, parms[1]) != 0)
 										throw P4Exception(P4ErrorCode::NO_SUCCESS);
 								}
 							}
@@ -421,7 +421,7 @@ namespace ns3 {
 						{
 							size_t index(StrToInt(parms[2]));
 							bm::Data value;
-							if (m_p4core->register_read(0, parms[1], index, &value) != 0)
+							if (p4Core_->register_read(0, parms[1], index, &value) != 0)
 								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 							std::cout << "register " << parms[1] << "[" << index << "] value :" << value << std::endl;
 						}
@@ -451,7 +451,7 @@ namespace ns3 {
 						{
 							size_t index(StrToInt(parms[2]));
 							bm::Data value(parms[3]);
-							if (m_p4core->register_write(0, parms[1], index, value) != 0)
+							if (p4Core_->register_write(0, parms[1], index, value) != 0)
 								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 						}
 						else
@@ -478,7 +478,7 @@ namespace ns3 {
 					try {
 						if (parms.size() == 2)
 						{
-							if (m_p4core->register_reset(0, parms[1]) != 0)
+							if (p4Core_->register_reset(0, parms[1]) != 0)
 								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 						}
 						else
@@ -507,7 +507,7 @@ namespace ns3 {
 						{
 							bm::entry_handle_t handle(StrToInt(parms[2]));
 							bm::MatchTable::Entry entry;
-							if (m_p4core->mt_get_entry(0, parms[1], handle, &entry) != bm::MatchErrorCode::SUCCESS)
+							if (p4Core_->mt_get_entry(0, parms[1], handle, &entry) != bm::MatchErrorCode::SUCCESS)
 								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 							std::cout << parms[1] << " entry " << handle << " :" << std::endl;
 							std::cout << "MatchKey:";
@@ -547,7 +547,7 @@ namespace ns3 {
 						if (parms.size() == 2)
 						{
 							std::vector<bm::MatchTable::Entry> entries;
-							entries = m_p4core->mt_get_entries(0, parms[1]);
+							entries = p4Core_->mt_get_entries(0, parms[1]);
 							// TO DO: output entries info
 						}
 						else
@@ -583,7 +583,7 @@ namespace ns3 {
 		}
 	}
 
-	void P4SwitchInterface::ParsePopulateFlowTableCommand(const std::string commandRow)
+	void P4SwitchInterface::ParsePopulateFlowTableCommand(const std::string& commandRow)
 	{
 		std::vector<std::string> parms;
 		// lastP : the position of the last space in the string "commandRow"
@@ -605,7 +605,7 @@ namespace ns3 {
 		{
 			unsigned int commandType = SwitchApi::g_apiMap[parms[0]];
 			try {
-				if (m_p4core == nullptr)
+				if (p4Core_ == nullptr)
 					throw P4Exception(P4ErrorCode::P4_SWITCH_POINTER_NULL);
 				switch (commandType)
 				{
@@ -619,11 +619,11 @@ namespace ns3 {
 								for (size_t i = 3; i < parms.size(); i++)
 									actionData.push_back_action_data(bm::Data(parms[i]));
 							}
-							if (m_p4core->mt_set_default_action(0, parms[1], parms[2], actionData) != bm::MatchErrorCode::SUCCESS)
-								throw P4Exception(P4ErrorCode::P4ErrorCode::NO_SUCCESS);
+							if (p4Core_->mt_set_default_action(0, parms[1], parms[2], actionData) != bm::MatchErrorCode::SUCCESS)
+								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 						}
 						else
-							throw P4Exception(P4ErrorCode::P4ErrorCode::PARAMETER_NUM_ERROR);
+							throw P4Exception(P4ErrorCode::PARAMETER_NUM_ERROR);
 					}
 					catch (P4Exception& e)
 					{
@@ -650,7 +650,7 @@ namespace ns3 {
 						std::vector<bm::MatchKeyParam> matchKey;
 						bm::ActionData actionData;
 						bm::entry_handle_t handle;
-						bm::MatchKeyParam::Type matchType = m_flowTable[parms[1]].matchType;
+						bm::MatchKeyParam::Type matchType = flowTables_[parms[1]].matchType;
 						unsigned int keyNum = 0;
 						unsigned int actionDataNum = 0;
 						size_t i;
@@ -708,7 +708,7 @@ namespace ns3 {
 								}
 								default:
 								{
-									throw P4Exception(P4ErrorCode::P4ErrorCode::MATCH_TYPE_ERROR);
+									throw P4Exception(P4ErrorCode::MATCH_TYPE_ERROR);
 									break;
 								}
 								}
@@ -730,7 +730,7 @@ namespace ns3 {
 							}
 							priority = 0;
 							//TO DO:judge action_data_num equal action need num
-							if (m_p4core->mt_add_entry(0, parms[1], matchKey, parms[2], actionData, &handle, priority) != bm::MatchErrorCode::SUCCESS)
+							if (p4Core_->mt_add_entry(0, parms[1], matchKey, parms[2], actionData, &handle, priority) != bm::MatchErrorCode::SUCCESS)
 								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 						}
 						else if (matchType == bm::MatchKeyParam::Type::LPM) {
@@ -741,7 +741,7 @@ namespace ns3 {
 								actionData.push_back_action_data(bm::Data(parms[i]));
 							}
 							//TO DO:judge action_data_num equal action need num
-							if (m_p4core->mt_add_entry(0, parms[1], matchKey, parms[2], actionData, &handle) != bm::MatchErrorCode::SUCCESS)
+							if (p4Core_->mt_add_entry(0, parms[1], matchKey, parms[2], actionData, &handle) != bm::MatchErrorCode::SUCCESS)
 								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 						}
 						else 
@@ -755,7 +755,7 @@ namespace ns3 {
 							}
 							//TO DO:judge action_data_num equal action need num
 							priority = StrToInt(parms[parms.size() - 1]);
-							if (m_p4core->mt_add_entry(0, parms[1], matchKey, parms[2], actionData, &handle, priority) != bm::MatchErrorCode::SUCCESS)
+							if (p4Core_->mt_add_entry(0, parms[1], matchKey, parms[2], actionData, &handle, priority) != bm::MatchErrorCode::SUCCESS)
 								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 						}
 					}
@@ -782,7 +782,7 @@ namespace ns3 {
 						{
 							bm::entry_handle_t handle(StrToInt(parms[2]));
 							unsigned int ttl_ms(StrToInt(parms[3]));
-							if (m_p4core->mt_set_entry_ttl(0, parms[1], handle, ttl_ms) != bm::MatchErrorCode::SUCCESS)
+							if (p4Core_->mt_set_entry_ttl(0, parms[1], handle, ttl_ms) != bm::MatchErrorCode::SUCCESS)
 								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 						}
 						else
@@ -817,7 +817,7 @@ namespace ns3 {
 								actionData.push_back_action_data(bm::Data(parms[i]));
 							}
 							//TO DO:judge action_data_num equal action need num
-							if (m_p4core->mt_modify_entry(0, parms[1], handle, parms[2], actionData) != bm::MatchErrorCode::SUCCESS)
+							if (p4Core_->mt_modify_entry(0, parms[1], handle, parms[2], actionData) != bm::MatchErrorCode::SUCCESS)
 								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 						}
 						else
@@ -845,7 +845,7 @@ namespace ns3 {
 						if (parms.size() == 3)
 						{
 							bm::entry_handle_t handle(StrToInt(parms[2]));
-							if (m_p4core->mt_delete_entry(0, parms[1], handle) != bm::MatchErrorCode::SUCCESS)
+							if (p4Core_->mt_delete_entry(0, parms[1], handle) != bm::MatchErrorCode::SUCCESS)
 								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 						}
 						else
@@ -883,7 +883,7 @@ namespace ns3 {
 								rateConfig.burst_size = StrToInt(burst);
 								configs.push_back(rateConfig);
 							}
-							if (m_p4core->meter_array_set_rates(0, parms[1], configs) != 0)
+							if (p4Core_->meter_array_set_rates(0, parms[1], configs) != 0)
 								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 						}
 						else
@@ -920,16 +920,16 @@ namespace ns3 {
 								rateConfig.burst_size = StrToInt(burst);
 								configs.push_back(rateConfig);
 							}
-							if (m_meter[parms[1]].isDirect)//direct
+							if (meters_[parms[1]].isDirect)//direct
 							{
 								bm::entry_handle_t handle(StrToInt(parms[2]));
-								if (m_p4core->mt_set_meter_rates(0, m_meter[parms[1]].tableName, handle, configs) != bm::MatchErrorCode::SUCCESS)
+								if (p4Core_->mt_set_meter_rates(0, meters_[parms[1]].tableName, handle, configs) != bm::MatchErrorCode::SUCCESS)
 									throw P4Exception(P4ErrorCode::NO_SUCCESS);
 							}
 							else//indirect
 							{
 								size_t idx(StrToInt(parms[2]));
-								if (m_p4core->meter_set_rates(0, parms[1], idx, configs) != 0)
+								if (p4Core_->meter_set_rates(0, parms[1], idx, configs) != 0)
 									throw P4Exception(P4ErrorCode::NO_SUCCESS);
 							}
 						}

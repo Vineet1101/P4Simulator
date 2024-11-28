@@ -1,165 +1,108 @@
 #ifndef P4_SWITCH_INTERFACE_H
 #define P4_SWITCH_INTERFACE_H
 
-#include "p4-net-device.h"
+#include "p4-switch-core.h"
 #include "bridge-p4-net-device.h"
 #include "switch-api.h"
 #include "p4-controller.h"
 #include "ns3/object.h"
 
 #include <bm/bm_sim/match_units.h>
-
+#include <unordered_map>
 #include <vector>
 #include <string>
-#include <unordered_map>
-
 
 namespace ns3 {
 
-	class P4Model;
+class P4Switch;
 
-	struct Meter_t { // meter attribute
-		bool isDirect;
-		std::string tableName;
-	public:
-		Meter_t() {}
-		Meter_t(bool isD) {
-			isDirect = isD;
-		}
-		Meter_t(bool isD,const std::string& name)
-		{
-			isDirect=isD;
-			tableName=name;
-		}
-	};
+/**
+ * \brief Represents a Meter configuration.
+ */
+struct Meter {
+    bool isDirect = false;                 //!< Indicates if this is a direct meter.
+    std::string tableName;                 //!< The associated table name.
 
-	struct Counter_t {
-		bool isDirect;
-		std::string tableName;
-	public:
-		Counter_t() {}
-		Counter_t(bool isD) {
-			isDirect = isD;
-		}
-		Counter_t(bool isD, const std::string& name) {
-			isDirect = isD;
-			tableName = name;
-		}
-	};
+    Meter() = default;
+    Meter(bool isDirect, const std::string& name = "") 
+        : isDirect(isDirect), tableName(name) {}
+};
 
-	struct FlowTable_t {
-		bm::MatchKeyParam::Type matchType;
-	public:
-		FlowTable_t() {}
-		FlowTable_t(bm::MatchKeyParam::Type mt) {
-			matchType = mt;
-		}
-	};
+/**
+ * \brief Represents a Counter configuration.
+ */
+struct Counter {
+    bool isDirect = false;                 //!< Indicates if this is a direct counter.
+    std::string tableName;                 //!< The associated table name.
 
-	class P4SwitchInterface :public Object
-	{
+    Counter() = default;
+    Counter(bool isDirect, const std::string& name = "") 
+        : isDirect(isDirect), tableName(name) {}
+};
 
-	public:
+/**
+ * \brief Represents a Flow Table configuration.
+ */
+struct FlowTable {
+    bm::MatchKeyParam::Type matchType;     //!< Match type for the flow table.
 
-		friend class P4Controller;
+    FlowTable() = default;
+    explicit FlowTable(bm::MatchKeyParam::Type mt) : matchType(mt) {}
+};
 
-		P4SwitchInterface();
+/**
+ * \brief P4SwitchInterface manages the interaction with a P4-based switch.
+ */
+class P4SwitchInterface : public Object {
+public:
+    P4SwitchInterface();
+    ~P4SwitchInterface() override;
 
-		~P4SwitchInterface();
+    static TypeId GetTypeId();
 
-		static TypeId GetTypeId(void);
+    // Setters
+    void SetP4NetDeviceCore(P4Switch* model) { p4Core_ = model; }
+    void SetJsonPath(const std::string& path) { jsonPath_ = path; }
+    void SetFlowTablePath(const std::string& path) { flowTablePath_ = path; }
+    void SetViewFlowTablePath(const std::string& path) { viewFlowTablePath_ = path; }
+    void SetNetworkFunc(unsigned int func) { networkFunc_ = func; }
 
-		void SetP4NetDeviceCore(P4NetDeviceCore *model)
-		{
-			m_p4core = model;
-		}
+    // Getters
+    P4Switch* GetP4Switch() const { return p4Core_; }
+    const std::string& GetJsonPath() const { return jsonPath_; }
+    const std::string& GetP4InfoPath() const { return p4InfoPath_; }
+    const std::string& GetFlowTablePath() const { return flowTablePath_; }
+    const std::string& GetViewFlowTablePath() const { return viewFlowTablePath_; }
+    unsigned int GetNetworkFunc() const { return networkFunc_; }
 
-		void SetJsonPath(const std::string& path)
-		{
-			m_jsonPath = path;
-		}
+    // Flow table and switch operations
+    void PopulateFlowTable();
+    void ReadP4Info();
+    void ViewFlowtableEntryNum();
+    void AttainSwitchFlowTableInfo();
+    void ParseAttainFlowTableInfoCommand(const std::string& commandRow);
+    void ParsePopulateFlowTableCommand(const std::string& commandRow);
 
-		void SetFlowTablePath(const std::string& path)
-		{
-			m_flowTablePath = path;
-		}
+    // Initialize the switch interface
+    void Init();
 
-		void SetViewFlowTablePath(const std::string&path)
-		{
-			m_viewFlowTablePath=path;
-		}
+private:
+    P4Switch* p4Core_ = nullptr;                  //!< Pointer to the P4 core model.
+    std::string jsonPath_;                        //!< Path to the P4 JSON configuration file.
+    std::string p4InfoPath_;                      //!< Path to the P4 info file.
+    std::string flowTablePath_;                   //!< Path to the flow table file.
+    std::string viewFlowTablePath_;               //!< Path to the view flow table file.
+    unsigned int networkFunc_ = 0;                //!< Network function ID.
 
-		void SetNetworkFunc(unsigned int func)
-		{
-			m_networkFunc = func;
-		}
+    std::unordered_map<std::string, Meter> meters_;          //!< Map of meter configurations.
+    std::unordered_map<std::string, FlowTable> flowTables_;  //!< Map of flow table configurations.
+    std::unordered_map<std::string, Counter> counters_;      //!< Map of counter configurations.
 
-		P4NetDeviceCore* GetP4Model()
-		{
-			return m_p4core;
-		}
+    // Disable copy constructor and assignment operator
+    P4SwitchInterface(const P4SwitchInterface&) = delete;
+    P4SwitchInterface& operator=(const P4SwitchInterface&) = delete;
+};
 
-		std::string GetJsonPath()
-		{
-			return m_jsonPath;
-		}
+} // namespace ns3
 
-		std::string GetP4InfoPath()
-		{
-			return m_p4InfoPath;
-		}
-
-		std::string GetFlowTablePath()
-		{
-			return m_flowTablePath;
-		}
-
-		std::string GetViewFlowTablePath()
-		{
-			return m_viewFlowTablePath;
-		}
-
-		unsigned int GetNetworkFunc()
-		{
-			return m_networkFunc;
-		}
-
-		void PopulateFlowTable();
-
-		void ReadP4Info();
-
-		void ViewFlowtableEntryNum();
-
-		void AttainSwitchFlowTableInfo();
-
-		void ParseAttainFlowTableInfoCommand(const std::string commandRow);
-
-		void ParsePopulateFlowTableCommand(const std::string commandRow);
-
-		void Init();
-
-	private:
-
-		P4NetDeviceCore *m_p4core;
-		std::string m_jsonPath;
-		std::string m_p4InfoPath;
-		std::string m_flowTablePath;
-		std::string m_viewFlowTablePath;
-		unsigned int m_networkFunc;
-
-		std::unordered_map<std::string, Meter_t> m_meter;
-
-		std::unordered_map<std::string, FlowTable_t> m_flowTable;
-
-		std::unordered_map<std::string, Counter_t> m_counter;
-
-		P4SwitchInterface(const P4SwitchInterface&);
-
-		P4SwitchInterface& operator= (const P4SwitchInterface&);
-	};
-
-}
-
-#endif // !P4_SWITCH_INTERFACE_H
-
-
+#endif // P4_SWITCH_INTERFACE_H
