@@ -2,7 +2,7 @@
 #define P4_SWITCH_INTERFACE_H
 
 #include "p4-net-device.h"
-#include "bridge/bridge-p4-net-device.h"
+#include "bridge-p4-net-device.h"
 #include "switch-api.h"
 #include "p4-controller.h"
 #include "ns3/object.h"

@@ -1,11 +1,12 @@
 #include "ns3/log.h"
 #include "p4-switch-interface.h"
+#include "p4-exception-handle.h"
+#include "format-utils.h"
+
 #include <fstream>
 #include <unordered_map>
 #include <iostream>
 #include <string>
-#include "exception-handle.h"
-#include "helper.h"
 
 namespace ns3 {
 
@@ -30,10 +31,10 @@ namespace ns3 {
 	P4SwitchInterface::~P4SwitchInterface()
 	{
         //********TO DO (Whether need delete m_p4core)*******************
-		/*if(m_p4core!=NULL)
+		/*if(m_p4core!=nullptr)
 		{
 			delete m_p4core;
-			m_p4core=NULL;
+			m_p4core=nullptr;
 		}*/
         //***************************************************************
 		NS_LOG_FUNCTION(this);
@@ -214,8 +215,8 @@ namespace ns3 {
 		{
 			unsigned int commandType = SwitchApi::g_apiMap[parms[0]];
 			try {
-				if (m_p4core == NULL)
-					throw P4Exception(P4_SWITCH_POINTER_NULL);
+				if (m_p4core == nullptr)
+					throw P4Exception(P4ErrorCode::P4_SWITCH_POINTER_NULL);
 				switch (commandType)
 				{
 				case TABLE_NUM_ENTRIES: { //table_num_entries <table name>
@@ -224,20 +225,26 @@ namespace ns3 {
 						{
 							size_t num_entries;
 							if (m_p4core->mt_get_num_entries(0, parms[1], &num_entries) != bm::MatchErrorCode::SUCCESS)
-								throw P4Exception(NO_SUCCESS);
+								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 							std::cout << parms[1] << " entry num: " << num_entries << std::endl;
 						}
 						else
-							throw P4Exception(PARAMETER_NUM_ERROR);
+							throw P4Exception(P4ErrorCode::PARAMETER_NUM_ERROR);
 					}
 					catch (P4Exception& e)
 					{
-						std::cerr << e.what() << std::endl;
-						ShowExceptionEntry(commandRow);
+						NS_LOG_ERROR("Exception caught: " << e.what());
+						e.ShowExceptionEntry(e.info());
 					}
-					catch (...)
-					{
-						ShowExceptionEntry(commandRow);
+					catch (const std::exception& e) {
+						NS_LOG_ERROR("Standard exception caught: " << e.what());
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unexpected std::exception");
+						fallbackException.ShowExceptionEntry("Standard exception: " + std::string(e.what()));
+					} 
+					catch (...) {
+						NS_LOG_ERROR("Unknown exception caught.");
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unknown exception");
+						fallbackException.ShowExceptionEntry(commandRow);
 					}
 					break;
 				}
@@ -246,19 +253,25 @@ namespace ns3 {
 						if (parms.size() == 2)
 						{
 							if (m_p4core->mt_clear_entries(0, parms[1], false) != bm::MatchErrorCode::SUCCESS)
-								throw P4Exception(NO_SUCCESS);
+								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 						}
 						else
-							throw P4Exception(PARAMETER_NUM_ERROR);
+							throw P4Exception(P4ErrorCode::PARAMETER_NUM_ERROR);
 					}
 					catch (P4Exception& e)
 					{
-						std::cerr << e.what() << std::endl;
-						ShowExceptionEntry(commandRow);
+						NS_LOG_ERROR("Exception caught: " << e.what());
+						e.ShowExceptionEntry(e.info());
 					}
-					catch (...)
-					{
-						ShowExceptionEntry(commandRow);
+					catch (const std::exception& e) {
+						NS_LOG_ERROR("Standard exception caught: " << e.what());
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unexpected std::exception");
+						fallbackException.ShowExceptionEntry("Standard exception: " + std::string(e.what()));
+					} 
+					catch (...) {
+						NS_LOG_ERROR("Unknown exception caught.");
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unknown exception");
+						fallbackException.ShowExceptionEntry(commandRow);
 					}
 					break;
 				}
@@ -273,7 +286,7 @@ namespace ns3 {
 									bm::entry_handle_t handle(StrToInt(parms[2]));
 									std::vector<bm::Meter::rate_config_t> configs;
 									if (m_p4core->mt_get_meter_rates(0, m_meter[parms[1]].tableName, handle, &configs) != bm::MatchErrorCode::SUCCESS)
-										throw P4Exception(NO_SUCCESS);
+										throw P4Exception(P4ErrorCode::NO_SUCCESS);
 									for (size_t i = 0; i < configs.size(); i++)
 									{
 										std::cout << "info_rate:" << configs[i].info_rate << " burst_size:" << configs[i].burst_size << std::endl;
@@ -284,7 +297,7 @@ namespace ns3 {
 									size_t idx(StrToInt(parms[2]));
 									std::vector<bm::Meter::rate_config_t> configs;
 									if (m_p4core->meter_get_rates(0, parms[1], idx, &configs) != 0)
-										throw P4Exception(NO_SUCCESS);
+										throw P4Exception(P4ErrorCode::NO_SUCCESS);
 									for (size_t i = 0; i < configs.size(); i++)
 									{
 										std::cout << "info_rate:" << configs[i].info_rate << " burst_size:" << configs[i].burst_size << std::endl;
@@ -292,19 +305,25 @@ namespace ns3 {
 								}
 							}
 							else
-								throw P4Exception(METER_NO_EXIST);
+								throw P4Exception(P4ErrorCode::METER_NO_EXIST);
 						}
 						else
-							throw P4Exception(PARAMETER_NUM_ERROR);
+							throw P4Exception(P4ErrorCode::PARAMETER_NUM_ERROR);
 					}
 					catch (P4Exception& e)
 					{
-						std::cerr << e.what() << std::endl;
-						ShowExceptionEntry(commandRow);
+						NS_LOG_ERROR("Exception caught: " << e.what());
+						e.ShowExceptionEntry(e.info());
 					}
-					catch (...)
-					{
-						ShowExceptionEntry(commandRow);
+					catch (const std::exception& e) {
+						NS_LOG_ERROR("Standard exception caught: " << e.what());
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unexpected std::exception");
+						fallbackException.ShowExceptionEntry("Standard exception: " + std::string(e.what()));
+					} 
+					catch (...) {
+						NS_LOG_ERROR("Unknown exception caught.");
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unknown exception");
+						fallbackException.ShowExceptionEntry(commandRow);
 					}
 					break;
 				}
@@ -320,7 +339,7 @@ namespace ns3 {
 									bm::MatchTableAbstract::counter_value_t bytes;
 									bm::MatchTableAbstract::counter_value_t packets;
 									if (m_p4core->mt_read_counters(0, m_counter[parms[1]].tableName, handle, &bytes, &packets) != bm::MatchErrorCode::SUCCESS)
-										throw P4Exception(NO_SUCCESS);
+										throw P4Exception(P4ErrorCode::NO_SUCCESS);
 									std::cout << "counter " << parms[1] << "[" << handle << "] size:" << bytes << " bytes " << packets << " packets" << std::endl;
 								}
 								else
@@ -329,24 +348,30 @@ namespace ns3 {
 									bm::MatchTableAbstract::counter_value_t bytes;
 									bm::MatchTableAbstract::counter_value_t packets;
 									if (m_p4core->read_counters(0, parms[1], index, &bytes, &packets) != 0)
-										throw P4Exception(NO_SUCCESS);
+										throw P4Exception(P4ErrorCode::NO_SUCCESS);
 									std::cout << "counter " << parms[1] << "[" << index << "] size:" << bytes << " bytes " << packets << " packets" << std::endl;
 								}
 							}
 							else
-								throw P4Exception(COUNTER_NO_EXIST);
+								throw P4Exception(P4ErrorCode::COUNTER_NO_EXIST);
 						}
 						else
-							throw P4Exception(PARAMETER_NUM_ERROR);
+							throw P4Exception(P4ErrorCode::PARAMETER_NUM_ERROR);
 					}
 					catch (P4Exception& e)
 					{
-						std::cerr << e.what() << std::endl;
-						ShowExceptionEntry(commandRow);
+						NS_LOG_ERROR("Exception caught: " << e.what());
+						e.ShowExceptionEntry(e.info());
 					}
-					catch (...)
-					{
-						ShowExceptionEntry(commandRow);
+					catch (const std::exception& e) {
+						NS_LOG_ERROR("Standard exception caught: " << e.what());
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unexpected std::exception");
+						fallbackException.ShowExceptionEntry("Standard exception: " + std::string(e.what()));
+					} 
+					catch (...) {
+						NS_LOG_ERROR("Unknown exception caught.");
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unknown exception");
+						fallbackException.ShowExceptionEntry(commandRow);
 					}
 					break;
 				}
@@ -359,28 +384,34 @@ namespace ns3 {
 								if (m_counter[parms[1]].isDirect)//direct
 								{
 									if (m_p4core->mt_reset_counters(0, m_counter[parms[1]].tableName) != bm::MatchErrorCode::SUCCESS)
-										throw P4Exception(NO_SUCCESS);
+										throw P4Exception(P4ErrorCode::NO_SUCCESS);
 								}
 								else //indirect
 								{
 									if (m_p4core->reset_counters(0, parms[1]) != 0)
-										throw P4Exception(NO_SUCCESS);
+										throw P4Exception(P4ErrorCode::NO_SUCCESS);
 								}
 							}
 							else
-								throw P4Exception(COUNTER_NO_EXIST);
+								throw P4Exception(P4ErrorCode::COUNTER_NO_EXIST);
 						}
 						else
-							throw P4Exception(PARAMETER_NUM_ERROR);
+							throw P4Exception(P4ErrorCode::PARAMETER_NUM_ERROR);
 					}
 					catch (P4Exception& e)
 					{
-						std::cerr << e.what() << std::endl;
-						ShowExceptionEntry(commandRow);
+						NS_LOG_ERROR("Exception caught: " << e.what());
+						e.ShowExceptionEntry(e.info());
 					}
-					catch (...)
-					{
-						ShowExceptionEntry(commandRow);
+					catch (const std::exception& e) {
+						NS_LOG_ERROR("Standard exception caught: " << e.what());
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unexpected std::exception");
+						fallbackException.ShowExceptionEntry("Standard exception: " + std::string(e.what()));
+					} 
+					catch (...) {
+						NS_LOG_ERROR("Unknown exception caught.");
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unknown exception");
+						fallbackException.ShowExceptionEntry(commandRow);
 					}
 					break;
 				}
@@ -391,20 +422,26 @@ namespace ns3 {
 							size_t index(StrToInt(parms[2]));
 							bm::Data value;
 							if (m_p4core->register_read(0, parms[1], index, &value) != 0)
-								throw P4Exception(NO_SUCCESS);
+								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 							std::cout << "register " << parms[1] << "[" << index << "] value :" << value << std::endl;
 						}
 						else
-							throw P4Exception(PARAMETER_NUM_ERROR);
+							throw P4Exception(P4ErrorCode::PARAMETER_NUM_ERROR);
 					}
 					catch (P4Exception& e)
 					{
-						std::cerr << e.what() << std::endl;
-						ShowExceptionEntry(commandRow);
+						NS_LOG_ERROR("Exception caught: " << e.what());
+						e.ShowExceptionEntry(e.info());
 					}
-					catch (...)
-					{
-						ShowExceptionEntry(commandRow);
+					catch (const std::exception& e) {
+						NS_LOG_ERROR("Standard exception caught: " << e.what());
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unexpected std::exception");
+						fallbackException.ShowExceptionEntry("Standard exception: " + std::string(e.what()));
+					} 
+					catch (...) {
+						NS_LOG_ERROR("Unknown exception caught.");
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unknown exception");
+						fallbackException.ShowExceptionEntry(commandRow);
 					}
 					break;
 				}
@@ -415,19 +452,25 @@ namespace ns3 {
 							size_t index(StrToInt(parms[2]));
 							bm::Data value(parms[3]);
 							if (m_p4core->register_write(0, parms[1], index, value) != 0)
-								throw P4Exception(NO_SUCCESS);
+								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 						}
 						else
-							throw P4Exception(PARAMETER_NUM_ERROR);
+							throw P4Exception(P4ErrorCode::PARAMETER_NUM_ERROR);
 					}
 					catch (P4Exception& e)
 					{
-						std::cerr << e.what() << std::endl;
-						ShowExceptionEntry(commandRow);
+						NS_LOG_ERROR("Exception caught: " << e.what());
+						e.ShowExceptionEntry(e.info());
 					}
-					catch (...)
-					{
-						ShowExceptionEntry(commandRow);
+					catch (const std::exception& e) {
+						NS_LOG_ERROR("Standard exception caught: " << e.what());
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unexpected std::exception");
+						fallbackException.ShowExceptionEntry("Standard exception: " + std::string(e.what()));
+					} 
+					catch (...) {
+						NS_LOG_ERROR("Unknown exception caught.");
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unknown exception");
+						fallbackException.ShowExceptionEntry(commandRow);
 					}
 					break;
 				}
@@ -436,19 +479,25 @@ namespace ns3 {
 						if (parms.size() == 2)
 						{
 							if (m_p4core->register_reset(0, parms[1]) != 0)
-								throw P4Exception(NO_SUCCESS);
+								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 						}
 						else
-							throw P4Exception(PARAMETER_NUM_ERROR);
+							throw P4Exception(P4ErrorCode::PARAMETER_NUM_ERROR);
 					}
 					catch (P4Exception& e)
 					{
-						std::cerr << e.what() << std::endl;
-						ShowExceptionEntry(commandRow);
+						NS_LOG_ERROR("Exception caught: " << e.what());
+						e.ShowExceptionEntry(e.info());
 					}
-					catch (...)
-					{
-						ShowExceptionEntry(commandRow);
+					catch (const std::exception& e) {
+						NS_LOG_ERROR("Standard exception caught: " << e.what());
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unexpected std::exception");
+						fallbackException.ShowExceptionEntry("Standard exception: " + std::string(e.what()));
+					} 
+					catch (...) {
+						NS_LOG_ERROR("Unknown exception caught.");
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unknown exception");
+						fallbackException.ShowExceptionEntry(commandRow);
 					}
 					break;
 				}
@@ -459,7 +508,7 @@ namespace ns3 {
 							bm::entry_handle_t handle(StrToInt(parms[2]));
 							bm::MatchTable::Entry entry;
 							if (m_p4core->mt_get_entry(0, parms[1], handle, &entry) != bm::MatchErrorCode::SUCCESS)
-								throw P4Exception(NO_SUCCESS);
+								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 							std::cout << parms[1] << " entry " << handle << " :" << std::endl;
 							std::cout << "MatchKey:";
 							for (size_t i = 0; i < entry.match_key.size(); i++)
@@ -474,16 +523,22 @@ namespace ns3 {
 							std::cout << std::endl;
 						}
 						else
-							throw P4Exception(PARAMETER_NUM_ERROR);
+							throw P4Exception(P4ErrorCode::PARAMETER_NUM_ERROR);
 					}
 					catch (P4Exception& e)
 					{
-						std::cerr << e.what() << std::endl;
-						ShowExceptionEntry(commandRow);
+						NS_LOG_ERROR("Exception caught: " << e.what());
+						e.ShowExceptionEntry(e.info());
 					}
-					catch (...)
-					{
-						ShowExceptionEntry(commandRow);
+					catch (const std::exception& e) {
+						NS_LOG_ERROR("Standard exception caught: " << e.what());
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unexpected std::exception");
+						fallbackException.ShowExceptionEntry("Standard exception: " + std::string(e.what()));
+					} 
+					catch (...) {
+						NS_LOG_ERROR("Unknown exception caught.");
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unknown exception");
+						fallbackException.ShowExceptionEntry(commandRow);
 					}
 					break;
 				}
@@ -496,28 +551,34 @@ namespace ns3 {
 							// TO DO: output entries info
 						}
 						else
-							throw P4Exception(PARAMETER_NUM_ERROR);
+							throw P4Exception(P4ErrorCode::PARAMETER_NUM_ERROR);
 					}
 					catch (P4Exception& e)
 					{
-						std::cerr << e.what() << std::endl;
-						ShowExceptionEntry(commandRow);
+						NS_LOG_ERROR("Exception caught: " << e.what());
+						e.ShowExceptionEntry(e.info());
 					}
-					catch (...)
-					{
-						ShowExceptionEntry(commandRow);
+					catch (const std::exception& e) {
+						NS_LOG_ERROR("Standard exception caught: " << e.what());
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unexpected std::exception");
+						fallbackException.ShowExceptionEntry("Standard exception: " + std::string(e.what()));
+					} 
+					catch (...) {
+						NS_LOG_ERROR("Unknown exception caught.");
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unknown exception");
+						fallbackException.ShowExceptionEntry(commandRow);
 					}
 					break;
 				}
 				default: {
-					throw P4Exception(COMMAND_ERROR);
+					throw P4Exception(P4ErrorCode::COMMAND_ERROR);
 					break;
 				}
 				}
 			}
 			catch (P4Exception& e)
 			{
-				std::cerr << e.what() << std::endl;
+				NS_LOG_ERROR("Exception caught: " << e.what());
 			}
 		}
 	}
@@ -544,8 +605,8 @@ namespace ns3 {
 		{
 			unsigned int commandType = SwitchApi::g_apiMap[parms[0]];
 			try {
-				if (m_p4core == NULL)
-					throw P4Exception(P4_SWITCH_POINTER_NULL);
+				if (m_p4core == nullptr)
+					throw P4Exception(P4ErrorCode::P4_SWITCH_POINTER_NULL);
 				switch (commandType)
 				{
 				case TABLE_SET_DEFAULT: {//table_set_default <table name> <action name> <action parameters>
@@ -559,19 +620,25 @@ namespace ns3 {
 									actionData.push_back_action_data(bm::Data(parms[i]));
 							}
 							if (m_p4core->mt_set_default_action(0, parms[1], parms[2], actionData) != bm::MatchErrorCode::SUCCESS)
-								throw P4Exception(NO_SUCCESS);
+								throw P4Exception(P4ErrorCode::P4ErrorCode::NO_SUCCESS);
 						}
 						else
-							throw P4Exception(PARAMETER_NUM_ERROR);
+							throw P4Exception(P4ErrorCode::P4ErrorCode::PARAMETER_NUM_ERROR);
 					}
 					catch (P4Exception& e)
 					{
-						std::cerr << e.what() << std::endl;
-						ShowExceptionEntry(commandRow);
+						NS_LOG_ERROR("Exception caught: " << e.what());
+						e.ShowExceptionEntry(e.info());
 					}
-					catch (...)
-					{
-						ShowExceptionEntry(commandRow);
+					catch (const std::exception& e) {
+						NS_LOG_ERROR("Standard exception caught: " << e.what());
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unexpected std::exception");
+						fallbackException.ShowExceptionEntry("Standard exception: " + std::string(e.what()));
+					} 
+					catch (...) {
+						NS_LOG_ERROR("Unknown exception caught.");
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unknown exception");
+						fallbackException.ShowExceptionEntry(commandRow);
 					}
 					break;
 				}
@@ -641,7 +708,7 @@ namespace ns3 {
 								}
 								default:
 								{
-									throw P4Exception(MATCH_TYPE_ERROR);
+									throw P4Exception(P4ErrorCode::P4ErrorCode::MATCH_TYPE_ERROR);
 									break;
 								}
 								}
@@ -664,7 +731,7 @@ namespace ns3 {
 							priority = 0;
 							//TO DO:judge action_data_num equal action need num
 							if (m_p4core->mt_add_entry(0, parms[1], matchKey, parms[2], actionData, &handle, priority) != bm::MatchErrorCode::SUCCESS)
-								throw P4Exception(NO_SUCCESS);
+								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 						}
 						else if (matchType == bm::MatchKeyParam::Type::LPM) {
 							for (; i < parms.size(); i++)
@@ -675,7 +742,7 @@ namespace ns3 {
 							}
 							//TO DO:judge action_data_num equal action need num
 							if (m_p4core->mt_add_entry(0, parms[1], matchKey, parms[2], actionData, &handle) != bm::MatchErrorCode::SUCCESS)
-								throw P4Exception(NO_SUCCESS);
+								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 						}
 						else 
 						{	
@@ -689,17 +756,23 @@ namespace ns3 {
 							//TO DO:judge action_data_num equal action need num
 							priority = StrToInt(parms[parms.size() - 1]);
 							if (m_p4core->mt_add_entry(0, parms[1], matchKey, parms[2], actionData, &handle, priority) != bm::MatchErrorCode::SUCCESS)
-								throw P4Exception(NO_SUCCESS);
+								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 						}
 					}
 					catch (P4Exception& e)
 					{
-						std::cerr << e.what() << std::endl;
-						ShowExceptionEntry(commandRow);
+						NS_LOG_ERROR("Exception caught: " << e.what());
+						e.ShowExceptionEntry(e.info());
 					}
-					catch (...)
-					{
-						ShowExceptionEntry(commandRow);
+					catch (const std::exception& e) {
+						NS_LOG_ERROR("Standard exception caught: " << e.what());
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unexpected std::exception");
+						fallbackException.ShowExceptionEntry("Standard exception: " + std::string(e.what()));
+					} 
+					catch (...) {
+						NS_LOG_ERROR("Unknown exception caught.");
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unknown exception");
+						fallbackException.ShowExceptionEntry(commandRow);
 					}
 					break;
 				}
@@ -710,19 +783,25 @@ namespace ns3 {
 							bm::entry_handle_t handle(StrToInt(parms[2]));
 							unsigned int ttl_ms(StrToInt(parms[3]));
 							if (m_p4core->mt_set_entry_ttl(0, parms[1], handle, ttl_ms) != bm::MatchErrorCode::SUCCESS)
-								throw P4Exception(NO_SUCCESS);
+								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 						}
 						else
-							throw P4Exception(PARAMETER_NUM_ERROR);
+							throw P4Exception(P4ErrorCode::PARAMETER_NUM_ERROR);
 					}
 					catch (P4Exception& e)
 					{
-						std::cerr << e.what() << std::endl;
-						ShowExceptionEntry(commandRow);
+						NS_LOG_ERROR("Exception caught: " << e.what());
+						e.ShowExceptionEntry(e.info());
 					}
-					catch (...)
-					{
-						ShowExceptionEntry(commandRow);
+					catch (const std::exception& e) {
+						NS_LOG_ERROR("Standard exception caught: " << e.what());
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unexpected std::exception");
+						fallbackException.ShowExceptionEntry("Standard exception: " + std::string(e.what()));
+					} 
+					catch (...) {
+						NS_LOG_ERROR("Unknown exception caught.");
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unknown exception");
+						fallbackException.ShowExceptionEntry(commandRow);
 					}
 					break;
 				}
@@ -739,19 +818,25 @@ namespace ns3 {
 							}
 							//TO DO:judge action_data_num equal action need num
 							if (m_p4core->mt_modify_entry(0, parms[1], handle, parms[2], actionData) != bm::MatchErrorCode::SUCCESS)
-								throw P4Exception(NO_SUCCESS);
+								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 						}
 						else
-							throw P4Exception(PARAMETER_NUM_ERROR);
+							throw P4Exception(P4ErrorCode::PARAMETER_NUM_ERROR);
 					}
 					catch (P4Exception& e)
 					{
-						std::cerr << e.what() << std::endl;
-						ShowExceptionEntry(commandRow);
+						NS_LOG_ERROR("Exception caught: " << e.what());
+						e.ShowExceptionEntry(e.info());
 					}
-					catch (...)
-					{
-						ShowExceptionEntry(commandRow);
+					catch (const std::exception& e) {
+						NS_LOG_ERROR("Standard exception caught: " << e.what());
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unexpected std::exception");
+						fallbackException.ShowExceptionEntry("Standard exception: " + std::string(e.what()));
+					} 
+					catch (...) {
+						NS_LOG_ERROR("Unknown exception caught.");
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unknown exception");
+						fallbackException.ShowExceptionEntry(commandRow);
 					}
 					break;
 				}
@@ -761,20 +846,26 @@ namespace ns3 {
 						{
 							bm::entry_handle_t handle(StrToInt(parms[2]));
 							if (m_p4core->mt_delete_entry(0, parms[1], handle) != bm::MatchErrorCode::SUCCESS)
-								throw P4Exception(NO_SUCCESS);
+								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 						}
 						else
-							throw P4Exception(PARAMETER_NUM_ERROR);
+							throw P4Exception(P4ErrorCode::PARAMETER_NUM_ERROR);
 
 					}
 					catch (P4Exception& e)
 					{
-						std::cerr << e.what() << std::endl;
-						ShowExceptionEntry(commandRow);
+						NS_LOG_ERROR("Exception caught: " << e.what());
+						e.ShowExceptionEntry(e.info());
 					}
-					catch (...)
-					{
-						ShowExceptionEntry(commandRow);
+					catch (const std::exception& e) {
+						NS_LOG_ERROR("Standard exception caught: " << e.what());
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unexpected std::exception");
+						fallbackException.ShowExceptionEntry("Standard exception: " + std::string(e.what()));
+					} 
+					catch (...) {
+						NS_LOG_ERROR("Unknown exception caught.");
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unknown exception");
+						fallbackException.ShowExceptionEntry(commandRow);
 					}
 					break;
 				}
@@ -793,19 +884,25 @@ namespace ns3 {
 								configs.push_back(rateConfig);
 							}
 							if (m_p4core->meter_array_set_rates(0, parms[1], configs) != 0)
-								throw P4Exception(NO_SUCCESS);
+								throw P4Exception(P4ErrorCode::NO_SUCCESS);
 						}
 						else
-							throw P4Exception(PARAMETER_NUM_ERROR);
+							throw P4Exception(P4ErrorCode::PARAMETER_NUM_ERROR);
 					}
 					catch (P4Exception& e)
 					{
-						std::cerr << e.what() << std::endl;
-						ShowExceptionEntry(commandRow);
+						NS_LOG_ERROR("Exception caught: " << e.what());
+						e.ShowExceptionEntry(e.info());
 					}
-					catch (...)
-					{
-						ShowExceptionEntry(commandRow);
+					catch (const std::exception& e) {
+						NS_LOG_ERROR("Standard exception caught: " << e.what());
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unexpected std::exception");
+						fallbackException.ShowExceptionEntry("Standard exception: " + std::string(e.what()));
+					} 
+					catch (...) {
+						NS_LOG_ERROR("Unknown exception caught.");
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unknown exception");
+						fallbackException.ShowExceptionEntry(commandRow);
 					}
 					break;
 				}
@@ -827,38 +924,44 @@ namespace ns3 {
 							{
 								bm::entry_handle_t handle(StrToInt(parms[2]));
 								if (m_p4core->mt_set_meter_rates(0, m_meter[parms[1]].tableName, handle, configs) != bm::MatchErrorCode::SUCCESS)
-									throw P4Exception(NO_SUCCESS);
+									throw P4Exception(P4ErrorCode::NO_SUCCESS);
 							}
 							else//indirect
 							{
 								size_t idx(StrToInt(parms[2]));
 								if (m_p4core->meter_set_rates(0, parms[1], idx, configs) != 0)
-									throw P4Exception(NO_SUCCESS);
+									throw P4Exception(P4ErrorCode::NO_SUCCESS);
 							}
 						}
 						else
-							throw P4Exception(PARAMETER_NUM_ERROR);
+							throw P4Exception(P4ErrorCode::PARAMETER_NUM_ERROR);
 					}
 					catch (P4Exception& e)
 					{
-						std::cerr << e.what() << std::endl;
-						ShowExceptionEntry(commandRow);
+						NS_LOG_ERROR("Exception caught: " << e.what());
+						e.ShowExceptionEntry(e.info());
 					}
-					catch (...)
-					{
-						ShowExceptionEntry(commandRow);
+					catch (const std::exception& e) {
+						NS_LOG_ERROR("Standard exception caught: " << e.what());
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unexpected std::exception");
+						fallbackException.ShowExceptionEntry("Standard exception: " + std::string(e.what()));
+					} 
+					catch (...) {
+						NS_LOG_ERROR("Unknown exception caught.");
+						P4Exception fallbackException(P4ErrorCode::OTHER_ERROR, "Unknown exception");
+						fallbackException.ShowExceptionEntry(commandRow);
 					}
 					break;
 				}
 				default:
 				{
-					throw P4Exception(COMMAND_ERROR);
+					throw P4Exception(P4ErrorCode::COMMAND_ERROR);
 					break;
 				}
 				}
 			}
 			catch (P4Exception&e) {
-				std::cerr << e.what() << std::endl;
+				NS_LOG_ERROR("Exception caught: " << e.what());
 			}
 		}
 	}
