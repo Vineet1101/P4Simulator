@@ -83,6 +83,18 @@ public:
     void ParseAttainFlowTableInfoCommand(const std::string& commandRow);
     void ParsePopulateFlowTableCommand(const std::string& commandRow);
 
+    // Table processing
+    void HandleTableDumpEntry(const std::vector<std::string>& parms);
+    void HandleTableNumEntries(const std::vector<std::string>& parms);
+    void HandleTableClear(const std::vector<std::string>& parms);
+    void HandleMeterGetRates(const std::vector<std::string>& parms);
+    void HandleCounterRead(const std::vector<std::string>& parms);
+    void HandleCounterReset(const std::vector<std::string>& parms);
+    void HandleRegisterRead(const std::vector<std::string>& parms);
+    void HandleRegisterWrite(const std::vector<std::string>& parms);
+    void HandleRegisterReset(const std::vector<std::string>& parms);
+    void HandleTableDump(const std::vector<std::string>& parms);
+
     // Initialize the switch interface
     void Init();
 
