@@ -20,7 +20,7 @@
 
 #include "p4-channel.h"
 
-#include "p4-net-device.h"
+#include "bridge-p4-net-device.h"
 
 #include "ns3/log.h"
 #include "ns3/packet.h"

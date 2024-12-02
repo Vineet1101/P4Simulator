@@ -1,7 +1,7 @@
 #ifndef P4_BRIDGE_CHANNEL_H
 #define P4_BRIDGE_CHANNEL_H
 
-#include "bridge-channel.h"
+#include "ns3/bridge-channel.h"
 #include "ns3/packet.h"
 #include <map>
 #include <vector>

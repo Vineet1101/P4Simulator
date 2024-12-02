@@ -23,10 +23,11 @@
 #define P4_SWITCH_CORE_H
 
 #include "bridge-p4-net-device.h"
-#include "fifo-queue-disc.h"
+
 #include "standard-metadata-tag.h"
 
 #include "ns3/prio-queue-disc.h"
+#include "ns3/fifo-queue-disc.h"
 #include "p4-logic-pri-rl-queue-disc.h"
 #include "p4-rr-pri-queue-disc.h"
 
