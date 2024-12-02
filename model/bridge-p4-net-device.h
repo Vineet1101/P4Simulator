@@ -21,12 +21,11 @@
 #ifndef BRIDGE_P4_NET_DEVICE_H
 #define BRIDGE_P4_NET_DEVICE_H
 
-#include "p4-bridge-channel.h"
-#include "p4-switch-core.h"
-
 #include "ns3/mac48-address.h"
 #include "ns3/net-device.h"
 #include "ns3/nstime.h"
+#include "ns3/p4-bridge-channel.h"
+#include "ns3/p4-switch-core.h"
 
 #include <map>
 #include <stdint.h>
@@ -42,13 +41,14 @@ namespace ns3
 {
 
 class Node;
+class P4Switch;
 
 /**
  * \defgroup bridge Bridge P4 Network Device
  *
  * \brief A Bridge Net Device with Programmable Data Plane
  *
- * P4NetDevice is a subclass of NetDevice in the ns-3 domain and serves as
+ * BridgeP4NetDevice is a subclass of NetDevice in the ns-3 domain and serves as
  * the network layer of a P4 target. It is compatible with other net devices
  * in ns-3.
  *
@@ -59,7 +59,7 @@ class Node;
  * \attention Bridging is designed to work only with NetDevices
  * modelling IEEE 802-style technologies, such as CsmaNetDevice and
  * WifiNetDevice.
- * 
+ *
  * \TODO Create a new channel class supporting arbitrary underlying channel.
  */
 
@@ -70,6 +70,7 @@ class Node;
  */
 class BridgeP4NetDevice : public NetDevice
 {
+
   public:
     /**
      * \brief Get the type ID.
@@ -107,10 +108,10 @@ class BridgeP4NetDevice : public NetDevice
     uint32_t GetNBridgePorts() const;
 
     /**
-    * \brief Gets the number ID of a 'port' connected to P4 net device.
-    * \param netdevice
-    * \return the port number of the p4 bridge device
-    */
+     * \brief Gets the number ID of a 'port' connected to P4 net device.
+     * \param netdevice
+     * \return the port number of the p4 bridge device
+     */
     uint32_t GetPortNumber(Ptr<NetDevice> port) const;
 
     /**
@@ -121,16 +122,22 @@ class BridgeP4NetDevice : public NetDevice
     Ptr<NetDevice> GetBridgePort(uint32_t n) const;
 
     /**
-    * \brief This method sends a packet out to the destination port.
-    * \param packetOut the packet need to be send out
-    * \param outPort the port index to send out
-    * \param protocol the packet protocol (e.g., Ethertype)
-    * \param destination the packet destination
-    */
-    void SendPacket(Ptr<Packet> packetOut, int outPort, uint16_t protocol, Address const &destination);
+     * \brief This method sends a packet out to the destination port.
+     * \param packetOut the packet need to be send out
+     * \param outPort the port index to send out
+     * \param protocol the packet protocol (e.g., Ethertype)
+     * \param destination the packet destination
+     */
+    void SendPacket(Ptr<Packet> packetOut,
+                    int outPort,
+                    uint16_t protocol,
+                    const Address& destination);
 
-    void SendNs3Packet(Ptr<Packet> packetOut, int outPort, uint16_t protocol, Address const &destination);
-    
+    void SendNs3Packet(Ptr<Packet> packetOut,
+                       int outPort,
+                       uint16_t protocol,
+                       const Address& destination);
+
     // inherited from NetDevice base class.
     void SetIfIndex(const uint32_t index) override;
     uint32_t GetIfIndex() const override;
@@ -179,7 +186,6 @@ class BridgeP4NetDevice : public NetDevice
                            const Address& destination,
                            PacketType packetType);
 
-
     // /**
     //  * \brief Gets the port associated to a source address
     //  * \param source the source address
@@ -191,15 +197,14 @@ class BridgeP4NetDevice : public NetDevice
     NetDevice::ReceiveCallback m_rxCallback;               //!< receive callback
     NetDevice::PromiscReceiveCallback m_promiscRxCallback; //!< promiscuous receive callback
 
-    Mac48Address m_address; //!< MAC address of the NetDevice
-    Ptr<Node> m_node;                                  //!< node owning this NetDevice
-    Ptr<P4BridgeChannel> m_channel;                      //!< virtual bridged channel
-    std::vector<Ptr<NetDevice>> m_ports;               //!< bridged ports
-    uint32_t m_ifIndex;                                //!< Interface index
-    uint16_t m_mtu;                                    //!< MTU of the bridged NetDevice
+    Mac48Address m_address;              //!< MAC address of the NetDevice
+    Ptr<Node> m_node;                    //!< node owning this NetDevice
+    Ptr<P4BridgeChannel> m_channel;      //!< virtual bridged channel
+    std::vector<Ptr<NetDevice>> m_ports; //!< bridged ports
+    uint32_t m_ifIndex;                  //!< Interface index
+    uint16_t m_mtu;                      //!< MTU of the bridged NetDevice
 
     P4Switch* m_p4Switch; //!< P4 switch core
-
 };
 
 } // namespace ns3

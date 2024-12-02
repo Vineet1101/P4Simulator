@@ -1,10 +1,10 @@
 #ifndef EXCEPTION_HANDLE_H
 #define EXCEPTION_HANDLE_H
 
-#include <exception>
-#include <string>
 #include "ns3/log.h"
 
+#include <exception>
+#include <string>
 namespace ns3 {
 
 enum class P4ErrorCode : unsigned int {

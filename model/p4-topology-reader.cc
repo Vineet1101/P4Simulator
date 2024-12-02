@@ -21,7 +21,7 @@
  * Modified by: Mingyu Ma (mingyu.ma@tu-dresden.de)
  */
 
-#include "p4-topology-reader.h"
+#include "ns3/p4-topology-reader.h"
 
 #include "ns3/log.h"
 

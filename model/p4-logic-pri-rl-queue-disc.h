@@ -133,7 +133,7 @@ class NSQueueingLogicPriRLQueueDisc : public QueueDisc
     /**
      * \brief Convert rate to time
      */
-    static constexpr Time RateToTime(uint64_t pps);
+    static Time RateToTime(uint64_t pps);
 
     std::vector<FifoQueue> m_priorityQueues; // priority queues for all ports
     size_t m_nbPorts{32};                    // default max 32 ports for switch

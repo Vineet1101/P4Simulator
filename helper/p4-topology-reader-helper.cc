@@ -22,8 +22,8 @@
  * Modified: Mingyu Ma (mingyu.ma@tu-dresden.de)
  */
 
-#include "p4-topology-reader-helper.h"
-#include "p4-topology-reader.h"
+#include "ns3/p4-topology-reader-helper.h"
+#include "ns3/p4-topology-reader.h"
 #include "ns3/log.h"
 
 namespace ns3 {

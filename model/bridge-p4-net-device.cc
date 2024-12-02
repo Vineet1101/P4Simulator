@@ -18,10 +18,9 @@
  * Authors: Mingyu Ma <mingyu.ma@tu-dresden.de>
  */
 
-#include "bridge-p4-net-device.h"
-
-#include "global.h"
-#include "p4-switch-interface.h"
+#include "ns3/bridge-p4-net-device.h"
+#include "ns3/global.h"
+#include "ns3/p4-switch-interface.h"
 
 #include "ns3/boolean.h"
 #include "ns3/channel.h"
@@ -357,7 +356,7 @@ BridgeP4NetDevice::SendFrom(Ptr<Packet> packet,
     {
         pktCopy = packet->Copy();
         Ptr<NetDevice> port = *iter;
-        port->SendFrom(pktCopy, src, dest, protocolNumber);
+        port->SendFrom(pktCopy, src, dst, protocolNumber);
     }
 
     return true;

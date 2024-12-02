@@ -5,6 +5,8 @@
 #include "ns3/tag.h"
 
 #include <bm/bm_sim/phv.h>
+#include <bm/bm_sim/packet.h>
+
 #include <cstdint>
 
 namespace ns3

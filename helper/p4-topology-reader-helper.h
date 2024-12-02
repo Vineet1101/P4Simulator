@@ -25,7 +25,7 @@
 #ifndef P4_TOPOLOGY_READER_HELPER_H
 #define P4_TOPOLOGY_READER_HELPER_H
 
-#include "p4-topology-reader.h"
+#include "ns3/p4-topology-reader.h"
 #include <string>
 
 namespace ns3 {

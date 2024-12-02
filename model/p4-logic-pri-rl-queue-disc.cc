@@ -1,6 +1,5 @@
 #include "p4-logic-pri-rl-queue-disc.h"
-
-#include "priority-port-tag.h"
+#include "ns3/priority-port-tag.h"
 
 #include "ns3/log.h"
 #include "ns3/packet.h"
@@ -155,15 +154,14 @@ NSQueueingLogicPriRLQueueDisc::DoDequeue(void)
         }
 
         Time now = Simulator::Now();
-        if (fifoQueue.queue.front().sendTime >= now)
+
+        if (fifoQueue.queue.front().sendTime <= now)
         {
-            Ptr<QueueElement> dequeuedElement = fifoQueue.queue.front().item;
+            QueueElement dequeuedElement = fifoQueue.queue.front();
             fifoQueue.queue.pop();
             fifoQueue.size--;
 
-            Ptr<QueueItem> dequeuedItem = dequeuedElement->item;
-
-            return dequeuedItem;
+            return dequeuedElement.item;
         }
     }
     return nullptr;
@@ -213,7 +211,7 @@ NSQueueingLogicPriRLQueueDisc::CalculateNextSendTime(const FifoQueue& FifoQueue)
     return now + FifoQueue.delayTime;
 }
 
-constexpr Time
+Time
 NSQueueingLogicPriRLQueueDisc::RateToTime(uint64_t pps)
 {
     return (pps == 0) ? MilliSeconds(1) : Seconds(1.0 / pps);

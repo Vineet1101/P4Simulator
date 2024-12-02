@@ -12,7 +12,7 @@ namespace ns3
 {
 
 // Reasons for dropping packets
-static constexpr const char* LIMIT_EXCEEDED_DROP = "Overlimit drop"; //!< Overlimit dropped packets
+// static constexpr const char* LIMIT_EXCEEDED_DROP = "Overlimit drop"; //!< Overlimit dropped packets
 
 /**
  * \ingroup traffic-control

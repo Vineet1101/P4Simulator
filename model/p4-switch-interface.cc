@@ -1,13 +1,12 @@
-#include "p4-switch-interface.h"
-#include "format-utils.h"
-#include "p4-exception-handle.h"
+#include "ns3/p4-switch-interface.h"
+#include "ns3/format-utils.h"
+#include "ns3/p4-exception-handle.h"
 
 #include "ns3/log.h"
 
 #include <bm/bm_sim/options_parse.h>
 #include <bm/bm_runtime/bm_runtime.h>
 #include <bm/bm_sim/switch.h>
-
 
 #include <fstream>
 #include <iostream>
@@ -57,7 +56,7 @@ P4SwitchInterface::PopulateFlowTable()
         return;
     }
 
-    const int maxBufferSize = 500; // Define the maximum buffer size for reading rows
+    // const int maxBufferSize = 500; // Define the maximum buffer size for reading rows
     std::string line;              // String to hold each line from the file
 
     NS_LOG_INFO("Starting to populate the flow table from: " << flowTablePath_);
@@ -830,19 +829,19 @@ P4SwitchInterface::ParseMatchField(const std::string& field, bm::MatchKeyParam::
     switch (matchType)
     {
     case bm::MatchKeyParam::Type::EXACT:
-        return bm::MatchKeyParam(matchType, HexstrToBytes(field));
+        return bm::MatchKeyParam(matchType, HexStrToBytes(field));
 
     case bm::MatchKeyParam::Type::LPM: {
         int pos = field.find("/");
         std::string prefix = field.substr(0, pos);
         unsigned int length = StrToInt(field.substr(pos + 1));
-        return bm::MatchKeyParam(matchType, HexstrToBytes(prefix), int(length));
+        return bm::MatchKeyParam(matchType, HexStrToBytes(prefix), int(length));
     }
 
     case bm::MatchKeyParam::Type::TERNARY: {
         int pos = field.find("&&&");
-        std::string key = HexstrToBytes(field.substr(0, pos));
-        std::string mask = HexstrToBytes(field.substr(pos + 3));
+        std::string key = HexStrToBytes(field.substr(0, pos));
+        std::string mask = HexStrToBytes(field.substr(pos + 3));
         if (key.size() != mask.size())
             throw P4Exception(P4ErrorCode::PARAMETER_NUM_ERROR,
                               "Key and mask lengths do not match.");
@@ -865,15 +864,19 @@ P4SwitchInterface::ParseMatchField(const std::string& field, bm::MatchKeyParam::
 bm::Meter::rate_config_t
 P4SwitchInterface::ParseRateConfig(const std::string& rateBurstStr)
 {
-    int pos = rateBurstStr.find(":");
+    // `std::string::find` returns size_t type, replace int with size_t
+    std::string::size_type pos = rateBurstStr.find(":");
     if (pos == std::string::npos)
         throw P4Exception(P4ErrorCode::PARAMETER_NUM_ERROR, "Rate/burst format is invalid.");
 
     bm::Meter::rate_config_t rateConfig;
+    
+    // Make sure to use the appropriate string parsing functions
     rateConfig.info_rate = StrToDouble(rateBurstStr.substr(0, pos));
     rateConfig.burst_size = StrToInt(rateBurstStr.substr(pos + 1));
     return rateConfig;
 }
+
 
 // void
 // P4SwitchInterface::Init()

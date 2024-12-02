@@ -1,11 +1,11 @@
 #ifndef P4_SWITCH_INTERFACE_H
 #define P4_SWITCH_INTERFACE_H
 
-#include "bridge-p4-net-device.h"
-#include "p4-controller.h"
-#include "p4-switch-core.h"
-#include "switch-api.h"
-#include "global.h"
+#include "ns3/bridge-p4-net-device.h"
+#include "ns3/p4-controller.h"
+#include "ns3/p4-switch-core.h"
+#include "ns3/switch-api.h"
+#include "ns3/global.h"
 
 #include "ns3/object.h"
 

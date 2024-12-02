@@ -2,7 +2,7 @@
 #define GLOBAL_H
 
 #include "ns3/object.h"
-#include "p4-controller.h"
+#include "ns3/p4-controller.h"
 #include <cstring>
 #include <map>
 #include <sys/time.h>

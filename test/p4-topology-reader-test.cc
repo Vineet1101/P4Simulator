@@ -1,5 +1,5 @@
 #include "ns3/core-module.h"
-#include "p4-topology-reader-helper.h"
+#include "ns3/p4-topology-reader-helper.h"
 
 using namespace ns3;
 

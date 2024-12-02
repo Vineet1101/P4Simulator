@@ -22,16 +22,16 @@
  *
  */
 
-#include "p4-switch-core.h"
-
-#include "global.h"
-#include "priority-port-tag.h"
-#include "register_access.h"
-#include "standard-metadata-tag.h"
+#include "ns3/p4-switch-core.h"
+#include "ns3/global.h"
+#include "ns3/priority-port-tag.h"
+#include "ns3/register_access.h"
+#include "ns3/standard-metadata-tag.h"
 
 #include "ns3/ethernet-header.h"
 #include "ns3/simulator.h"
 #include "ns3/socket.h"
+#include "ns3/log.h"
 
 #include <bm/bm_runtime/bm_runtime.h>
 #include <bm/bm_sim/options_parse.h>
@@ -39,6 +39,8 @@
 #include <bm/bm_sim/phv.h>
 #include <bm/bm_sim/tables.h>
 #include <unordered_map>
+
+NS_LOG_COMPONENT_DEFINE("P4SwitchCore");
 
 namespace ns3
 {
@@ -120,6 +122,14 @@ P4Switch::~P4Switch()
     transmit_buffer = nullptr;
 
     NS_LOG_INFO("MyClass: Buffers destroyed");
+}
+
+TypeId P4Switch::GetTypeId(void)
+{
+    static TypeId tid = TypeId("ns3::P4Switch")
+                            .SetParent<Object>()
+                            .SetGroupName("Network");
+    return tid;
 }
 
 // !!! Deprecated function, see p4-switch-interface.cc for the new init function
@@ -319,8 +329,10 @@ P4Switch::ReceivePacket(Ptr<Packet> packetIn,
     PacketInfo pkts_info = {inPort, protocol, destination, 0};
     uidMap[ns3Uid] = pkts_info;
 
+    Ptr<QueueItem> queue_item = CreateObject<QueueItem>(packetIn);
+
     // process the packet in the pipeline
-    input_buffer->Enqueue(packetIn);
+    input_buffer->Enqueue(queue_item);
     return 0;
 }
 
@@ -644,7 +656,7 @@ P4Switch::egress_deparser_processing()
         return;
     }
     port_t port = tag.GetPort();
-    size_t priority = tag.GetPriority();
+    // size_t priority = tag.GetPriority();
 
     // ns save packets id.
     auto bm_packet = get_bm_packet(dequeued_ns_packet);
@@ -808,9 +820,6 @@ P4Switch::get_bm_packet(Ptr<Packet> ns_packet)
     // we limit the packet buffer to original size + 512 bytes, which means we
     // cannot add more than 512 bytes of header data to the packet, which should
     // be more than enough
-    uint8_t* pkt_buffer = new uint8_t[len];
-    ns_packet->CopyData(pkt_buffer, len);
-
     bm::PacketBuffer buffer(len + 512, (char*)pkt_buffer, len);
 
     std::unique_ptr<bm::Packet> bm_packet = new_packet_ptr(in_port, bmUid, len, std::move(buffer));
@@ -818,7 +827,6 @@ P4Switch::get_bm_packet(Ptr<Packet> ns_packet)
     delete[] pkt_buffer;
 
     // Add metadata
-    StandardMetadataTag metadata_tag;
     metadata_tag.WriteMetadataToBMPacket(std::move(bm_packet));
 
     return bm_packet;
@@ -849,14 +857,11 @@ P4Switch::get_bm_packet_from_ingress(Ptr<Packet> ns_packet)
     // we limit the packet buffer to original size + 512 bytes, which means we
     // cannot add more than 512 bytes of header data to the packet, which should
     // be more than enough
-    uint8_t* pkt_buffer = new uint8_t[len];
-    ns_packet->CopyData(pkt_buffer, len);
     bm::PacketBuffer buffer(len + 512, (char*)pkt_buffer, len);
     std::unique_ptr<bm::Packet> bm_packet = new_packet_ptr(in_port, bmUid, len, std::move(buffer));
     delete[] pkt_buffer;
 
     // Add metadata
-    StandardMetadataTag metadata_tag;
     metadata_tag.WriteMetadataToBMPacket(std::move(bm_packet));
 
     return bm_packet;

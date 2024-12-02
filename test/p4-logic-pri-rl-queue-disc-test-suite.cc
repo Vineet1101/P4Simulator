@@ -1,5 +1,5 @@
-#include "p4-logic-pri-rl-queue-disc.h"
-#include "priority-port-tag.h"
+#include "ns3/p4-logic-pri-rl-queue-disc.h"
+#include "ns3/priority-port-tag.h"
 
 #include "ns3/log.h"
 #include "ns3/packet-filter.h"

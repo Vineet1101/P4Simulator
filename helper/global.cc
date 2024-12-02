@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
-#include "global.h"
+#include "ns3/global.h"
 #include "ns3/log.h"
 
 #if defined(WIN32)

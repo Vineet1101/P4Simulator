@@ -1,4 +1,4 @@
-#include "p4-bridge-channel.h"
+#include "ns3/p4-bridge-channel.h"
 #include "ns3/log.h"
 
 namespace ns3 {

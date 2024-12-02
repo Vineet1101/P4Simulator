@@ -1,13 +1,15 @@
 #ifndef P4_CONTROLLER_H
 #define P4_CONTROLLER_H
 
-#include "p4-switch-interface.h"
+#include "ns3/p4-switch-interface.h"
 #include "ns3/object.h"
 
 #include <string>
 #include <vector>
 
 namespace ns3 {
+
+class P4SwitchInterface;
 
 /**
  * @brief Controller for managing multiple P4 switches in an NS-3 simulation.
