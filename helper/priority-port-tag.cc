@@ -1,4 +1,3 @@
-// PriorityPortTag.cc
 #include "ns3/priority-port-tag.h"
 #include "ns3/log.h"
 
@@ -27,30 +26,30 @@ PriorityPortTag::PriorityPortTag ()
 {
 }
 
-PriorityPortTag::PriorityPortTag (uint8_t priority, uint16_t port)
+PriorityPortTag::PriorityPortTag (uint32_t priority, uint32_t port)
   : m_priority (priority), m_port (port)
 {
 }
 
 void
-PriorityPortTag::SetPriority (uint8_t priority)
+PriorityPortTag::SetPriority (uint32_t priority)
 {
   m_priority = priority;
 }
 
-uint8_t
+uint32_t
 PriorityPortTag::GetPriority (void) const
 {
   return m_priority;
 }
 
 void
-PriorityPortTag::SetPort (uint16_t port)
+PriorityPortTag::SetPort (uint32_t port)
 {
   m_port = port;
 }
 
-uint16_t
+uint32_t
 PriorityPortTag::GetPort (void) const
 {
   return m_port;
@@ -59,27 +58,27 @@ PriorityPortTag::GetPort (void) const
 uint32_t
 PriorityPortTag::GetSerializedSize (void) const
 {
-  return sizeof(uint8_t) + sizeof(uint16_t);
+  return sizeof(uint32_t) + sizeof(uint32_t);
 }
 
 void
 PriorityPortTag::Serialize (TagBuffer i) const
 {
-  i.WriteU8 (m_priority);
-  i.WriteU16 (m_port);
+  i.WriteU32 (m_priority);
+  i.WriteU32 (m_port);
 }
 
 void
 PriorityPortTag::Deserialize (TagBuffer i)
 {
-  m_priority = i.ReadU8 ();
-  m_port = i.ReadU16 ();
+  m_priority = i.ReadU32 ();
+  m_port = i.ReadU32 ();
 }
 
 void
 PriorityPortTag::Print (std::ostream &os) const
 {
-  os << "Priority=" << static_cast<uint32_t>(m_priority)
+  os << "Priority=" << m_priority
      << ", Port=" << m_port;
 }
 
