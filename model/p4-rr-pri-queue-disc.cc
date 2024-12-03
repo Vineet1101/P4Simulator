@@ -140,7 +140,7 @@ NSP4PriQueueDisc::DoEnqueue(Ptr<QueueDiscItem> item)
         if (fifoQueue.size >= fifoQueue.capacity)
         {
             NS_LOG_WARN("Queue overflow for port " << port << ", priority " << priority);
-            DropBeforeEnqueue(item, LIMIT_EXCEEDED_DROP);
+            DropBeforeEnqueue(item, "Overlimit drop"); // @TODO add reason with defined constant
             return false;
         }
 
@@ -187,11 +187,9 @@ NSP4PriQueueDisc::DoDequeue(void)
         Time now = Simulator::Now();
         if (fifoQueue.queue.front().sendTime >= now)
         {
-            Ptr<QueueElement> dequeuedElement = fifoQueue.queue.front().item;
+            Ptr<QueueDiscItem> dequeuedItem = fifoQueue.queue.front().item;
             fifoQueue.queue.pop();
             fifoQueue.size--;
-
-            Ptr<QueueItem> dequeuedItem = dequeuedElement->item;
 
             return dequeuedItem;
         }
@@ -215,10 +213,7 @@ NSP4PriQueueDisc::DoPeek(void) const
         Time now = Simulator::Now();
         if (fifoQueue.queue.front().sendTime >= now)
         {
-            Ptr<QueueElement> peekElement = fifoQueue.queue.front().item;
-            // fifoQueue.queue.pop ();
-            // fifoQueue.size--;
-            Ptr<QueueItem> peekItem = peekElement->item;
+            Ptr<QueueElement> peekItem = fifoQueue.queue.front().item;
 
             return peekItem;
         }
@@ -245,7 +240,7 @@ NSP4PriQueueDisc::CalculateNextSendTime(const FifoQueue& FifoQueue) const
     return now + FifoQueue.delayTime;
 }
 
-constexpr Time
+Time
 NSP4PriQueueDisc::RateToTime(uint64_t pps)
 {
     return (pps == 0) ? MilliSeconds(1) : Seconds(1.0 / pps);

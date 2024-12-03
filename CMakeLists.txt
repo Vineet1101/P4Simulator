@@ -19,6 +19,7 @@ build_lib(
         model/p4-switch-interface.cc
         model/bridge-p4-net-device.cc
         model/standard-metadata-tag.cc
+        model/p4-queue-item.cc
         model/p4-logic-pri-rl-queue-disc.cc
         model/p4-rr-pri-queue-disc.cc
         model/format-utils.cc
@@ -37,6 +38,7 @@ build_lib(
         model/p4-switch-interface.h
         model/bridge-p4-net-device.h
         model/standard-metadata-tag.h
+        model/p4-queue-item.h
         model/p4-logic-pri-rl-queue-disc.h
         model/p4-rr-pri-queue-disc.h
         model/format-utils.h

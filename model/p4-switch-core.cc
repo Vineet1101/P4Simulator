@@ -329,7 +329,7 @@ P4Switch::ReceivePacket(Ptr<Packet> packetIn,
     PacketInfo pkts_info = {inPort, protocol, destination, 0};
     uidMap[ns3Uid] = pkts_info;
 
-    Ptr<QueueItem> queue_item = CreateObject<QueueItem>(packetIn);
+    Ptr<QueueDiscItem> queue_item = CreateObject<QueueDiscItem>(packetIn, destination, protocol);
 
     // process the packet in the pipeline
     input_buffer->Enqueue(queue_item);
@@ -348,7 +348,9 @@ P4Switch::push_input_buffer(Ptr<Packet> ns_packet)
     ns_packet->AddPacketTag(priorityTag); // Attach the tag to the packet
 
     // Enqueue the packet in the queue buffer
-    Ptr<QueueItem> queue_item = CreateObject<QueueItem>(ns_packet);
+    Address dummy_addr = Address();
+    uint16_t dummy_protocol = 0;
+    Ptr<QueueDiscItem> queue_item = CreateObject<QueueDiscItem>(ns_packet, dummy_addr, dummy_protocol);
 
     if (input_buffer->Enqueue(queue_item))
     {
@@ -378,7 +380,9 @@ P4Switch::push_input_buffer_with_priority(std::unique_ptr<bm::Packet>&& bm_packe
     ns_packet->AddPacketTag(priorityTag);                       // Attach the tag to the packet
 
     // Enqueue the packet in the queue buffer
-    Ptr<QueueItem> queue_item = CreateObject<QueueItem>(ns_packet);
+    Address dummy_addr = Address();
+    uint16_t dummy_protocol = 0;
+    Ptr<QueueDiscItem> queue_item = CreateObject<QueueDiscItem>(ns_packet, dummy_addr, dummy_protocol);
 
     if (input_buffer->Enqueue(queue_item))
     {
@@ -416,11 +420,13 @@ P4Switch::enqueue(port_t egress_port, std::unique_ptr<bm::Packet>&& bm_packet)
     }
 
     Ptr<Packet> ns_packet = get_ns3_packet(std::move(bm_packet));
-    ns3::PriorityPortTag priorityPortTag{static_cast<uint8_t>(priority), egress_port};
+    ns3::PriorityPortTag priorityPortTag{static_cast<uint32_t>(priority), static_cast<uint32_t>(egress_port)};
     ns_packet->AddPacketTag(priorityPortTag);
 
     // put into the egress buffer with priority
-    Ptr<QueueItem> queue_item = CreateObject<QueueItem>(ns_packet);
+    Address dummy_addr = Address();
+    uint16_t dummy_protocol = 0;
+    Ptr<QueueDiscItem> queue_item = CreateObject<QueueItem>(ns_packet, dummy_addr, dummy_protocol);
     if (queue_buffer->Enqueue(queue_item))
     {
         NS_LOG_INFO("Packet enqueued in P4QueueDisc, Port: " << egress_port
@@ -437,20 +443,6 @@ void
 P4Switch::push_transmit_buffer(std::unique_ptr<bm::Packet>&& bm_packet)
 {
     NS_LOG_FUNCTION(this);
-    // Re-submit, Re-circulate with high priority
-    // Ptr<Packet> ns_packet = this->get_ns3_packet(std::move(bm_packet));
-
-    // // Now the MetaData Tag can be ignored
-
-    // Ptr<QueueItem> queue_item = CreateObject<QueueItem>(ns_packet);
-    // if (this->transmit_buffer.Enqueue(queue_item) == QueueDiscItem::ENQUEUED)
-    // {
-    //     NS_LOG_INFO("Packet enqueued in TransmitBuffer");
-    // }
-    // else
-    // {
-    //     NS_LOG_WARN("QueueDisc TransmitBuffer is full, dropping packet");
-    // }
 }
 
 void

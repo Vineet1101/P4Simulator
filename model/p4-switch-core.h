@@ -26,7 +26,6 @@
 #include "ns3/standard-metadata-tag.h"
 #include "ns3/prio-queue-disc.h"
 #include "ns3/fifo-queue-disc.h"
-#include "ns3/p4-logic-pri-rl-queue-disc.h"
 #include "ns3/p4-rr-pri-queue-disc.h"
 
 #include <bm/bm_sim/packet.h>
@@ -44,7 +43,7 @@ struct PacketInfo
         int in_port;
         uint16_t protocol;
         Address destination;
-        int64_t packet_id;
+        u_int64_t packet_id;
     };
 
 /**

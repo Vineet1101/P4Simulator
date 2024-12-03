@@ -116,7 +116,8 @@ class NSP4PriQueueDisc : public QueueDisc
      *
      */
     struct FifoQueue
-    {
+    { 
+        // @TODO priority queue
         std::queue<QueueElement> queue;
         uint32_t size{0};
         uint32_t capacity{1000};
@@ -143,7 +144,7 @@ class NSP4PriQueueDisc : public QueueDisc
     /**
      * \brief Convert rate to time
      */
-    static constexpr Time RateToTime(uint64_t pps);
+    static Time RateToTime(uint64_t pps);
 
     std::vector<std::vector<FifoQueue>> m_priorityQueues; // priority queues for all ports
     uint8_t m_nbPorts{4};                                 // default 4 ports for switch
