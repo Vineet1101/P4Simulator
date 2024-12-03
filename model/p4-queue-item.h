@@ -11,6 +11,14 @@ namespace ns3 {
 class P4QueueItem : public QueueDiscItem
 {
 public:
+  
+  // /**
+  //    * \brief Get the type ID.
+  //    * \return the object TypeId
+  //    */
+  //   static TypeId GetTypeId();
+  
+
   /**
    * \brief Constructor
    * \param p The packet
@@ -19,10 +27,12 @@ public:
    */
   P4QueueItem (Ptr<Packet> p, const Address &addr, uint16_t protocol);
 
-  /**
-   * \brief Destructor
-   */
-  virtual ~P4QueueItem ();
+  virtual ~P4QueueItem () override;
+
+  // Delete default constructor, copy constructor and assignment operator to avoid misuse
+  P4QueueItem () = delete;
+  P4QueueItem (const P4QueueItem &) = delete;
+  P4QueueItem &operator = (const P4QueueItem &) = delete;
 
   /**
    * \brief Set the expected send time
@@ -47,6 +57,24 @@ public:
    * \param os The output stream
    */
   void Print (std::ostream &os) const override;
+
+  void AddHeader() override
+  {
+    // @TODO deal with header, keep header and payload separate to allow manipulating the header
+    return;
+  }
+
+  /**
+   * \brief Marks the packet as a substitute for dropping it, such as for Explicit Congestion
+   * Notification
+   *
+   * \return true if the packet is marked by this method or is already marked, false otherwise
+   */
+  bool Mark() override
+  {
+    // 
+    return false;
+  }
 
 private:
   Time m_sendTime; //!< Expected send time of the packet

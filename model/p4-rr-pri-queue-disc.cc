@@ -1,8 +1,8 @@
 #include "ns3/p4-rr-pri-queue-disc.h"
-#include "ns3/priority-port-tag.h"
 
 #include "ns3/log.h"
 #include "ns3/packet.h"
+#include "ns3/priority-port-tag.h"
 #include "ns3/queue.h"
 #include "ns3/simulator.h"
 
@@ -24,16 +24,12 @@ NSP4PriQueueDisc::GetTypeId(void)
                                           "Number of ports to manage.",
                                           UintegerValue(4),
                                           MakeUintegerAccessor(&NSP4PriQueueDisc::m_nbPorts),
+                                          MakeUintegerChecker<uint8_t>())
+                            .AddAttribute("NumPriorities",
+                                          "Number of priority queues per port.",
+                                          UintegerValue(8),
+                                          MakeUintegerAccessor(&NSP4PriQueueDisc::m_nbPriorities),
                                           MakeUintegerChecker<uint8_t>());
-
-    // here we block to change the virtual queues number for each port, P4 with
-    // 3 bits for the queue number, max value is 8
-
-    // .AddAttribute("NumPriorities",
-    //               "Number of virtual queue to manage for each port (default 8).",
-    //               UintegerValue(8),
-    //               MakeUintegerAccessor(&NSP4PriQueueDisc::m_nbPriorities),
-    //               MakeUintegerChecker<uint8_t>());
 
     return tid;
 }
@@ -41,79 +37,76 @@ NSP4PriQueueDisc::GetTypeId(void)
 NSP4PriQueueDisc::NSP4PriQueueDisc()
     : m_rng(CreateObject<UniformRandomVariable>())
 {
-    // init the priority queues with port vector
-    m_priorityQueues.reserve(m_nbPriorities);
-    for (uint8_t i = 0; i < m_nbPriorities; ++i)
+    NS_LOG_FUNCTION(this);
+
+    m_priorityQueues.resize(m_nbPorts);
+    for (auto& portQueues : m_priorityQueues)
     {
-        m_priorityQueues.emplace_back(m_nbPorts);
+        portQueues.resize(m_nbPriorities);
     }
 
-    // Initialize the random number generator range
-    m_rng->SetAttribute("Min", DoubleValue(0));
-    m_rng->SetAttribute("Max", DoubleValue(m_nbPorts - 1));
-
-    NS_LOG_DEBUG("NSP4PriQueueDisc default constructor with " << m_nbPorts << " ports and "
-                                                              << m_nbPriorities << " priorities");
+    NS_LOG_DEBUG("NSP4PriQueueDisc created with " << m_nbPorts << " ports and " << m_nbPriorities
+                                                  << " priorities.");
 }
 
 NSP4PriQueueDisc::~NSP4PriQueueDisc()
 {
+    NS_LOG_FUNCTION(this);
 }
 
 uint32_t
 NSP4PriQueueDisc::GetQueueSize(uint8_t port, uint8_t priority) const
 {
-    if (port >= m_nbPorts || priority >= m_nbPriorities)
-    {
-        NS_LOG_ERROR("Invalid port or priority specified in " << this);
-        return 0;
-    }
-    return m_priorityQueues[port][priority].size;
+    NS_ASSERT(port < m_nbPorts && priority < m_nbPriorities);
+    return m_priorityQueues[port][priority].queue.size();
 }
 
 uint32_t
 NSP4PriQueueDisc::GetQueueCapacity(uint8_t port, uint8_t priority) const
 {
-    if (port >= m_nbPorts || priority >= m_nbPriorities)
-    {
-        NS_LOG_ERROR("Invalid port or priority specified in " << this);
-        return 0;
-    }
+    NS_ASSERT(port < m_nbPorts && priority < m_nbPriorities);
     return m_priorityQueues[port][priority].capacity;
 }
 
 uint64_t
 NSP4PriQueueDisc::GetQueueRate(uint8_t port, uint8_t priority) const
 {
-    if (port >= m_nbPorts || priority >= m_nbPriorities)
-    {
-        NS_LOG_ERROR("Invalid port or priority specified in " << this);
-        return 0;
-    }
+    NS_ASSERT(port < m_nbPorts && priority < m_nbPriorities);
     return m_priorityQueues[port][priority].ratePps;
 }
 
 void
 NSP4PriQueueDisc::SetQueueCapacity(uint8_t port, uint8_t priority, uint32_t capacity)
 {
-    if (port >= m_nbPorts || priority >= m_nbPriorities)
-    {
-        NS_LOG_ERROR("Invalid port or priority specified in " << this);
-        return;
-    }
+    NS_ASSERT(port < m_nbPorts && priority < m_nbPriorities);
     m_priorityQueues[port][priority].capacity = capacity;
 }
 
 void
 NSP4PriQueueDisc::SetQueueRate(uint8_t port, uint8_t priority, uint64_t ratePps)
 {
-    if (port >= m_nbPorts || priority >= m_nbPriorities)
-    {
-        NS_LOG_ERROR("Invalid port or priority specified in " << this);
-        return;
-    }
+    NS_ASSERT(port < m_nbPorts && priority < m_nbPriorities);
     m_priorityQueues[port][priority].ratePps = ratePps;
     m_priorityQueues[port][priority].delayTime = RateToTime(ratePps);
+}
+
+uint32_t
+NSP4PriQueueDisc::GetQueueTotalLengthPerPort(uint8_t port) const
+{
+    NS_ASSERT(port < m_nbPorts);
+    uint32_t totalLength = 0;
+    for (uint8_t priority = 0; priority < m_nbPriorities; ++priority)
+    {
+        totalLength += m_priorityQueues[port][priority].queue.size();
+    }
+    return totalLength;
+}
+
+uint32_t
+NSP4PriQueueDisc::GetVirtualQueueLengthPerPort(uint8_t port, uint8_t priority) const
+{
+    NS_ASSERT(port < m_nbPorts && priority < m_nbPriorities);
+    return m_priorityQueues[port][priority].queue.size();
 }
 
 bool
@@ -126,118 +119,126 @@ NSP4PriQueueDisc::DoEnqueue(Ptr<QueueDiscItem> item)
 
     if (packet->PeekPacketTag(tag))
     {
-        // get the priority and port from the tag
         uint8_t priority = tag.GetPriority() % m_nbPriorities;
         uint16_t port = tag.GetPort();
 
         if (port >= m_nbPorts || priority >= m_nbPriorities)
         {
-            NS_LOG_ERROR("Invalid port or priority specified in " << this);
+            NS_LOG_ERROR("Invalid port or priority.");
             return false;
         }
 
         auto& fifoQueue = m_priorityQueues[port][priority];
-        if (fifoQueue.size >= fifoQueue.capacity)
+        if (fifoQueue.queue.size() >= fifoQueue.capacity)
         {
             NS_LOG_WARN("Queue overflow for port " << port << ", priority " << priority);
-            DropBeforeEnqueue(item, "Overlimit drop"); // @TODO add reason with defined constant
+            DropBeforeEnqueue(item, "Overlimit drop");
             return false;
         }
 
         Time sendTime = CalculateNextSendTime(fifoQueue);
-        QueueElement queueElement(item, sendTime);
-        fifoQueue.queue.push(queueElement);
 
-        fifoQueue.size++;
-        fifoQueue.queueLengthPort++;
+        fifoQueue.queue.push(
+            Create<P4QueueItem>(item->GetPacket(), item->GetAddress(), item->GetProtocol()));
 
-        NS_LOG_INFO("Packet contains a PriorityPortTag with priority " << priority << " and port "
-                                                                       << port);
+        // set the send time for the packet
+        fifoQueue.queue.back()->SetSendTime(sendTime);
+
+        NS_LOG_INFO("Packet enqueued to port " << port << ", priority " << priority);
     }
-
     else
     {
-        NS_LOG_WARN("Packet does not contain a PriorityPortTag");
+        NS_LOG_WARN("Packet missing PriorityPortTag.");
         return false;
     }
-    return true;
-}
 
-uint8_t
-NSP4PriQueueDisc::GetNextPort() const
-{
-    uint8_t selectedPort = static_cast<uint8_t>(m_rng->GetValue());
-    NS_ASSERT(selectedPort < m_nbPorts);
-    return selectedPort;
+    return true;
 }
 
 Ptr<QueueDiscItem>
 NSP4PriQueueDisc::DoDequeue(void)
 {
-    uint8_t port = GetNextPort();
+    NS_LOG_FUNCTION(this);
 
-    for (uint8_t pri = 0; pri < m_nbPriorities; pri++)
+    for (uint8_t port = 0; port < m_nbPorts; ++port)
     {
-        auto& fifoQueue = m_priorityQueues[port][pri];
-        if (fifoQueue.queue.empty())
+        for (uint8_t priority = 0; priority < m_nbPriorities; ++priority)
         {
-            continue;
-        }
+            auto& fifoQueue = m_priorityQueues[port][priority];
+            if (fifoQueue.queue.empty())
+            {
+                continue;
+            }
 
-        Time now = Simulator::Now();
-        if (fifoQueue.queue.front().sendTime >= now)
-        {
-            Ptr<QueueDiscItem> dequeuedItem = fifoQueue.queue.front().item;
-            fifoQueue.queue.pop();
-            fifoQueue.size--;
+            Time now = Simulator::Now();
+            if (fifoQueue.queue.front()->GetSendTime() <= now)
+            {
+                Ptr<QueueDiscItem> item = fifoQueue.queue.front();
+                fifoQueue.queue.pop();
 
-            return dequeuedItem;
+                NS_LOG_INFO("Packet dequeued from port " << port << ", priority " << priority);
+                return item;
+            }
         }
     }
+
     return nullptr;
 }
 
 Ptr<const QueueDiscItem>
-NSP4PriQueueDisc::DoPeek(void) const
+NSP4PriQueueDisc::DoPeek(void)
 {
-    uint8_t port = GetNextPort();
+    NS_LOG_FUNCTION(this);
 
-    for (uint8_t pri = 0; pri < m_nbPriorities; pri++)
+    for (uint8_t port = 0; port < m_nbPorts; ++port)
     {
-        auto& fifoQueue = m_priorityQueues[port][pri];
-        if (fifoQueue.queue.empty())
+        for (uint8_t priority = 0; priority < m_nbPriorities; ++priority)
         {
-            continue;
-        }
+            auto& fifoQueue = m_priorityQueues[port][priority];
+            if (fifoQueue.queue.empty())
+            {
+                continue;
+            }
 
-        Time now = Simulator::Now();
-        if (fifoQueue.queue.front().sendTime >= now)
-        {
-            Ptr<QueueElement> peekItem = fifoQueue.queue.front().item;
-
-            return peekItem;
+            Time now = Simulator::Now();
+            if (fifoQueue.queue.front()->GetSendTime() <= now)
+            {
+                NS_LOG_INFO("Packet peeked from port " << port << ", priority " << priority);
+                return fifoQueue.queue.front();
+            }
         }
     }
+
     return nullptr;
 }
 
 bool
 NSP4PriQueueDisc::CheckConfig(void)
 {
-    if (m_priorityQueues.size() != m_nbPriorities)
+    NS_LOG_FUNCTION(this);
+
+    if (m_priorityQueues.size() != m_nbPorts)
     {
-        NS_LOG_ERROR(
-            "Number of priority queues for each port does not match the set number of priorities");
+        NS_LOG_ERROR("Mismatch between ports and queue configuration.");
         return false;
     }
+
+    for (const auto& portQueues : m_priorityQueues)
+    {
+        if (portQueues.size() != m_nbPriorities)
+        {
+            NS_LOG_ERROR("Mismatch between priorities and queue configuration.");
+            return false;
+        }
+    }
+
     return true;
 }
 
 Time
-NSP4PriQueueDisc::CalculateNextSendTime(const FifoQueue& FifoQueue) const
+NSP4PriQueueDisc::CalculateNextSendTime(const FifoQueue& fifoQueue) const
 {
-    Time now = Simulator::Now();
-    return now + FifoQueue.delayTime;
+    return Simulator::Now() + fifoQueue.delayTime;
 }
 
 Time

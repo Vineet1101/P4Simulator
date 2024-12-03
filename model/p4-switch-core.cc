@@ -27,6 +27,7 @@
 #include "ns3/priority-port-tag.h"
 #include "ns3/register_access.h"
 #include "ns3/standard-metadata-tag.h"
+#include "ns3/p4-queue-item.h"
 
 #include "ns3/ethernet-header.h"
 #include "ns3/simulator.h"
@@ -329,7 +330,8 @@ P4Switch::ReceivePacket(Ptr<Packet> packetIn,
     PacketInfo pkts_info = {inPort, protocol, destination, 0};
     uidMap[ns3Uid] = pkts_info;
 
-    Ptr<QueueDiscItem> queue_item = CreateObject<QueueDiscItem>(packetIn, destination, protocol);
+    Ptr<QueueDiscItem> queue_item = Create<P4QueueItem>(packetIn, destination, protocol);
+    // CreateObject<P4QueueItem>(packetIn, destination, protocol); // not an object
 
     // process the packet in the pipeline
     input_buffer->Enqueue(queue_item);
@@ -339,6 +341,8 @@ P4Switch::ReceivePacket(Ptr<Packet> packetIn,
 void
 P4Switch::push_input_buffer(Ptr<Packet> ns_packet)
 {
+    // !!! Deprecated
+
     // Process the normal pkts, with normal priority
     NS_LOG_FUNCTION(this);
 
@@ -350,7 +354,8 @@ P4Switch::push_input_buffer(Ptr<Packet> ns_packet)
     // Enqueue the packet in the queue buffer
     Address dummy_addr = Address();
     uint16_t dummy_protocol = 0;
-    Ptr<QueueDiscItem> queue_item = CreateObject<QueueDiscItem>(ns_packet, dummy_addr, dummy_protocol);
+    Ptr<QueueDiscItem> queue_item = Create<P4QueueItem>(ns_packet, dummy_addr, dummy_protocol);
+    // CreateObject<P4QueueItem>(ns_packet, dummy_addr, dummy_protocol);
 
     if (input_buffer->Enqueue(queue_item))
     {
@@ -382,7 +387,7 @@ P4Switch::push_input_buffer_with_priority(std::unique_ptr<bm::Packet>&& bm_packe
     // Enqueue the packet in the queue buffer
     Address dummy_addr = Address();
     uint16_t dummy_protocol = 0;
-    Ptr<QueueDiscItem> queue_item = CreateObject<QueueDiscItem>(ns_packet, dummy_addr, dummy_protocol);
+    Ptr<QueueDiscItem> queue_item = Create<P4QueueItem>(ns_packet, dummy_addr, dummy_protocol);
 
     if (input_buffer->Enqueue(queue_item))
     {
@@ -426,7 +431,7 @@ P4Switch::enqueue(port_t egress_port, std::unique_ptr<bm::Packet>&& bm_packet)
     // put into the egress buffer with priority
     Address dummy_addr = Address();
     uint16_t dummy_protocol = 0;
-    Ptr<QueueDiscItem> queue_item = CreateObject<QueueItem>(ns_packet, dummy_addr, dummy_protocol);
+    Ptr<QueueDiscItem> queue_item = Create<P4QueueItem>(ns_packet, dummy_addr, dummy_protocol);
     if (queue_buffer->Enqueue(queue_item))
     {
         NS_LOG_INFO("Packet enqueued in P4QueueDisc, Port: " << egress_port
@@ -450,7 +455,7 @@ P4Switch::parser_ingress_processing()
 {
     NS_LOG_FUNCTION(this);
 
-    Ptr<QueueDiscItem> item = this->input_buffer->Dequeue();
+    Ptr<P4QueueItem> item = DynamicCast<P4QueueItem>(this->input_buffer->Dequeue());
     if (item == nullptr)
     {
         NS_LOG_WARN("P4InputQueueBufferDisc is empty, no packet to dequeue");
