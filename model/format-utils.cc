@@ -156,7 +156,7 @@ HexcharToInt(char c)
 }
 
 std::string
-HexstrToBytes(const std::string& str)
+HexStrToBytes(const std::string& str)
 {
     NS_LOG_FUNCTION(str);
     try
@@ -180,6 +180,50 @@ HexstrToBytes(const std::string& str)
         NS_LOG_ERROR("Exception in HexstrToBytes: " << e.what());
         return "";
     }
+}
+
+std::string HexStrToBytes(const std::string& str, unsigned int bitWidth) {
+    // Ensure bitWidth is a multiple of 8
+    if (bitWidth % 8 != 0) {
+        throw std::invalid_argument("bitWidth must be a multiple of 8.");
+    }
+
+    // Determine the maximum number of bytes based on bitWidth
+    unsigned int maxBytes = bitWidth / 8;
+
+    // Remove "0x" prefix if present
+    std::string hexStr = str;
+    if (hexStr.rfind("0x", 0) == 0) { // Check if it starts with "0x"
+        hexStr = hexStr.substr(2); // Remove the "0x"
+    }
+
+    // Ensure the string length is even
+    if (hexStr.length() % 2 != 0) {
+        hexStr = "0" + hexStr; // Pad with a leading zero if necessary
+    }
+
+    // Convert hex string to bytes
+    std::string result;
+    result.reserve(maxBytes); // Pre-allocate space for the result
+    unsigned int byteCount = 0;
+
+    for (size_t i = 0; i < hexStr.length() && byteCount < maxBytes; i += 2) {
+        // Check if the characters are valid hexadecimal digits
+        if (!std::isxdigit(hexStr[i]) || !std::isxdigit(hexStr[i + 1])) {
+            throw std::invalid_argument("Invalid hexadecimal character in input string.");
+        }
+
+        // Convert each pair of hex digits to a byte
+        std::stringstream ss;
+        ss << std::hex << hexStr.substr(i, 2);
+        unsigned int byte;
+        ss >> byte;
+        result.push_back(static_cast<char>(byte));
+
+        ++byteCount;
+    }
+
+    return result;
 }
 
 std::string

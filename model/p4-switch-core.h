@@ -27,24 +27,109 @@
 #include "ns3/prio-queue-disc.h"
 #include "ns3/fifo-queue-disc.h"
 #include "ns3/p4-rr-pri-queue-disc.h"
+// #include "ns3/register_access.h"
 
 #include <bm/bm_sim/packet.h>
 #include <bm/bm_sim/switch.h>
 // #include <bm/bm_sim/queueing.h> // rewrite with ns3 queuedisc
 
-
-namespace ns3
-{
+namespace ns3 {
 
 class BridgeP4NetDevice;
 
 struct PacketInfo
-    {
-        int in_port;
-        uint16_t protocol;
-        Address destination;
-        u_int64_t packet_id;
-    };
+{
+  int in_port;
+  uint16_t protocol;
+  Address destination;
+  u_int64_t packet_id;
+};
+
+struct MirroringSessionConfig
+{
+  uint32_t egress_port;
+  bool egress_port_valid;
+  unsigned int mgid;
+  bool mgid_valid;
+};
+
+
+class MirroringSessions {
+public:
+    // 添加会话
+    bool AddSession (int mirror_id, const MirroringSessionConfig &config);
+
+    // 删除会话
+    bool DeleteSession (int mirror_id);
+
+    // 获取会话
+    bool GetSession (int mirror_id, MirroringSessionConfig *config) const;
+
+private:
+    // 会话存储容器
+    std::unordered_map<int, MirroringSessionConfig> sessions_map;
+};
+
+
+// class MirroringSessions
+// {
+// public:
+//   bool
+//   AddSession (int mirror_id, const MirroringSessionConfig &config)
+//   {
+//     if (0 <= mirror_id && mirror_id <= RegisterAccess::MAX_MIRROR_SESSION_ID)
+//       {
+//         sessions_map[mirror_id] = config;
+//         NS_LOG_INFO ("Session added with mirror_id=" << mirror_id);
+//         return true;
+//       }
+//     else
+//       {
+//         NS_LOG_ERROR ("mirror_id out of range. No session added.");
+//         return false;
+//       }
+//   }
+
+//   bool
+//   DeleteSession (int mirror_id)
+//   {
+//     if (0 <= mirror_id && mirror_id <= RegisterAccess::MAX_MIRROR_SESSION_ID)
+//       {
+//         bool erased = sessions_map.erase (mirror_id) == 1;
+//         if (erased)
+//           {
+//             NS_LOG_INFO ("Session deleted with mirror_id=" << mirror_id);
+//           }
+//         else
+//           {
+//             NS_LOG_WARN ("No session found for mirror_id=" << mirror_id);
+//           }
+//         return erased;
+//       }
+//     else
+//       {
+//         NS_LOG_ERROR ("mirror_id out of range. No session deleted.");
+//         return false;
+//       }
+//   }
+
+//   bool
+//   GetSession (int mirror_id, MirroringSessionConfig *config) const
+//   {
+//     auto it = sessions_map.find (mirror_id);
+//     if (it == sessions_map.end ())
+//       {
+//         NS_LOG_WARN ("No session found for mirror_id=" << mirror_id);
+//         return false;
+//       }
+//     *config = it->second;
+//     NS_LOG_INFO ("Session retrieved for mirror_id=" << mirror_id);
+//     return true;
+//   }
+
+// private:
+//   std::unordered_map<int, MirroringSessionConfig> sessions_map;
+// };
 
 /**
  * \ingroup p4-pipeline
@@ -53,166 +138,138 @@ struct PacketInfo
  */
 class P4Switch : public bm::Switch
 {
-  public:
-    P4Switch(BridgeP4NetDevice* netDevice);
+public:
+  P4Switch (BridgeP4NetDevice *netDevice);
 
-    static TypeId GetTypeId(void);
+  static TypeId GetTypeId (void);
 
-    ~P4Switch();
+  ~P4Switch ();
 
-    struct MirroringSessionConfig {
-			port_t egress_port;
-			bool egress_port_valid;
-			unsigned int mgid;
-			bool mgid_valid;
-		};
+  // struct MirroringSessionConfig
+  // {
+  //   uint32_t egress_port;
+  //   bool egress_port_valid;
+  //   unsigned int mgid;
+  //   bool mgid_valid;
+  // };
 
-    enum class PacketType
-    {
-        NORMAL,
-        RESUBMIT,
-        RECIRCULATE,
-        SENTINEL // signal for the ingress thread to terminate
-    };
+  enum class PacketType {
+    NORMAL,
+    RESUBMIT,
+    RECIRCULATE,
+    SENTINEL // signal for the ingress thread to terminate
+  };
 
-    /**
+  /**
      * \brief Run the provided CLI commands to populate table entries
      */
-    void run_cli(std::string commandsFile);
+  void run_cli (std::string commandsFile);
 
-    /**
+  /**
      * \brief Unused
      */
-    int receive_(port_t port_num, const char* buffer, int len) override;
+  int receive_ (uint32_t port_num, const char *buffer, int len) override;
 
-    /**
+  /**
      * \brief Unused
      */
-    void start_and_return_() override;
+  void start_and_return_ () override;
 
-    // void reset_target_state_() override;
+  // void reset_target_state_() override;
 
-    void swap_notify_() override;
+  void swap_notify_ () override;
 
-    // bool mirroring_add_session(mirror_id_t mirror_id, const MirroringSessionConfig& config);
+  bool mirroring_add_session (int mirror_id, const MirroringSessionConfig &config);
 
-    // bool mirroring_delete_session(mirror_id_t mirror_id);
+  bool mirroring_delete_session (int mirror_id);
 
-    // bool mirroring_get_session(mirror_id_t mirror_id, MirroringSessionConfig* config) const;
-    // int set_egress_priority_queue_depth(size_t port, size_t priority, const size_t depth_pkts);
-    // int set_egress_queue_depth(size_t port, const size_t depth_pkts);
-    // int set_all_egress_queue_depths(const size_t depth_pkts);
+  bool mirroring_get_session (int mirror_id, MirroringSessionConfig *config) const;
 
-    // int set_egress_priority_queue_rate(size_t port, size_t priority, const uint64_t rate_pps);
-    // int set_egress_queue_rate(size_t port, const uint64_t rate_pps);
-    // int set_all_egress_queue_rates(const uint64_t rate_pps);
+  int ReceivePacket (Ptr<Packet> packetIn, int inPort, uint16_t protocol,
+                     const Address &destination);
 
-    int ReceivePacket(Ptr<Packet> packetIn,
-                      int inPort,
-                      uint16_t protocol,
-                      const Address& destination);
-    
-    // !!! Deprecated function, see p4-switch-interface.cc for the new init function
-    // int init(int argc, char* argv[]);
+  // !!! Deprecated function, see p4-switch-interface.cc for the new init function
+  // int init(int argc, char* argv[]);
 
-    /**
+  /**
      * \brief configure switch with json file
      */
-    int InitFromCommandLineOptionsLocal(int argc,
-                                        char* argv[]);
+  int InitFromCommandLineOptionsLocal (int argc, char *argv[]);
 
-    void packets_process_pipeline(Ptr<Packet> packetIn,
-                                  int inPort,
-                                  uint16_t protocol,
-                                  const Address& destination);
+  void packets_process_pipeline (Ptr<Packet> packetIn, int inPort, uint16_t protocol,
+                                 const Address &destination);
 
-    void push_input_buffer(Ptr<Packet> packetIn);
+  void push_input_buffer (Ptr<Packet> packetIn);
 
-    void push_input_buffer_with_priority(std::unique_ptr<bm::Packet>&& bm_packet, PacketType packet_type);
+  void push_input_buffer_with_priority (std::unique_ptr<bm::Packet> &&bm_packet,
+                                        PacketType packet_type);
 
-    void push_transmit_buffer(std::unique_ptr<bm::Packet>&& bm_packet);
+  void push_transmit_buffer (std::unique_ptr<bm::Packet> &&bm_packet);
 
-    void parser_ingress_processing();
+  void parser_ingress_processing ();
 
-    void enqueue(port_t egress_port, std::unique_ptr<bm::Packet>&& bm_packet);
+  void enqueue (uint32_t egress_port, std::unique_ptr<bm::Packet> &&bm_packet);
 
-    void egress_deparser_processing();
+  void egress_deparser_processing ();
 
-    bool mirroring_add_session(int mirror_id, const MirroringSessionConfig& config);
+  void multicast (bm::Packet *packet, unsigned int mgid);
 
-    bool mirroring_delete_session(int mirror_id);
+  void check_queueing_metadata ();
 
-    bool mirroring_get_session(int mirror_id, MirroringSessionConfig* config) const;
-    
-    void multicast(bm::Packet *packet, unsigned int mgid);
+  void
+  SetSkipTracing (bool skipTracing)
+  {
+    skip_tracing = skipTracing;
+  }
 
-    void check_queueing_metadata();
+  std::unique_ptr<bm::Packet> get_bm_packet (Ptr<Packet> ns3_packet);
+  std::unique_ptr<bm::Packet> get_bm_packet_from_ingress (Ptr<Packet> ns_packet);
+  Ptr<Packet> get_ns3_packet (std::unique_ptr<bm::Packet> bm_packet);
 
-    int set_egress_priority_queue_depth(size_t port, size_t priority, const size_t depth_pkts);
-    int set_egress_queue_depth(size_t port, const size_t depth_pkts);
-    int set_all_egress_queue_depths(const size_t depth_pkts);
-    int set_egress_priority_queue_rate(size_t port, size_t priority, const uint64_t rate_pps);
-    int set_egress_queue_rate(size_t port, const uint64_t rate_pps);
-    int set_all_egress_queue_rates(const uint64_t rate_pps);
+  P4Switch (const P4Switch &) = delete;
+  P4Switch &operator= (const P4Switch &) = delete;
+  P4Switch (P4Switch &&) = delete;
+  P4Switch &&operator= (P4Switch &&) = delete;
 
-    /**
-     * \brief Set whether to skip tracing, default is true
-     */
-    void SetSkipTracing(bool skipTracing)
-    {
-        skip_tracing = skipTracing;
-    }
+  static constexpr uint32_t default_drop_port = 511;
 
-    std::unique_ptr<bm::Packet> get_bm_packet(Ptr<Packet> ns3_packet);
-    std::unique_ptr<bm::Packet> get_bm_packet_from_ingress(Ptr<Packet> ns_packet);
-    Ptr<Packet> get_ns3_packet(std::unique_ptr<bm::Packet> bm_packet);
+protected:
+  static bm::packet_id_t packet_id;
+  static int thrift_port;
 
-    P4Switch(const P4Switch&) = delete;
-    P4Switch& operator=(const P4Switch&) = delete;
-    P4Switch(P4Switch&&) = delete;
-    P4Switch&& operator=(P4Switch&&) = delete;
+private:
+  // class MirroringSessions;
 
-    static constexpr port_t default_drop_port = 511;
+  enum PktInstanceType {
+    PKT_INSTANCE_TYPE_NORMAL,
+    PKT_INSTANCE_TYPE_INGRESS_CLONE,
+    PKT_INSTANCE_TYPE_EGRESS_CLONE,
+    PKT_INSTANCE_TYPE_COALESCED,
+    PKT_INSTANCE_TYPE_RECIRC,
+    PKT_INSTANCE_TYPE_REPLICATION,
+    PKT_INSTANCE_TYPE_RESUBMIT,
+  };
 
-  protected:
-    static bm::packet_id_t packet_id;
-    static int thrift_port;
+  void copy_field_list_and_set_type (const std::unique_ptr<bm::Packet> &packet,
+                                     const std::unique_ptr<bm::Packet> &packet_copy,
+                                     PktInstanceType copy_type, int field_list_id);
 
-  private:
-    
-    // class MirroringSessions;
+  bm::TargetParserBasic *m_argParser; //!< Structure of parsers
 
-    enum PktInstanceType {
-			PKT_INSTANCE_TYPE_NORMAL,
-			PKT_INSTANCE_TYPE_INGRESS_CLONE,
-			PKT_INSTANCE_TYPE_EGRESS_CLONE,
-			PKT_INSTANCE_TYPE_COALESCED,
-			PKT_INSTANCE_TYPE_RECIRC,
-			PKT_INSTANCE_TYPE_REPLICATION,
-			PKT_INSTANCE_TYPE_RESUBMIT,
-		};
+  bool skip_tracing = true; // whether to skip tracing
+  bool with_queueing_metadata{true}; // whether to include queueing metadata
 
-    void copy_field_list_and_set_type(
-			const std::unique_ptr<bm::Packet> &packet,
-			const std::unique_ptr<bm::Packet> &packet_copy,
-			PktInstanceType copy_type, int field_list_id);
+  size_t nb_queues_per_port{8}; // 3 bit for the queue number, max value is 8
 
-    bm::TargetParserBasic * m_argParser; 		    //!< Structure of parsers
+  std::unique_ptr<MirroringSessions> mirroring_sessions;
 
-    bool skip_tracing = true;          // whether to skip tracing
-    bool with_queueing_metadata{true}; // whether to include queueing metadata
+  std::vector<Address> destination_list; //!< list for address, using by index
 
-    size_t nb_queues_per_port{8}; // 3 bit for the queue number, max value is 8
-    
-    // std::unique_ptr<MirroringSessions> mirroring_sessions;
+  Ptr<PrioQueueDisc> input_buffer;
+  Ptr<NSP4PriQueueDisc> queue_buffer;
+  Ptr<FifoQueueDisc> transmit_buffer;
 
-    std::vector<Address> destination_list; //!< list for address, using by index
-
-    Ptr<PrioQueueDisc> input_buffer;
-    Ptr<NSP4PriQueueDisc> queue_buffer;
-    Ptr<FifoQueueDisc> transmit_buffer; 
-
-    BridgeP4NetDevice* m_pNetDevice;
+  BridgeP4NetDevice *m_pNetDevice;
 };
 
 } // namespace ns3

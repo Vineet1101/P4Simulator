@@ -9,6 +9,14 @@
 
 #include "ns3/object.h"
 
+
+
+#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_OFF
+#include <bm/spdlog/spdlog.h>
+#undef LOG_INFO // 防止冲突
+#undef LOG_ERROR
+#undef LOG_DEBUG
+
 #include <bm/bm_sim/match_units.h>
 #include <string>
 #include <unordered_map>

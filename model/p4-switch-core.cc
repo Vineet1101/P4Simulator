@@ -34,6 +34,13 @@
 #include "ns3/socket.h"
 #include "ns3/log.h"
 
+
+#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_OFF
+#include <bm/spdlog/spdlog.h>
+#undef LOG_INFO // 防止冲突
+#undef LOG_ERROR
+#undef LOG_DEBUG
+
 #include <bm/bm_runtime/bm_runtime.h>
 #include <bm/bm_sim/options_parse.h>
 #include <bm/bm_sim/parser.h>
@@ -80,8 +87,64 @@ struct bmv2_hash
 
 // if REGISTER_HASH calls placed in the anonymous namespace, some compiler can
 // give an unused variable warning
+
 REGISTER_HASH(hash_ex);
 REGISTER_HASH(bmv2_hash);
+
+bool
+MirroringSessions::AddSession (int mirror_id, const MirroringSessionConfig &config)
+{
+    if (0 <= mirror_id && mirror_id <= RegisterAccess::MAX_MIRROR_SESSION_ID)
+      {
+        sessions_map[mirror_id] = config;
+        NS_LOG_INFO ("Session added with mirror_id=" << mirror_id);
+        return true;
+      }
+    else
+      {
+        NS_LOG_ERROR ("mirror_id out of range. No session added.");
+        return false;
+      }
+}
+
+bool
+MirroringSessions::DeleteSession (int mirror_id)
+{
+    if (0 <= mirror_id && mirror_id <= RegisterAccess::MAX_MIRROR_SESSION_ID)
+      {
+        bool erased = sessions_map.erase (mirror_id) == 1;
+        if (erased)
+          {
+            NS_LOG_INFO ("Session deleted with mirror_id=" << mirror_id);
+          }
+        else
+          {
+            NS_LOG_WARN ("No session found for mirror_id=" << mirror_id);
+          }
+        return erased;
+      }
+    else
+      {
+        NS_LOG_ERROR ("mirror_id out of range. No session deleted.");
+        return false;
+      }
+}
+
+bool
+MirroringSessions::GetSession (int mirror_id, MirroringSessionConfig *config) const
+{
+    auto it = sessions_map.find (mirror_id);
+    if (it == sessions_map.end ())
+      {
+        NS_LOG_WARN ("No session found for mirror_id=" << mirror_id);
+        return false;
+      }
+    *config = it->second;
+    NS_LOG_INFO ("Session retrieved for mirror_id=" << mirror_id);
+    return true;
+}
+
+
 
 // initialize static attributes
 
@@ -266,7 +329,7 @@ P4Switch::run_cli(std::string commandsFile)
 }
 
 int
-P4Switch::receive_(port_t port_num, const char* buffer, int len)
+P4Switch::receive_(uint32_t port_num, const char* buffer, int len)
 {
     // remove this
     return 0;
@@ -400,7 +463,7 @@ P4Switch::push_input_buffer_with_priority(std::unique_ptr<bm::Packet>&& bm_packe
 }
 
 void
-P4Switch::enqueue(port_t egress_port, std::unique_ptr<bm::Packet>&& bm_packet)
+P4Switch::enqueue(uint32_t egress_port, std::unique_ptr<bm::Packet>&& bm_packet)
 {
     NS_LOG_FUNCTION(this);
     bm_packet->set_egress_port(egress_port);
@@ -470,7 +533,7 @@ P4Switch::parser_ingress_processing()
     bm::Pipeline* ingress_mau = this->get_pipeline("ingress");
     bm::PHV* phv = bm_packet->get_phv();
 
-    port_t ingress_port = bm_packet->get_ingress_port();
+    uint32_t ingress_port = bm_packet->get_ingress_port();
     auto ingress_packet_size = bm_packet->get_register(RegisterAccess::PACKET_LENGTH_REG_IDX);
 
     /* This looks like it comes out of the blue. However this is needed for
@@ -499,7 +562,7 @@ P4Switch::parser_ingress_processing()
     bm_packet->reset_exit();
 
     bm::Field& f_egress_spec = phv->get_field("standard_metadata.egress_spec");
-    port_t egress_spec = f_egress_spec.get_uint();
+    uint32_t egress_spec = f_egress_spec.get_uint();
 
     auto clone_mirror_session_id = RegisterAccess::get_clone_mirror_session_id(bm_packet.get());
     auto clone_field_list = RegisterAccess::get_clone_field_list(bm_packet.get());
@@ -615,7 +678,7 @@ P4Switch::parser_ingress_processing()
         return;
     }
 
-    port_t egress_port = egress_spec;
+    uint32_t egress_port = egress_spec;
     NS_LOG_DEBUG("Egress port is " << egress_port);
 
     if (egress_port == default_drop_port)
@@ -652,7 +715,7 @@ P4Switch::egress_deparser_processing()
         NS_LOG_WARN("Packet does not contain a PriorityPortTag");
         return;
     }
-    port_t port = tag.GetPort();
+    uint32_t port = tag.GetPort();
     // size_t priority = tag.GetPriority();
 
     // ns save packets id.
@@ -750,7 +813,7 @@ P4Switch::egress_deparser_processing()
     }
 
     // TODO(antonin): should not be done like this in egress pipeline
-    port_t egress_spec = f_egress_spec.get_uint();
+    uint32_t egress_spec = f_egress_spec.get_uint();
     if (egress_spec == default_drop_port)
     {
         // drop packet
@@ -945,23 +1008,23 @@ P4Switch::multicast(bm::Packet* packet, unsigned int mgid)
     // }
 }
 
-// bool
-// P4Switch::mirroring_add_session(mirror_id_t mirror_id, const MirroringSessionConfig& config)
-// {
-//     return mirroring_sessions->add_session(mirror_id, config);
-// }
+bool
+P4Switch::mirroring_add_session(int mirror_id, const MirroringSessionConfig& config)
+{
+    return mirroring_sessions->AddSession(mirror_id, config);
+}
 
-// bool
-// P4Switch::mirroring_delete_session(mirror_id_t mirror_id)
-// {
-//     return mirroring_sessions->delete_session(mirror_id);
-// }
+bool
+P4Switch::mirroring_delete_session(int mirror_id)
+{
+    return mirroring_sessions->DeleteSession(mirror_id);
+}
 
-// bool
-// P4Switch::mirroring_get_session(mirror_id_t mirror_id, MirroringSessionConfig* config) const
-// {
-//     return mirroring_sessions->get_session(mirror_id, config);
-// }
+bool
+P4Switch::mirroring_get_session(int mirror_id, MirroringSessionConfig* config) const
+{
+    return mirroring_sessions->GetSession(mirror_id, config);
+}
 
 // int
 // P4Switch::set_egress_priority_queue_depth(size_t port, size_t priority, const size_t depth_pkts)

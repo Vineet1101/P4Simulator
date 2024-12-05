@@ -488,6 +488,13 @@ P4SwitchInterface::HandleCounterRead(const std::vector<std::string>& parms)
                            << packets << " packets.");
 }
 
+void P4SwitchInterface::HandleCounterReset (const std::vector<std::string>& parms)
+{
+    // @TODO (Might need to change the parameter list)
+    return;
+
+}
+
 void
 P4SwitchInterface::HandleRegisterRead(const std::vector<std::string>& parms)
 {

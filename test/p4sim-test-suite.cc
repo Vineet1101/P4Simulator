@@ -4,6 +4,8 @@
 
 // An essential include is test.h
 #include "ns3/test.h"
+#include "ns3/log.h"
+#include "ns3/assert.h"
 
 // Do not put your test classes in namespace ns3.  You may find it useful
 // to use the using directive to access the ns3 namespace directly
@@ -75,7 +77,7 @@ P4simTestSuite::P4simTestSuite()
     : TestSuite("p4sim", Type::UNIT)
 {
     // Duration for TestCase can be QUICK, EXTENSIVE or TAKES_FOREVER
-    AddTestCase(new P4simTestCase1, TestCase::Duration::QUICK);
+    AddTestCase(new P4simTestCase1, QUICK);
 }
 
 // Do not forget to allocate an instance of this TestSuite
