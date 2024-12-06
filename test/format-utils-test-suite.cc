@@ -5,6 +5,7 @@
 #include "ns3/log.h"
 #include "ns3/test.h"
 
+#include <climits>
 #include <string>
 
 namespace ns3 {
@@ -65,16 +66,53 @@ FormatUtilsTestCase::DoRun ()
 void
 FormatUtilsTestCase::TestIntToStr ()
 {
+  // Test normal positive integers
   char *result = IntToStr (12345);
   NS_TEST_ASSERT_MSG_EQ (std::string (result), "12345", "IntToStr failed for positive numbers");
   delete[] result;
 
+  // Test normal negative integers
   result = IntToStr (-6789);
   NS_TEST_ASSERT_MSG_EQ (std::string (result), "-6789", "IntToStr failed for negative numbers");
   delete[] result;
 
+  // Test zero
   result = IntToStr (0);
   NS_TEST_ASSERT_MSG_EQ (std::string (result), "0", "IntToStr failed for zero");
+  delete[] result;
+
+  // Test maximum positive integer
+  result = IntToStr (INT_MAX);
+  NS_TEST_ASSERT_MSG_EQ (std::string (result), std::to_string (INT_MAX),
+                         "IntToStr failed for INT_MAX");
+  delete[] result;
+
+  // Test for minimum negative integer
+  result = IntToStr (INT_MIN);
+  NS_TEST_ASSERT_MSG_EQ (std::string (result), std::to_string (INT_MIN),
+                         "IntToStr failed for INT_MIN");
+  delete[] result;
+
+  // Test for single positive digit
+  result = IntToStr (7);
+  NS_TEST_ASSERT_MSG_EQ (std::string (result), "7",
+                         "IntToStr failed for single digit positive number");
+  delete[] result;
+
+  // Test for single negative digit
+  result = IntToStr (-3);
+  NS_TEST_ASSERT_MSG_EQ (std::string (result), "-3",
+                         "IntToStr failed for single digit negative number");
+  delete[] result;
+
+  // Test for negative numbers close to zero
+  result = IntToStr (-1);
+  NS_TEST_ASSERT_MSG_EQ (std::string (result), "-1", "IntToStr failed for negative one");
+  delete[] result;
+
+  // Test for positive numbers close to zero
+  result = IntToStr (1);
+  NS_TEST_ASSERT_MSG_EQ (std::string (result), "1", "IntToStr failed for positive one");
   delete[] result;
 }
 
@@ -120,10 +158,21 @@ FormatUtilsTestCase::TestHexCharToInt ()
 void
 FormatUtilsTestCase::TestHexStrToBytes ()
 {
+  // 测试有效输入
   NS_TEST_ASSERT_MSG_EQ (HexStrToBytes ("0x0a010001"), "\x0a\x01\x00\x01",
                          "HexStrToBytes failed for valid input");
+
   NS_TEST_ASSERT_MSG_EQ (HexStrToBytes ("ff00"), "\xff\x00",
                          "HexStrToBytes failed for short input");
+
+  // 测试无效输入
+  NS_TEST_EXPECT_MSG_EQ (HexStrToBytes ("0x123"), "",
+                         "HexStrToBytes should fail for odd-length input");
+  NS_TEST_EXPECT_MSG_EQ (HexStrToBytes ("zz00"), "",
+                         "HexStrToBytes should fail for invalid characters");
+
+  // 边界情况
+  NS_TEST_ASSERT_MSG_EQ (HexStrToBytes (""), "", "HexStrToBytes failed for empty input");
 }
 
 /**

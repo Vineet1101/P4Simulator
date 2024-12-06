@@ -1,15 +1,16 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
 #include "ns3/format-utils.h"
-
 #include "ns3/log.h"
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
 #include <vector>
+#include <iostream>
 
 namespace ns3 {
 
@@ -19,38 +20,14 @@ char *
 IntToStr (int num)
 {
   NS_LOG_FUNCTION (num);
+
   try
     {
-      char *ss = new char[12]; // Enough to hold int max value and sign
-      int pos = 0;
+      std::string result = std::to_string (num);
+      char *cstr = new char[result.length () + 1];
+      std::strcpy (cstr, result.c_str ());
 
-      if (num == 0)
-        {
-          ss[0] = '0';
-          ss[1] = '\0';
-          return ss;
-        }
-
-      bool isNegative = (num < 0);
-      if (isNegative)
-        {
-          num = -num;
-        }
-
-      while (num)
-        {
-          ss[pos++] = num % 10 + '0';
-          num = num / 10;
-        }
-
-      if (isNegative)
-        {
-          ss[pos++] = '-';
-        }
-
-      std::reverse (ss, ss + pos);
-      ss[pos] = '\0';
-      return ss;
+      return cstr;
     }
   catch (const std::exception &e)
     {
@@ -128,30 +105,17 @@ StrToInt (const std::string &str)
 }
 
 int
-HexcharToInt (char c)
+HexCharToInt (char c)
 {
-  NS_LOG_FUNCTION (c);
-  try
-    {
-      if (isdigit (c))
-        {
-          return c - '0';
-        }
-      else if (isxdigit (c))
-        {
-          return tolower (c) - 'a' + 10;
-        }
-      else
-        {
-          NS_LOG_ERROR ("Invalid hexadecimal character: " << c);
-          throw std::invalid_argument ("Invalid hexadecimal character");
-        }
-    }
-  catch (const std::exception &e)
-    {
-      NS_LOG_ERROR ("Exception in HexcharToInt: " << e.what ());
-      return -1; // Return an invalid value for error
-    }
+  if (c >= '0' && c <= '9')
+    return c - '0';
+  if (c >= 'a' && c <= 'f')
+    return c - 'a' + 10;
+  if (c >= 'A' && c <= 'F')
+    return c - 'A' + 10;
+
+  // 如果字符不是有效的十六进制字符，抛出异常
+  throw std::invalid_argument ("Invalid hex character");
 }
 
 std::string
@@ -160,23 +124,39 @@ HexStrToBytes (const std::string &str)
   NS_LOG_FUNCTION (str);
   try
     {
+      // 检查并去掉前缀 "0x"（如果存在）
       std::string hexStr = (str.find ("0x") == 0) ? str.substr (2) : str;
+      NS_LOG_INFO ("Processed hex string: " << hexStr);
+
+      // 验证长度必须为偶数
       if (hexStr.size () % 2 != 0)
         {
           NS_LOG_ERROR ("Hex string length must be even.");
           throw std::invalid_argument ("Hex string length must be even");
         }
 
-      std::string res (hexStr.size () / 2, '\0');
-      for (size_t i = 0; i < hexStr.size (); i += 2)
+      // 验证输入字符串是否只包含有效的十六进制字符
+      for (char c : hexStr)
         {
-          res[i / 2] = HexcharToInt (hexStr[i]) * 16 + HexcharToInt (hexStr[i + 1]);
+          if (!std::isxdigit (c))
+            {
+              NS_LOG_ERROR ("Invalid character in hex string: " << c);
+              throw std::invalid_argument ("Invalid character in hex string");
+            }
+        }
+
+      std::string res;
+      res.resize (hexStr.size () / 2);
+      for (size_t i = 0, j = 0; i < hexStr.size (); i += 2, j++)
+        {
+          res[j] = HexCharToInt (hexStr[i]) * 16 + HexCharToInt (hexStr[i + 1]);
+          NS_LOG_INFO ("Processed hex string: " << j << " item with " << res[j]);
         }
       return res;
     }
   catch (const std::exception &e)
     {
-      NS_LOG_ERROR ("Exception in HexstrToBytes: " << e.what ());
+      NS_LOG_ERROR ("Exception in HexStrToBytes: " << e.what ());
       return "";
     }
 }
@@ -257,14 +237,14 @@ UintToString (unsigned int num)
   return oss.str ();
 }
 
-std::string
-Uint32ipToHex (unsigned int ip)
-{
-  NS_LOG_FUNCTION (ip);
-  std::ostringstream oss;
-  oss << "0x" << std::hex << std::setw (8) << std::setfill ('0') << ip;
-  return oss.str ();
-}
+// std::string
+// Uint32ipToHex (unsigned int ip)
+// {
+//   NS_LOG_FUNCTION (ip);
+//   std::ostringstream oss;
+//   oss << "0x" << std::hex << std::setw (8) << std::setfill ('0') << ip;
+//   return oss.str ();
+// }
 
 double
 StrToDouble (const std::string &str)
@@ -279,30 +259,6 @@ StrToDouble (const std::string &str)
       NS_LOG_ERROR ("Exception in StrToDouble: " << e.what ());
       return 0.0;
     }
-}
-
-int
-HexcharToInt (char c)
-{
-
-  int temp = 0;
-  if (c >= '0' && c <= '9')
-    temp = c - '0';
-  else
-    {
-      if (c >= 'a' && c <= 'f')
-        temp = c - 'a' + 10;
-      else
-        {
-          if (c >= 'A' && c <= 'F')
-            temp = c - 'A' + 10;
-          else
-            {
-              std::cout << " Attention: HexcharToInt error" << std::endl;
-            }
-        }
-    }
-  return temp;
 }
 
 std::string

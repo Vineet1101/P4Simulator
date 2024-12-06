@@ -91,6 +91,7 @@ protected:
   Ptr<QueueDiscItem> DoDequeue (void) override;
   Ptr<const QueueDiscItem> DoPeek (void) override;
   bool CheckConfig (void) override;
+
   void InitializeParams (void) override;
 
 private:

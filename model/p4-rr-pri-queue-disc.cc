@@ -34,14 +34,14 @@ NSP4PriQueueDisc::NSP4PriQueueDisc () : m_rng (CreateObject<UniformRandomVariabl
 {
   NS_LOG_FUNCTION (this);
 
-  m_priorityQueues.resize (m_nbPorts);
-  for (auto &portQueues : m_priorityQueues)
-    {
-      portQueues.resize (m_nbPriorities);
-    }
+  // m_priorityQueues.resize (m_nbPorts);
+  // for (auto &portQueues : m_priorityQueues)
+  //   {
+  //     portQueues.resize (m_nbPriorities);
+  //   }
 
-  NS_LOG_DEBUG ("NSP4PriQueueDisc created with " << m_nbPorts << " ports and " << m_nbPriorities
-                                                 << " priorities.");
+  // NS_LOG_DEBUG ("NSP4PriQueueDisc created with " << m_nbPorts << " ports and " << m_nbPriorities
+  //                                                << " priorities.");
 }
 
 NSP4PriQueueDisc::~NSP4PriQueueDisc ()
@@ -211,22 +211,14 @@ bool
 NSP4PriQueueDisc::CheckConfig (void)
 {
   NS_LOG_FUNCTION (this);
+  // implement the queue, check the configuration
 
-  if (m_priorityQueues.size () != m_nbPorts)
+  int maxVirtualQueues = 8; // 3 bits mark for the priority
+  if (m_nbPriorities > maxVirtualQueues)
     {
-      NS_LOG_ERROR ("Mismatch between ports and queue configuration.");
+      NS_LOG_ERROR ("Number of priorities must be less than 8 (3 bits).");
       return false;
     }
-
-  for (const auto &portQueues : m_priorityQueues)
-    {
-      if (portQueues.size () != m_nbPriorities)
-        {
-          NS_LOG_ERROR ("Mismatch between priorities and queue configuration.");
-          return false;
-        }
-    }
-
   return true;
 }
 
@@ -246,6 +238,15 @@ void
 NSP4PriQueueDisc::InitializeParams (void)
 {
   NS_LOG_FUNCTION (this);
+
+  m_priorityQueues.resize (m_nbPorts);
+  for (auto &portQueues : m_priorityQueues)
+    {
+      portQueues.resize (m_nbPriorities);
+    }
+
+  NS_LOG_DEBUG ("NSP4PriQueueDisc created with " << m_nbPorts << " ports and " << m_nbPriorities
+                                                 << " priorities.");
 }
 
 } // namespace ns3

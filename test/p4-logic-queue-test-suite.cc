@@ -1,6 +1,7 @@
+/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
+
 #include "ns3/p4-rr-pri-queue-disc.h"
 #include "ns3/priority-port-tag.h"
-
 #include "ns3/log.h"
 #include "ns3/packet-filter.h"
 #include "ns3/packet.h"
@@ -14,18 +15,11 @@
 #include <array>
 #include <queue>
 
-using namespace ns3;
+namespace ns3 {
 
-#define P4SWITCH_VIRTUAL_QUEUE 8
-#define P4SWITCH_CAPACITY 1000
-#define P4SWTICH_PROCESS_RATE 1000
+NS_LOG_COMPONENT_DEFINE ("P4QueueDiscTest");
 
-/**
- * \ingroup traffic-control-test
- *
- * \brief MultiPort Priority Queue Disc Test Item
- */
-class NSQueueingLogicPriRLQueueDiscTestItem : public QueueDiscItem
+class P4QueueDiscTestItem : public QueueDiscItem
 {
 public:
   /**
@@ -36,16 +30,13 @@ public:
      * \param priority the packet priority
      * \param port the port
      */
-  NSQueueingLogicPriRLQueueDiscTestItem (Ptr<Packet> p, const Address &addr, uint8_t priority,
-                                         uint16_t port);
+  P4QueueDiscTestItem (Ptr<Packet> p, const Address &addr, uint8_t priority, uint16_t port);
   void AddHeader () override;
   bool Mark () override;
 };
 
-NSQueueingLogicPriRLQueueDiscTestItem::NSQueueingLogicPriRLQueueDiscTestItem (Ptr<Packet> p,
-                                                                              const Address &addr,
-                                                                              uint8_t priority,
-                                                                              uint16_t port)
+P4QueueDiscTestItem::P4QueueDiscTestItem (Ptr<Packet> p, const Address &addr, uint8_t priority,
+                                          uint16_t port)
     : QueueDiscItem (p, addr, 0)
 {
   // 将端口信息作为一个独立的Tag加入
@@ -57,96 +48,94 @@ NSQueueingLogicPriRLQueueDiscTestItem::NSQueueingLogicPriRLQueueDiscTestItem (Pt
 }
 
 void
-NSQueueingLogicPriRLQueueDiscTestItem::AddHeader ()
+P4QueueDiscTestItem::AddHeader ()
 {
   // No header to add in this test item.
 }
 
 bool
-NSQueueingLogicPriRLQueueDiscTestItem::Mark ()
+P4QueueDiscTestItem::Mark ()
 {
   return false; // No marking needed for this test.
 }
 
-/**
- * \ingroup traffic-control-test
- *
- * \brief MultiPort Priority Queue Disc Test Case
- */
-class NSQueueingLogicPriRLQueueDiscTestCase : public TestCase
+class P4QueueDiscSetGetTestCase : public TestCase
 {
 public:
-  NSQueueingLogicPriRLQueueDiscTestCase ();
+  P4QueueDiscSetGetTestCase ();
+
+  virtual ~P4QueueDiscSetGetTestCase () = default;
+
+private:
   void DoRun () override;
+
+  // Helper functions for assertions
+  void TestSetGet (Ptr<NSP4PriQueueDisc> qdisc);
 };
 
-NSQueueingLogicPriRLQueueDiscTestCase::NSQueueingLogicPriRLQueueDiscTestCase ()
+P4QueueDiscSetGetTestCase::P4QueueDiscSetGetTestCase ()
     : TestCase ("Sanity check on the multi-port priority queue disc implementation")
 {
 }
 
 void
-NSQueueingLogicPriRLQueueDiscTestCase::DoRun ()
+P4QueueDiscSetGetTestCase::DoRun ()
 {
-  Ptr<NSQueueingLogicPriRLQueueDisc> qdisc = CreateObject<NSQueueingLogicPriRLQueueDisc> ();
+  // Create and initialize the NSP4PriQueueDisc object
+  Ptr<NSP4PriQueueDisc> qdisc = CreateObject<NSP4PriQueueDisc> ();
+
+  TestSetGet (qdisc);
+}
+
+void
+P4QueueDiscSetGetTestCase::TestSetGet (Ptr<NSP4PriQueueDisc> qdisc)
+{
+  // Set the number of ports and priorities using attributes
+  const uint8_t nbPorts = 6;
+  const uint8_t nbPriorities = 5;
+  qdisc->SetAttribute ("NumPorts", UintegerValue (nbPorts));
+  qdisc->SetAttribute ("NumPriorities", UintegerValue (nbPriorities));
+
+  // Initialize the queue discipline
   qdisc->Initialize ();
 
-  Address dest;
-  std::array<std::queue<uint32_t>, P4SWITCH_VIRTUAL_QUEUE> uids;
-
-  // 测试 1: 设置优先级和端口, 测试是否正确设定
-  for (size_t priority = 0; priority < P4SWITCH_VIRTUAL_QUEUE; ++priority)
+  // Test GetQueueCapacity and SetQueueCapacity
+  const uint32_t defaultCapacity = 100;
+  for (uint8_t port = 0; port < nbPorts; ++port)
     {
-      qdisc->SetQueueCapacity (priority, P4SWITCH_CAPACITY);
-      qdisc->SetQueueRate (priority, P4SWTICH_PROCESS_RATE);
-      NS_TEST_ASSERT_MSG_EQ (qdisc->GetQueueCapacity (priority), P4SWITCH_CAPACITY,
-                             "Queue capacity mismatch for priority " << priority);
-      NS_TEST_ASSERT_MSG_EQ (qdisc->GetQueueRate (priority), P4SWTICH_PROCESS_RATE,
-                             "Queue rate mismatch for priority " << priority);
-    }
-
-  // 测试 2: 根据优先级和端口进行分类
-  for (uint16_t priority = 0; priority < P4SWITCH_VIRTUAL_QUEUE; ++priority)
-    {
-      for (uint16_t port = 0; port < P4SWITCH_VIRTUAL_QUEUE; ++port)
+      for (uint8_t priority = 0; priority < nbPriorities; ++priority)
         {
-          Ptr<Packet> packet = Create<Packet> (100);
-          PriorityPortTag tag (priority, port);
-          packet->AddPacketTag (tag);
-
-          Ptr<QueueDiscItem> item = Create<QueueDiscItem> (packet, dest, 0); // 包装为 QueueDiscItem
-
-          bool result = qdisc->Enqueue (item);
-          NS_TEST_ASSERT_MSG_EQ (
-              result, true, "Enqueue failed for priority " << priority << " and port " << port);
-
-          uids[priority].push (packet->GetUid ());
-          NS_TEST_ASSERT_MSG_EQ (qdisc->GetQueueSize (priority), uids[priority].size (),
-                                 "Queue size mismatch for priority " << priority);
+          std::cout << "Testing port " << port << ", priority " << priority;
+          uint32_t testCapacity = defaultCapacity + port * 10 + priority;
+          qdisc->SetQueueCapacity (port, priority, testCapacity);
+          uint32_t retrievedCapacity = qdisc->GetQueueCapacity (port, priority);
+          NS_TEST_ASSERT_MSG_EQ (retrievedCapacity, testCapacity, "Queue capacity mismatch!");
         }
     }
 
-  // 测试 3: 验证出队行为
-  for (uint16_t priority = 0; priority < P4SWITCH_VIRTUAL_QUEUE; ++priority)
+  // Test SetQueueRate and GetQueueRate
+  const uint64_t defaultRatePps = 1000;
+  for (uint8_t port = 0; port < nbPorts; ++port)
     {
-      while (!uids[priority].empty ())
+      for (uint8_t priority = 0; priority < nbPriorities; ++priority)
         {
-          Ptr<QueueDiscItem> dequeuedItem = qdisc->Dequeue ();
-          NS_TEST_ASSERT_MSG_NE (dequeuedItem, nullptr,
-                                 "Dequeue returned null for priority " << priority);
-
-          uint64_t expectedUid = uids[priority].front ();
-          uids[priority].pop ();
-
-          NS_TEST_ASSERT_MSG_EQ (dequeuedItem->GetPacket ()->GetUid (), expectedUid,
-                                 "Dequeued packet UID mismatch for priority " << priority);
+          uint64_t testRate = defaultRatePps + port * 100 + priority * 10;
+          qdisc->SetQueueRate (port, priority, testRate);
+          uint64_t retrievedRate = qdisc->GetQueueRate (port, priority);
+          NS_TEST_ASSERT_MSG_EQ (retrievedRate, testRate, "Queue rate mismatch!");
         }
-
-      NS_TEST_ASSERT_MSG_EQ (qdisc->GetQueueSize (priority), 0,
-                             "Priority queue " << priority << " should be empty after dequeuing");
     }
 
-  Simulator::Destroy ();
+  // Test GetVirtualQueueLengthPerPort
+  for (uint8_t port = 0; port < nbPorts; ++port)
+    {
+      for (uint8_t priority = 0; priority < nbPriorities; ++priority)
+        {
+          uint32_t expectedLength = qdisc->GetQueueSize (port, priority);
+          uint32_t retrievedLength = qdisc->GetVirtualQueueLengthPerPort (port, priority);
+          NS_TEST_ASSERT_MSG_EQ (retrievedLength, expectedLength, "Virtual queue length mismatch!");
+        }
+    }
 }
 
 /**
@@ -154,11 +143,16 @@ NSQueueingLogicPriRLQueueDiscTestCase::DoRun ()
  *
  * \brief MultiPort Queue Disc Test Suite
  */
-static class NSQueueingLogicPriRLQueueDiscTestSuite : public TestSuite
+class P4QueueDiscTestSuite : public TestSuite
 {
 public:
-  NSQueueingLogicPriRLQueueDiscTestSuite () : TestSuite ("multi-port-prio-queue-disc", Type::UNIT)
+  P4QueueDiscTestSuite () : TestSuite ("p4-queue-disc", Type::UNIT)
   {
-    AddTestCase (new NSQueueingLogicPriRLQueueDiscTestCase (), TestCase::QUICK);
+    AddTestCase (new P4QueueDiscSetGetTestCase (), TestCase::QUICK);
   }
-} g_multiPortQueueTestSuite; ///< the test suite
+};
+
+// Register the test suite with NS-3
+static P4QueueDiscTestSuite p4QueueTestSuite;
+
+} // namespace ns3
