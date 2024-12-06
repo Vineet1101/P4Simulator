@@ -7,14 +7,13 @@
  * \defgroup p4sim Description of the p4sim
  */
 
-namespace ns3
-{
+namespace ns3 {
 
 // Each class should be documented using Doxygen,
 // and have an \ingroup p4sim directive
 
 /* ... */
 
-}
+} // namespace ns3
 
 #endif /* P4SIM_H */

@@ -53,23 +53,22 @@ struct MirroringSessionConfig
   bool mgid_valid;
 };
 
-
-class MirroringSessions {
+class MirroringSessions
+{
 public:
-    // 添加会话
-    bool AddSession (int mirror_id, const MirroringSessionConfig &config);
+  // 添加会话
+  bool AddSession (int mirror_id, const MirroringSessionConfig &config);
 
-    // 删除会话
-    bool DeleteSession (int mirror_id);
+  // 删除会话
+  bool DeleteSession (int mirror_id);
 
-    // 获取会话
-    bool GetSession (int mirror_id, MirroringSessionConfig *config) const;
+  // 获取会话
+  bool GetSession (int mirror_id, MirroringSessionConfig *config) const;
 
 private:
-    // 会话存储容器
-    std::unordered_map<int, MirroringSessionConfig> sessions_map;
+  // 会话存储容器
+  std::unordered_map<int, MirroringSessionConfig> sessions_map;
 };
-
 
 // class MirroringSessions
 // {

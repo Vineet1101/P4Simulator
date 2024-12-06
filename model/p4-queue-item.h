@@ -11,13 +11,11 @@ namespace ns3 {
 class P4QueueItem : public QueueDiscItem
 {
 public:
-  
   // /**
   //    * \brief Get the type ID.
   //    * \return the object TypeId
   //    */
   //   static TypeId GetTypeId();
-  
 
   /**
    * \brief Constructor
@@ -32,7 +30,7 @@ public:
   // Delete default constructor, copy constructor and assignment operator to avoid misuse
   P4QueueItem () = delete;
   P4QueueItem (const P4QueueItem &) = delete;
-  P4QueueItem &operator = (const P4QueueItem &) = delete;
+  P4QueueItem &operator= (const P4QueueItem &) = delete;
 
   /**
    * \brief Set the expected send time
@@ -58,7 +56,8 @@ public:
    */
   void Print (std::ostream &os) const override;
 
-  void AddHeader() override
+  void
+  AddHeader () override
   {
     // @TODO deal with header, keep header and payload separate to allow manipulating the header
     return;
@@ -70,9 +69,10 @@ public:
    *
    * \return true if the packet is marked by this method or is already marked, false otherwise
    */
-  bool Mark() override
+  bool
+  Mark () override
   {
-    // 
+    //
     return false;
   }
 

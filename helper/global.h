@@ -10,12 +10,12 @@
 namespace ns3 {
 
 // Method to configure the flow table in P4 switch
-#define LOCAL_CALL 0  // Local call to configure the flow table
+#define LOCAL_CALL 0 // Local call to configure the flow table
 #define RUNTIME_CLI 1 // Use runtime CLI to configure the flow table
-#define NS3PIFOTM 2   // Use thrift port to configure the flow table
+#define NS3PIFOTM 2 // Use thrift port to configure the flow table
 
 // Network function type
-#define NS3 1         // Normal switch
+#define NS3 1 // Normal switch
 #define P4Simulator 0 // P4 switch
 
 // P4 example number
@@ -39,13 +39,14 @@ const unsigned int VALID = 3;
 const unsigned int RANGE = 4;
 
 // Get current time (ms)
-unsigned long getTickCount(void);
+unsigned long getTickCount (void);
 
 class P4Controller;
 
-class P4GlobalVar : public Object {
+class P4GlobalVar : public Object
+{
 public:
-  static TypeId GetTypeId(void);
+  static TypeId GetTypeId (void);
 
   // Controller
   static P4Controller g_p4Controller;
@@ -90,14 +91,14 @@ public:
   // static bool ns3_p4_tracing_drop;    // Packets drop in and out of the switch
 
   static std::map<std::string, unsigned int> g_nfStrUintMap;
-  static void SetP4MatchTypeJsonPath();
-  static void InitNfStrUintMap();
+  static void SetP4MatchTypeJsonPath ();
+  static void InitNfStrUintMap ();
 
 private:
-  P4GlobalVar();
-  ~P4GlobalVar();
-  P4GlobalVar(const P4GlobalVar &);
-  P4GlobalVar &operator=(const P4GlobalVar &);
+  P4GlobalVar ();
+  ~P4GlobalVar ();
+  P4GlobalVar (const P4GlobalVar &);
+  P4GlobalVar &operator= (const P4GlobalVar &);
 };
 
 } // namespace ns3

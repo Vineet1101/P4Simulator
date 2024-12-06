@@ -45,7 +45,7 @@ def build(bld):
         'model/p4-rr-pri-queue-disc.cc',
         'model/format-utils.cc',
         'model/switch-api.cc',
-        'helper/p4sim-helper.cc',
+        'helper/p4-helper.cc',
         'helper/priority-port-tag.cc',
         'helper/global.cc',
         'helper/p4-exception-handle.cc',
@@ -59,6 +59,9 @@ def build(bld):
     module_test = bld.create_ns3_module_test_library('p4sim')
     module_test.source = [
         'test/p4sim-test-suite.cc',
+        'test/format-utils-test-suite.cc',
+        # 'test/p4-logic-queue-test-suite.cc',
+        'test/p4-topology-reader-test-suite.cc',
         ]
     
     # Tests encapsulating example programs should be listed here
@@ -83,7 +86,7 @@ def build(bld):
         'model/format-utils.h',
         'model/switch-api.h',
         'model/register_access.h',
-        'helper/p4sim-helper.h',
+        'helper/p4-helper.h',
         'helper/priority-port-tag.h',
         'helper/global.h',
         'helper/p4-exception-handle.h',

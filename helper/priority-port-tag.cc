@@ -9,9 +9,8 @@ NS_OBJECT_ENSURE_REGISTERED (PriorityPortTag);
 TypeId
 PriorityPortTag::GetTypeId (void)
 {
-  static TypeId tid = TypeId ("ns3::PriorityPortTag")
-    .SetParent<Tag> ()
-    .AddConstructor<PriorityPortTag> ();
+  static TypeId tid =
+      TypeId ("ns3::PriorityPortTag").SetParent<Tag> ().AddConstructor<PriorityPortTag> ();
   return tid;
 }
 
@@ -21,13 +20,12 @@ PriorityPortTag::GetInstanceTypeId (void) const
   return GetTypeId ();
 }
 
-PriorityPortTag::PriorityPortTag ()
-  : m_priority (0), m_port (0)
+PriorityPortTag::PriorityPortTag () : m_priority (0), m_port (0)
 {
 }
 
 PriorityPortTag::PriorityPortTag (uint32_t priority, uint32_t port)
-  : m_priority (priority), m_port (port)
+    : m_priority (priority), m_port (port)
 {
 }
 
@@ -58,7 +56,7 @@ PriorityPortTag::GetPort (void) const
 uint32_t
 PriorityPortTag::GetSerializedSize (void) const
 {
-  return sizeof(uint32_t) + sizeof(uint32_t);
+  return sizeof (uint32_t) + sizeof (uint32_t);
 }
 
 void
@@ -78,8 +76,7 @@ PriorityPortTag::Deserialize (TagBuffer i)
 void
 PriorityPortTag::Print (std::ostream &os) const
 {
-  os << "Priority=" << m_priority
-     << ", Port=" << m_port;
+  os << "Priority=" << m_priority << ", Port=" << m_port;
 }
 
 } // namespace ns3
