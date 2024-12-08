@@ -1,3 +1,20 @@
+/***
+ * [Deprecated 弃用] 
+ * 
+ * 这种实现不够灵活，p4switch基于bridge实现，而通常的queue-disc无法自行构建queue-item，而通常不自行实现queue-item。
+ * 在一定的探索和思考后：
+ * 我认为可以模仿<wifi-mac-queue.h>的实现，分别实现队列和队列项，更加灵活。
+ * 而这样我们可以将metadata的定义放在queue-item中，而不是放在item中的packet的tag上，这样更简洁高效。
+ * 
+ * English:
+ * This implementation is not flexible enough. The p4switch is based on the bridge module,
+ * and the typical queue-disc cannot construct its own queue-items independently, nor is it common to implement custom queue-items.
+ * After some exploration and consideration:
+ * I believe we can model the implementation after <wifi-mac-queue.h>, separately implementing the queue and queue-item for greater flexibility.
+ * In this way, we can define metadata in the queue-item, rather than in the tag of the packet in the item, which is more concise and efficient.
+ * 
+ */
+
 #ifndef STANDARD_METADATA_TAG_H
 #define STANDARD_METADATA_TAG_H
 
@@ -8,6 +25,7 @@
 #include <bm/bm_sim/packet.h>
 
 #include <cstdint>
+#include <iomanip> // 用于 std::setw
 
 namespace ns3 {
 
@@ -49,7 +67,37 @@ struct StandardMetadata
   uint8_t priority : 3;
 
   enum ParserError { NO_ERROR, ERROR_CHECKSUM, ERROR_OTHER } parser_error;
+
+  void PrintMetadata (std::ostream &os) const;
 };
+
+void
+StandardMetadata::PrintMetadata (std::ostream &os) const
+{
+  os << "Standard Metadata Information:\n";
+  os << "  " << std::setw (15) << "Ingress Port" << ": " << std::setw (10) << ingress_port << "\n"
+     << "  " << std::setw (15) << "Egress Spec" << ": " << std::setw (10) << egress_spec << "\n"
+     << "  " << std::setw (15) << "Egress Port" << ": " << std::setw (10) << egress_port << "\n"
+     << "  " << std::setw (15) << "Instance Type" << ": " << std::setw (10) << instance_type << "\n"
+     << "  " << std::setw (15) << "Packet Length" << ": " << std::setw (10) << packet_length << "\n"
+     << "  " << std::setw (15) << "Enq Timestamp" << ": " << std::setw (10) << enq_timestamp << "\n"
+     << "  " << std::setw (15) << "Enq Qdepth" << ": " << std::setw (10) << enq_qdepth << "\n"
+     << "  " << std::setw (15) << "Deq Timedelta" << ": " << std::setw (10) << deq_timedelta << "\n"
+     << "  " << std::setw (15) << "Deq Qdepth" << ": " << std::setw (10) << deq_qdepth << "\n"
+     << "  " << std::setw (15) << "Ingress TS" << ": " << std::setw (10) << ingress_global_timestamp
+     << "\n"
+     << "  " << std::setw (15) << "Egress TS" << ": " << std::setw (10) << egress_global_timestamp
+     << "\n"
+     << "  " << std::setw (15) << "Mcast Group" << ": " << std::setw (10) << mcast_grp << "\n"
+     << "  " << std::setw (15) << "Egress RID" << ": " << std::setw (10) << egress_rid << "\n"
+     << "  " << std::setw (15) << "Checksum Err" << ": " << std::setw (10) << (int) checksum_error
+     << "\n"
+     << "  " << std::setw (15) << "Priority" << ": " << std::setw (10) << (int) priority << "\n"
+     << "  " << std::setw (15) << "Parser Error" << ": " << std::setw (10) << parser_error
+     << "\n\n";
+
+  os.flush ();
+}
 
 /**
  * \ingroup p4sim

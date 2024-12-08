@@ -152,13 +152,6 @@ public:
   //   bool mgid_valid;
   // };
 
-  enum class PacketType {
-    NORMAL,
-    RESUBMIT,
-    RECIRCULATE,
-    SENTINEL // signal for the ingress thread to terminate
-  };
-
   /**
      * \brief Run the provided CLI commands to populate table entries
      */

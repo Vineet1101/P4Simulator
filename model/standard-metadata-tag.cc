@@ -1,3 +1,19 @@
+/***
+ * [Deprecated 弃用] 
+ * 
+ * 这种实现不够灵活，p4switch基于bridge实现，而通常的queue-disc无法自行构建queue-item，而通常不自行实现queue-item。
+ * 在一定的探索和思考后：
+ * 我认为可以模仿<wifi-mac-queue.h>的实现，分别实现队列和队列项，更加灵活。
+ * 而这样我们可以将metadata的定义放在queue-item中，而不是放在item中的packet的tag上，这样更简洁高效。
+ * 
+ * English:
+ * This implementation is not flexible enough. The p4switch is based on the bridge module,
+ * and the typical queue-disc cannot construct its own queue-items independently, nor is it common to implement custom queue-items.
+ * After some exploration and consideration:
+ * I believe we can model the implementation after <wifi-mac-queue.h>, separately implementing the queue and queue-item for greater flexibility.
+ * In this way, we can define metadata in the queue-item, rather than in the tag of the packet in the item, which is more concise and efficient.
+ * 
+ */
 
 #include "ns3/standard-metadata-tag.h"
 #include "ns3/log.h"

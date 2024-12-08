@@ -1,7 +1,37 @@
+/**
+ * 【Deprecated 弃用】
+ * 
+ * 这种实现不够灵活，p4switch基于bridge实现，而通常的queue-disc无法自行构建queue-item，而通常不自行实现queue-item。
+ * 在一定的探索和思考后：
+ * 我认为可以模仿<wifi-mac-queue.h>的实现，分别实现队列和队列项，更加灵活。
+ * 这样可以更好地控制队列的行为以及存储p4中每个packet的metadata
+ * （当然，如果可行写一个packet类，内含metadata更好，但是这样工作量会非常高，同时面临大量的重复工作）
+ * 而我们观测到，在switch中，packet不是bm::packet就是ns::packet，前者是使用bmv2的运算和处理，后者主要是作为排队，而
+ * 排队使用queue-item，此时我们只需将bm::packet的metadata存储在queue-item中，仍可避免复杂化，以及保证高效率。
+ * 
+ * The current implementation lacks flexibility: the p4switch is based on the bridge module, 
+ * and the typical queue-disc cannot construct its own queue-items independently, nor is it common 
+ * to implement custom queue-items.
+ *
+ * After some exploration and consideration:
+ * I believe we can model the implementation after <wifi-mac-queue.h>, 
+ * separately implementing the queue and queue-item for greater flexibility. 
+ * This approach allows better control over the queue's behavior and the storage of metadata 
+ * for each packet processed in the P4 pipeline.
+ *
+ * (Of course, if feasible, creating a Packet class containing metadata would be ideal. 
+ * However, this would significantly increase workload and introduce substantial redundancy.)
+ *
+ * Observing the current behavior:
+ * In the switch, a packet is either a `bm::packet` (used for bmv2's computation and processing) 
+ * or an `ns3::Packet` (primarily used for queuing). 
+ * Queuing relies on `queue-item`, so we only need to store the metadata from `bm::packet` 
+ * in the `queue-item`. This approach avoids unnecessary complexity while maintaining high efficiency.
+ */
+
 #ifndef NS3_P4_RR_PRI_QUEUE_DISC_H
 #define NS3_P4_RR_PRI_QUEUE_DISC_H
 
-#include "ns3/p4-queue-item.h"
 #include "ns3/queue-disc.h"
 #include "ns3/random-variable-stream.h"
 
