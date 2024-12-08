@@ -476,7 +476,7 @@ P4Switch::enqueue (uint32_t egress_port, std::unique_ptr<bm::Packet> &&bm_packet
           return;
         }
       phv->get_field ("queueing_metadata.enq_qdepth")
-          .set (this->queue_buffer->GetQueueSize (egress_port, priority));
+          .set (this->queue_buffer->GetVirtualQueueLengthPerPort (egress_port, priority));
     }
 
   Ptr<Packet> ns_packet = get_ns3_packet (std::move (bm_packet));
@@ -735,7 +735,7 @@ P4Switch::egress_deparser_processing ()
         }
 
       phv->get_field ("queueing_metadata.deq_qdepth")
-          .set (this->queue_buffer->GetQueueSize (port, priority));
+          .set (this->queue_buffer->GetVirtualQueueLengthPerPort (port, priority));
       if (phv->has_field ("queueing_metadata.qid"))
         {
           auto &qid_f = phv->get_field ("queueing_metadata.qid");

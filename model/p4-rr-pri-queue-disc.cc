@@ -1,8 +1,11 @@
 #include "ns3/p4-rr-pri-queue-disc.h"
 
 #include "ns3/log.h"
+#include "ns3/config.h"
 #include "ns3/packet.h"
+#include "ns3/socket.h"
 #include "ns3/priority-port-tag.h"
+#include "ns3/traffic-control-module.h"
 #include "ns3/queue.h"
 #include "ns3/simulator.h"
 
@@ -33,15 +36,6 @@ NSP4PriQueueDisc::GetTypeId (void)
 NSP4PriQueueDisc::NSP4PriQueueDisc () : m_rng (CreateObject<UniformRandomVariable> ())
 {
   NS_LOG_FUNCTION (this);
-
-  // m_priorityQueues.resize (m_nbPorts);
-  // for (auto &portQueues : m_priorityQueues)
-  //   {
-  //     portQueues.resize (m_nbPriorities);
-  //   }
-
-  // NS_LOG_DEBUG ("NSP4PriQueueDisc created with " << m_nbPorts << " ports and " << m_nbPriorities
-  //                                                << " priorities.");
 }
 
 NSP4PriQueueDisc::~NSP4PriQueueDisc ()
@@ -49,59 +43,69 @@ NSP4PriQueueDisc::~NSP4PriQueueDisc ()
   NS_LOG_FUNCTION (this);
 }
 
-uint32_t
-NSP4PriQueueDisc::GetQueueSize (uint8_t port, uint8_t priority) const
-{
-  NS_ASSERT (port < m_nbPorts && priority < m_nbPriorities);
-  return m_priorityQueues[port][priority].queue.size ();
-}
+// uint32_t
+// NSP4PriQueueDisc::GetQueueSize (uint8_t port, uint8_t priority) const
+// {
+//   NS_ASSERT (port < m_nbPorts && priority < m_nbPriorities);
+//   return m_priorityQueues[port][priority].queue.size ();
+// }
 
-uint32_t
-NSP4PriQueueDisc::GetQueueCapacity (uint8_t port, uint8_t priority) const
-{
-  NS_ASSERT (port < m_nbPorts && priority < m_nbPriorities);
-  return m_priorityQueues[port][priority].capacity;
-}
+// uint32_t
+// NSP4PriQueueDisc::GetQueueCapacity (uint8_t port, uint8_t priority) const
+// {
+//   NS_ASSERT (port < m_nbPorts && priority < m_nbPriorities);
+//   return m_priorityQueues[port][priority].capacity;
+// }
 
-uint64_t
-NSP4PriQueueDisc::GetQueueRate (uint8_t port, uint8_t priority) const
-{
-  NS_ASSERT (port < m_nbPorts && priority < m_nbPriorities);
-  return m_priorityQueues[port][priority].ratePps;
-}
+// uint64_t
+// NSP4PriQueueDisc::GetQueueRate (uint8_t port, uint8_t priority) const
+// {
+//   NS_ASSERT (port < m_nbPorts && priority < m_nbPriorities);
+//   return m_priorityQueues[port][priority].ratePps;
+// }
 
-void
-NSP4PriQueueDisc::SetQueueCapacity (uint8_t port, uint8_t priority, uint32_t capacity)
-{
-  NS_ASSERT (port < m_nbPorts && priority < m_nbPriorities);
-  m_priorityQueues[port][priority].capacity = capacity;
-}
+// void
+// NSP4PriQueueDisc::SetQueueCapacity (uint8_t port, uint8_t priority, uint32_t capacity)
+// {
+//   NS_ASSERT (port < m_nbPorts && priority < m_nbPriorities);
+//   m_priorityQueues[port][priority].capacity = capacity;
+// }
 
-void
-NSP4PriQueueDisc::SetQueueRate (uint8_t port, uint8_t priority, uint64_t ratePps)
-{
-  NS_ASSERT (port < m_nbPorts && priority < m_nbPriorities);
-  m_priorityQueues[port][priority].ratePps = ratePps;
-  m_priorityQueues[port][priority].delayTime = RateToTime (ratePps);
-}
+// void
+// NSP4PriQueueDisc::SetQueueRate (uint8_t port, uint8_t priority, uint64_t ratePps)
+// {
+//   NS_ASSERT (port < m_nbPorts && priority < m_nbPriorities);
+//   m_priorityQueues[port][priority].ratePps = ratePps;
+//   m_priorityQueues[port][priority].delayTime = RateToTime (ratePps);
+// }
 
 uint32_t
 NSP4PriQueueDisc::GetQueueTotalLengthPerPort (uint8_t port) const
 {
   NS_ASSERT (port < m_nbPorts);
-  uint32_t totalLength = 0;
-  for (uint8_t priority = 0; priority < m_nbPriorities; ++priority)
-    {
-      totalLength += m_priorityQueues[port][priority].queue.size ();
-    }
-  return totalLength;
+  // find the port queue length
+  uint32_t nQueued = GetQueueDiscClass (port)->GetQueueDisc ()->GetNPackets ();
+  return nQueued;
 }
 
 uint32_t
 NSP4PriQueueDisc::GetVirtualQueueLengthPerPort (uint8_t port, uint8_t priority) const
 {
+  // find the port and priority queue length
   NS_ASSERT (port < m_nbPorts && priority < m_nbPriorities);
-  return m_priorityQueues[port][priority].queue.size ();
+  uint32_t nQueued = GetQueueDiscClass (port)
+                         ->GetQueueDisc ()
+                         ->GetQueueDiscClass (priority)
+                         ->GetQueueDisc ()
+                         ->GetNPackets ();
+  return nQueued;
+}
+
+uint32_t
+NSP4PriQueueDisc::GetNextPort () const
+{
+  // 创建一个均匀分布的随机数生成器
+  return m_rng->GetInteger ();
 }
 
 bool
@@ -115,6 +119,7 @@ NSP4PriQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
   if (packet->PeekPacketTag (tag))
     {
       uint8_t priority = tag.GetPriority () % m_nbPriorities;
+      NS_ASSERT_MSG (priority < GetNQueueDiscClasses (), "Selected priority out of range");
       uint16_t port = tag.GetPort ();
 
       if (port >= m_nbPorts || priority >= m_nbPriorities)
@@ -123,23 +128,20 @@ NSP4PriQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
           return false;
         }
 
-      auto &fifoQueue = m_priorityQueues[port][priority];
-      if (fifoQueue.queue.size () >= fifoQueue.capacity)
-        {
-          NS_LOG_WARN ("Queue overflow for port " << port << ", priority " << priority);
-          DropBeforeEnqueue (item, "Overlimit drop");
-          return false;
-        }
+      // Add new packet tag for the packet in item
+      packet->RemovePacketTag (tag);
+      SocketPriorityTag priorityTag;
+      priorityTag.SetPriority (priority);
+      packet->AddPacketTag (priorityTag);
 
-      Time sendTime = CalculateNextSendTime (fifoQueue);
+      // @TODO Test the tag
+      bool retval = GetQueueDiscClass (port)->GetQueueDisc ()->Enqueue (item);
 
-      fifoQueue.queue.push (
-          Create<P4QueueItem> (item->GetPacket (), item->GetAddress (), item->GetProtocol ()));
-
-      // set the send time for the packet
-      fifoQueue.queue.back ()->SetSendTime (sendTime);
+      // If Queue::Enqueue fails, QueueDisc::Drop is called by the child queue disc
+      // because QueueDisc::AddQueueDiscClass sets the drop callback
 
       NS_LOG_INFO ("Packet enqueued to port " << port << ", priority " << priority);
+      return retval;
     }
   else
     {
@@ -155,28 +157,39 @@ NSP4PriQueueDisc::DoDequeue (void)
 {
   NS_LOG_FUNCTION (this);
 
-  for (uint8_t port = 0; port < m_nbPorts; ++port)
+  if (is_peek_marked)
     {
-      for (uint8_t priority = 0; priority < m_nbPriorities; ++priority)
+      // avoid the peek packet different with the dequeue packet(in effect with random number gene).
+      is_peek_marked = false;
+      return GetQueueDiscClass (marked_port)->GetQueueDisc ()->Dequeue ();
+    }
+  else
+    {
+      uint32_t port = GetNextPort ();
+      std::set<uint32_t> triedPorts;
+      while (triedPorts.size () < m_nbPorts)
         {
-          auto &fifoQueue = m_priorityQueues[port][priority];
-          if (fifoQueue.queue.empty ())
+          Ptr<QueueDiscItem> item = GetQueueDiscClass (port)->GetQueueDisc ()->Dequeue ();
+          if (item)
             {
-              continue;
-            }
-
-          Time now = Simulator::Now ();
-          if (fifoQueue.queue.front ()->GetSendTime () <= now)
-            {
-              Ptr<QueueDiscItem> item = fifoQueue.queue.front ();
-              fifoQueue.queue.pop ();
-
-              NS_LOG_INFO ("Packet dequeued from port " << port << ", priority " << priority);
+              NS_LOG_INFO ("Packet dequeued from port " << port);
               return item;
             }
+
+          NS_LOG_INFO ("Port " << port << " is empty. Trying another port...");
+
+          //
+          triedPorts.insert (port);
+
+          // Generate a new random port, making sure it has not been tried before
+          do
+            {
+              port = GetNextPort ();
+          } while (triedPorts.count (port) > 0);
         }
     }
-
+  // If all ports have been tried and are empty, return nullptr
+  NS_LOG_WARN ("All ports are empty. No packet dequeued.");
   return nullptr;
 }
 
@@ -185,25 +198,42 @@ NSP4PriQueueDisc::DoPeek (void)
 {
   NS_LOG_FUNCTION (this);
 
-  for (uint8_t port = 0; port < m_nbPorts; ++port)
+  if (is_peek_marked)
     {
-      for (uint8_t priority = 0; priority < m_nbPriorities; ++priority)
+      // re-peek again
+      return GetQueueDiscClass (marked_port)->GetQueueDisc ()->Peek ();
+    }
+  else
+    {
+      uint32_t port = GetNextPort ();
+      std::set<uint32_t> triedPorts;
+      Ptr<const QueueDiscItem> item;
+      while (triedPorts.size () < m_nbPorts)
         {
-          auto &fifoQueue = m_priorityQueues[port][priority];
-          if (fifoQueue.queue.empty ())
+          item = GetQueueDiscClass (port)->GetQueueDisc ()->Peek ();
+          if (item)
             {
-              continue;
+              // save the peek port and mark the peeked packet
+              is_peek_marked = true;
+              marked_port = port;
+              NS_LOG_INFO ("Packet peeked from port " << port);
+              return item;
             }
 
-          Time now = Simulator::Now ();
-          if (fifoQueue.queue.front ()->GetSendTime () <= now)
+          NS_LOG_INFO ("Port " << port << " is empty. Trying another port...");
+
+          //
+          triedPorts.insert (port);
+
+          // Generate a new random port, making sure it has not been tried before
+          do
             {
-              NS_LOG_INFO ("Packet peeked from port " << port << ", priority " << priority);
-              return fifoQueue.queue.front ();
-            }
+              port = GetNextPort ();
+          } while (triedPorts.count (port) > 0);
         }
     }
-
+  // If all ports have been tried and are empty, return nullptr
+  NS_LOG_WARN ("All ports are empty. No packet peeked.");
   return nullptr;
 }
 
@@ -211,7 +241,19 @@ bool
 NSP4PriQueueDisc::CheckConfig (void)
 {
   NS_LOG_FUNCTION (this);
+
   // implement the queue, check the configuration
+  if (GetNInternalQueues () > 0)
+    {
+      NS_LOG_ERROR ("P4QueueDisc cannot have internal queues");
+      return false;
+    }
+
+  if (GetNPacketFilters () > 0)
+    {
+      NS_LOG_ERROR ("P4QueueDisc cannot have any packet filters");
+      return false;
+    }
 
   int maxVirtualQueues = 8; // 3 bits mark for the priority
   if (m_nbPriorities > maxVirtualQueues)
@@ -219,34 +261,77 @@ NSP4PriQueueDisc::CheckConfig (void)
       NS_LOG_ERROR ("Number of priorities must be less than 8 (3 bits).");
       return false;
     }
+
+  // Initialize the priority queues
+  if (GetNQueueDiscClasses () == 0)
+    {
+      // create m_nbPorts priority queues
+      // m_nbPriorities for each priority queue discs
+      ObjectFactory factory;
+      factory.SetTypeId ("ns3::PrioQueueDisc");
+
+      const std::array<uint16_t, 16> priority_map = {0, 1, 2, 3, 4, 5, 6, 7,
+                                                     0, 0, 0, 0, 0, 0, 0, 0};
+      // Config::SetDefault ("ns3::PrioQueueDisc::Priomap", PriomapValue (priority_map));
+
+      for (uint8_t i = 0; i < m_nbPorts; i++)
+        {
+          Ptr<QueueDisc> qd = factory.Create<QueueDisc> ();
+          qd->SetAttribute ("Priomap", PriomapValue (priority_map));
+          qd->Initialize ();
+          Ptr<QueueDiscClass> c = CreateObject<QueueDiscClass> ();
+          c->SetQueueDisc (qd);
+          AddQueueDiscClass (c);
+        }
+    }
+
+  if (GetNQueueDiscClasses () != m_nbPriorities)
+    {
+      NS_LOG_ERROR ("P4QueueDisc requires exact " << m_nbPriorities << " class");
+      return false;
+    }
+
+  // // Check if timer events should be scheduled
+  // if (!m_timeReference.IsZero ())
+  //   {
+  //     NS_LOG_DEBUG ("Scheduling initial timer event using m_timeReference = "
+  //                   << m_timeReference.GetNanoSeconds () << " ns");
+  //     m_timerEvent = Simulator::Schedule (m_timeReference, &P4QueueDisc::RunTimerEvent, this);
+  //   }
+
+  // // Check if drop events are enabled
+  // if (m_enDropEvents)
+  //   {
+  //     TraceConnectWithoutContext ("DropBeforeEnqueue",
+  //                                 MakeCallback (&P4QueueDisc::RunDropEvent, this));
+  //   }
+
+  // // Check if enqueue events are enabled
+  // if (m_enEnqEvents)
+  //   {
+  //     TraceConnectWithoutContext ("Enqueue", MakeCallback (&P4QueueDisc::RunEnqEvent, this));
+  //   }
+
+  // // Check if dequeue events are enabled
+  // if (m_enDeqEvents)
+  //   {
+  //     TraceConnectWithoutContext ("Dequeue", MakeCallback (&P4QueueDisc::RunDeqEvent, this));
+  //   }
+
   return true;
-}
-
-Time
-NSP4PriQueueDisc::CalculateNextSendTime (const FifoQueue &fifoQueue) const
-{
-  return Simulator::Now () + fifoQueue.delayTime;
-}
-
-Time
-NSP4PriQueueDisc::RateToTime (uint64_t pps)
-{
-  return (pps == 0) ? MilliSeconds (1) : Seconds (1.0 / pps);
 }
 
 void
 NSP4PriQueueDisc::InitializeParams (void)
 {
   NS_LOG_FUNCTION (this);
+  // You can set the global seed before use (if you need to control the random number generation process)
 
-  m_priorityQueues.resize (m_nbPorts);
-  for (auto &portQueues : m_priorityQueues)
-    {
-      portQueues.resize (m_nbPriorities);
-    }
-
-  NS_LOG_DEBUG ("NSP4PriQueueDisc created with " << m_nbPorts << " ports and " << m_nbPriorities
-                                                 << " priorities.");
+  // Create a uniformly distributed random number generator range to [0, m_nbPorts - 1]
+  m_rng = CreateObject<UniformRandomVariable> ();
+  m_rng->SetAttribute ("Min", DoubleValue (0));
+  m_rng->SetAttribute ("Max", DoubleValue (m_nbPorts - 1));
+  NS_LOG_INFO ("Uniform random variable created with Min = 0, Max = " << m_nbPorts - 1);
 }
 
 } // namespace ns3

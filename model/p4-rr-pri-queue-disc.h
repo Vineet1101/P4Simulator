@@ -37,50 +37,50 @@ public:
      */
   ~NSP4PriQueueDisc ();
 
-  /**
-     * \brief Get the queue length for a given priority and port.
-     *
-     * \param port the port index
-     * \param priority the priority index
-     * \return the queue length
-     */
-  uint32_t GetQueueSize (uint8_t port, uint8_t priority) const;
+  //   /**
+  //      * \brief Get the queue length for a given priority and port.
+  //      *
+  //      * \param port the port index
+  //      * \param priority the priority index
+  //      * \return the queue length
+  //      */
+  //   uint32_t GetQueueSize (uint8_t port, uint8_t priority) const;
 
-  /**
-     * \brief Get the capacity of the queue for a given priority and port.
-     *
-     * \param port the port index
-     * \param priority the priority index
-     * \return the queue capacity (number of packets)
-     */
-  uint32_t GetQueueCapacity (uint8_t port, uint8_t priority) const;
+  //   /**
+  //      * \brief Get the capacity of the queue for a given priority and port.
+  //      *
+  //      * \param port the port index
+  //      * \param priority the priority index
+  //      * \return the queue capacity (number of packets)
+  //      */
+  //   uint32_t GetQueueCapacity (uint8_t port, uint8_t priority) const;
 
-  /**
-     * \brief Get the rate of the queue for a given priority and port.
-     *
-     * \param port the port index
-     * \param priority the priority index
-     * \return the rate in packets per second (PPS)
-     */
-  uint64_t GetQueueRate (uint8_t port, uint8_t priority) const;
+  //   /**
+  //      * \brief Get the rate of the queue for a given priority and port.
+  //      *
+  //      * \param port the port index
+  //      * \param priority the priority index
+  //      * \return the rate in packets per second (PPS)
+  //      */
+  //   uint64_t GetQueueRate (uint8_t port, uint8_t priority) const;
 
-  /**
-     * \brief Set the capacity of the queue for a given priority and port.
-     *
-     * \param port the port index
-     * \param priority the priority index
-     * \param capacity the capacity (number of packets)
-     */
-  void SetQueueCapacity (uint8_t port, uint8_t priority, uint32_t capacity);
+  //   /**
+  //      * \brief Set the capacity of the queue for a given priority and port.
+  //      *
+  //      * \param port the port index
+  //      * \param priority the priority index
+  //      * \param capacity the capacity (number of packets)
+  //      */
+  //   void SetQueueCapacity (uint8_t port, uint8_t priority, uint32_t capacity);
 
-  /**
-     * \brief Set the rate of the queue for a given priority and port.
-     *
-     * \param port the port index
-     * \param priority the priority index
-     * \param ratePps the rate in packets per second (PPS)
-     */
-  void SetQueueRate (uint8_t port, uint8_t priority, uint64_t ratePps);
+  //   /**
+  //      * \brief Set the rate of the queue for a given priority and port.
+  //      *
+  //      * \param port the port index
+  //      * \param priority the priority index
+  //      * \param ratePps the rate in packets per second (PPS)
+  //      */
+  //   void SetQueueRate (uint8_t port, uint8_t priority, uint64_t ratePps);
 
   uint32_t GetQueueTotalLengthPerPort (uint8_t port) const;
 
@@ -98,38 +98,32 @@ private:
   /**
      * \brief FifoQueue structure to represent a single priority queue.
      */
-  struct FifoQueue
-  {
-    std::queue<Ptr<P4QueueItem>> queue; //!< FIFO queue of packets
-    uint32_t capacity{1000}; //!< Maximum capacity in packets
-    uint64_t ratePps{1000}; //!< Rate in packets per second
-    Time delayTime{MilliSeconds (1)}; //!< Delay time per packet
-  };
+  //   struct FifoQueue
+  //   {
+  //     std::queue<Ptr<P4QueueItem>> queue; //!< FIFO queue of packets
+  //     uint32_t capacity{1000}; //!< Maximum capacity in packets
+  //     uint64_t ratePps{1000}; //!< Rate in packets per second
+  //     Time delayTime{MilliSeconds (1)}; //!< Delay time per packet
+  //   };
+
+  //   /**
+  //      * \brief Calculate the next eligible send time for a packet in the queue.
+  //      *
+  //      * \param queue the priority queue
+  //      * \return the calculated next send time
+  //      */
+  //   Time CalculateNextSendTime (const FifoQueue &queue) const;
 
   /**
-     * \brief Calculate the next eligible send time for a packet in the queue.
+     * \brief Find the next port with a packet ready to dequeue.
      *
-     * \param queue the priority queue
-     * \return the calculated next send time
+     * \return a pair containing the port index
      */
-  Time CalculateNextSendTime (const FifoQueue &queue) const;
+  uint32_t GetNextPort () const;
 
-  /**
-     * \brief Find the next port and priority with a packet ready to dequeue.
-     *
-     * \return a pair containing the port index and priority index
-     */
-  std::pair<uint8_t, uint8_t> GetNextPortAndPriority () const;
+  bool is_peek_marked{false}; //!< Flag to indicate if the peeked packet is marked
+  uint32_t marked_port{0}; //!< Port of the marked packet
 
-  /**
-     * \brief Convert rate (PPS) to time per packet.
-     *
-     * \param pps the rate in packets per second
-     * \return the time per packet
-     */
-  static Time RateToTime (uint64_t pps);
-
-  std::vector<std::vector<FifoQueue>> m_priorityQueues; //!< Priority queues for each port
   uint8_t m_nbPorts{4}; //!< Number of ports
   uint8_t m_nbPriorities{8}; //!< Number of priorities
   Ptr<UniformRandomVariable> m_rng; //!< Random number generator

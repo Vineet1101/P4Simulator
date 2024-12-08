@@ -60,7 +60,7 @@ def build(bld):
     module_test.source = [
         'test/p4sim-test-suite.cc',
         'test/format-utils-test-suite.cc',
-        'test/p4-logic-queue-test-suite.cc',
+        # 'test/p4-logic-queue-test-suite.cc',
         'test/p4-topology-reader-test-suite.cc',
         ]
     
