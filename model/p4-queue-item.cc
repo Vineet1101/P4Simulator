@@ -4,11 +4,40 @@
  */
 
 #include "p4-queue-item.h"
+#include "ns3/simulator.h"
 #include "ns3/log.h"
+
+#include <bm/bm_sim/phv.h>
+
+#include <iomanip>
 
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("P4QueueItem");
+
+std::ostream &
+operator<< (std::ostream &os, PacketType type)
+{
+  switch (type)
+    {
+    case PacketType::NORMAL:
+      os << "NORMAL";
+      break;
+    case PacketType::RESUBMIT:
+      os << "RESUBMIT";
+      break;
+    case PacketType::RECIRCULATE:
+      os << "RECIRCULATE";
+      break;
+    case PacketType::SENTINEL:
+      os << "SENTINEL";
+      break;
+    default:
+      os << "UNKNOWN";
+      break;
+    }
+  return os;
+}
 
 void
 StandardMetadata::PrintMetadata (std::ostream &os) const
@@ -135,17 +164,20 @@ StandardMetadata::WriteMetadataToBMPacket (std::unique_ptr<bm::Packet> &&bm_pack
   phv->get_field ("standard_metadata.parser_error").set (static_cast<uint32_t> (parser_error));
 }
 
-P4QueueItem::P4QueueItem (Ptr<const Packet> p, Time tstamp) : m_packet (p), m_tstamp (tstamp)
+P4QueueItem::P4QueueItem (Ptr<Packet> p, PacketType type)
+    : m_packet (p), m_packetType (type), m_tstamp (Simulator::Now ())
 {
-  NS_LOG_FUNCTION (this << p << tstamp);
+  NS_LOG_FUNCTION (this << p << type << m_tstamp);
+  m_metadata = new StandardMetadata ();
 }
 
 P4QueueItem::~P4QueueItem ()
 {
   NS_LOG_FUNCTION (this);
+  delete m_metadata;
 }
 
-Ptr<const Packet>
+Ptr<Packet>
 P4QueueItem::GetPacket (void) const
 {
   return m_packet;
@@ -157,14 +189,14 @@ P4QueueItem::GetTimeStamp (void) const
   return m_tstamp;
 }
 
-StandardMetadata
+StandardMetadata *
 P4QueueItem::GetMetadata (void) const
 {
   return m_metadata;
 }
 
 void
-P4QueueItem::SetMetadata (const StandardMetadata &metadata)
+P4QueueItem::SetMetadata (StandardMetadata *metadata)
 {
   m_metadata = metadata;
 }
@@ -172,9 +204,9 @@ P4QueueItem::SetMetadata (const StandardMetadata &metadata)
 void
 P4QueueItem::Print (std::ostream &os) const
 {
-  os << "P4QueueItem: Packet=" << m_packet << ", Timestamp=" << m_tstamp;
+  os << "P4QueueItem: Packet=" << m_packet;
   // print metadata
-  m_metadata.PrintMetadata (os);
+  m_metadata->PrintMetadata (os);
 }
 
 std::ostream &

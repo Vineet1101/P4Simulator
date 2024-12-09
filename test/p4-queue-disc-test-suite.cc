@@ -1,7 +1,7 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
-#include "ns3/p4-rr-pri-queue-disc.h"
-#include "ns3/priority-port-tag.h"
+// #include "ns3/p4-rr-pri-queue-disc.h"
+// #include "ns3/priority-port-tag.h"
 
 #include "ns3/test.h"
 #include "ns3/log.h"

@@ -34,18 +34,17 @@ def build(bld):
     module = bld.create_ns3_module('p4sim', req_ns3_modules)
     module.source = [
         'model/p4sim.cc',
+        'model/p4-queue-item.cc',
+        'model/p4-queue.cc',
         'model/p4-bridge-channel.cc',
         'model/p4-controller.cc',
         'model/p4-topology-reader.cc',
         'model/p4-switch-core.cc',
         'model/p4-switch-interface.cc',
         'model/bridge-p4-net-device.cc',
-        'model/standard-metadata-tag.cc',
-        'model/p4-rr-pri-queue-disc.cc',
         'model/format-utils.cc',
         'model/switch-api.cc',
         'helper/p4-helper.cc',
-        'helper/priority-port-tag.cc',
         'helper/global.cc',
         'helper/p4-exception-handle.cc',
         'helper/p4-topology-reader-helper.cc'
@@ -59,7 +58,7 @@ def build(bld):
     module_test.source = [
         'test/p4sim-test-suite.cc',
         'test/format-utils-test-suite.cc',
-        'test/p4-queue-disc-test-suite.cc',
+        # 'test/p4-queue-disc-test-suite.cc',
         'test/p4-topology-reader-test-suite.cc',
         ]
     
@@ -73,19 +72,18 @@ def build(bld):
     headers.module = 'p4sim'
     headers.source = [
         'model/p4sim.h',
+        'model/p4-queue-item.h',
+        'model/p4-queue.h',
         'model/p4-bridge-channel.h',
         'model/p4-controller.h',
         'model/p4-topology-reader.h',
         'model/p4-switch-core.h',
         'model/p4-switch-interface.h',
         'model/bridge-p4-net-device.h',
-        'model/standard-metadata-tag.h',
-        'model/p4-rr-pri-queue-disc.h',
         'model/format-utils.h',
         'model/switch-api.h',
         'model/register_access.h',
         'helper/p4-helper.h',
-        'helper/priority-port-tag.h',
         'helper/global.h',
         'helper/p4-exception-handle.h',
         'helper/p4-topology-reader-helper.h'

@@ -12,11 +12,14 @@
 #include "ns3/nstime.h"
 #include "ns3/packet.h"
 #include "ns3/simple-ref-count.h"
-#include "ns3/standard-metadata-tag.h"
 
 #include <bm/bm_sim/packet.h>
 
 namespace ns3 {
+
+#ifndef V1MODEL_VERSION
+#define V1MODEL_VERSION 20200408
+#endif
 
 enum class PacketType {
   NORMAL,
@@ -25,9 +28,7 @@ enum class PacketType {
   SENTINEL // signal for the ingress thread to terminate
 };
 
-#ifndef V1MODEL_VERSION
-#define V1MODEL_VERSION 20200408
-#endif
+std::ostream &operator<< (std::ostream &os, PacketType type);
 
 /**
  * \ingroup p4sim
@@ -64,6 +65,11 @@ struct StandardMetadata
 
   // other information for simulation
   PacketType packet_type; // packet type
+  u_int16_t ns3_inport; // ns3 ingress port
+  u_int64_t ns3_uid; // ns3 packet uid
+  u_int64_t bm_uid; // bmv2 packet uid
+  uint16_t ns3_protocol; // protocol type
+  Address ns3_destination; // destination address
 
   enum ParserError { NO_ERROR, ERROR_CHECKSUM, ERROR_OTHER } parser_error;
 
@@ -85,9 +91,8 @@ public:
   /**
    * \brief Constructor
    * \param p The packet included in the queue item
-   * \param tstamp The timestamp associated with the packet
    */
-  P4QueueItem (Ptr<const Packet> p, Time tstamp);
+  P4QueueItem (Ptr<Packet> p, PacketType type);
 
   /**
    * \brief Destructor
@@ -98,7 +103,7 @@ public:
    * \brief Get the packet stored in this item
    * \return The packet stored in this item
    */
-  Ptr<const Packet> GetPacket (void) const;
+  Ptr<Packet> GetPacket (void) const;
 
   /**
    * \brief Get the timestamp included in this item
@@ -116,28 +121,23 @@ public:
      * \brief Get the metadata associated with the packet
      * \return The metadata associated with the packet
      */
-  StandardMetadata GetMetadata (void) const;
+  StandardMetadata *GetMetadata (void) const;
 
   /**
      * \brief Set the metadata associated with the packet
      * \param metadata The metadata to associate with the packet
      */
-  void SetMetadata (const StandardMetadata &metadata);
+  void SetMetadata (StandardMetadata *metadata);
 
 private:
-  Ptr<const Packet> m_packet; //!< The packet contained in this queue item
+  Ptr<Packet> m_packet; //!< The packet contained in this queue item
+  PacketType m_packetType; //!< The type of the packet
   int m_priority; //!< The priority of the packet
   int m_port; //!< The port of the egress switch
   Time m_tstamp; //!< Timestamp when the packet was enqueued
-  StandardMetadata m_metadata; //!< Metadata associated with the packet
+  StandardMetadata *m_metadata; //!< Metadata associated with the packet
 };
 
-/**
- * \brief Stream insertion operator for P4QueueItem
- * \param os Output stream
- * \param item The queue item to print
- * \return Reference to the output stream
- */
 std::ostream &operator<< (std::ostream &os, const P4QueueItem &item);
 
 } // namespace ns3

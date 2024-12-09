@@ -23,15 +23,13 @@
 #define P4_SWITCH_CORE_H
 
 #include "bridge-p4-net-device.h"
-#include "ns3/standard-metadata-tag.h"
-#include "ns3/prio-queue-disc.h"
-#include "ns3/fifo-queue-disc.h"
-#include "ns3/p4-rr-pri-queue-disc.h"
+#include "ns3/p4-queue-item.h"
+#include "ns3/p4-queue.h"
+
 // #include "ns3/register_access.h"
 
 #include <bm/bm_sim/packet.h>
 #include <bm/bm_sim/switch.h>
-// #include <bm/bm_sim/queueing.h> // rewrite with ns3 queuedisc
 
 namespace ns3 {
 
@@ -193,8 +191,7 @@ public:
 
   void push_input_buffer (Ptr<Packet> packetIn);
 
-  void push_input_buffer_with_priority (std::unique_ptr<bm::Packet> &&bm_packet,
-                                        PacketType packet_type);
+  void push_input_buffer (std::unique_ptr<bm::Packet> &&bm_packet, PacketType packet_type);
 
   void push_transmit_buffer (std::unique_ptr<bm::Packet> &&bm_packet);
 
@@ -214,10 +211,12 @@ public:
     skip_tracing = skipTracing;
   }
 
-  std::unique_ptr<bm::Packet> get_bm_packet (Ptr<Packet> ns3_packet);
-  std::unique_ptr<bm::Packet> get_bm_packet_from_ingress (Ptr<Packet> ns_packet);
-  Ptr<Packet> get_ns3_packet (std::unique_ptr<bm::Packet> bm_packet);
+  std::unique_ptr<bm::Packet> get_bm_packet (Ptr<P4QueueItem> item);
+  std::unique_ptr<bm::Packet> get_bm_packet_from_ingress (Ptr<Packet> ns_packet, uint16_t in_port);
+  // Ptr<Packet> get_ns3_packet (std::unique_ptr<bm::Packet> bm_packet);
 
+  Ptr<P4QueueItem> get_ns3_packet_queue_item (std::unique_ptr<bm::Packet> bm_packet,
+                                              PacketType packet_type);
   P4Switch (const P4Switch &) = delete;
   P4Switch &operator= (const P4Switch &) = delete;
   P4Switch (P4Switch &&) = delete;
@@ -257,9 +256,9 @@ private:
 
   std::vector<Address> destination_list; //!< list for address, using by index
 
-  Ptr<PrioQueueDisc> input_buffer;
-  Ptr<NSP4PriQueueDisc> queue_buffer;
-  Ptr<FifoQueueDisc> transmit_buffer;
+  Ptr<TwoTierP4Queue> input_buffer;
+  Ptr<P4Queuebuffer> queue_buffer;
+  // Ptr<FifoQueueDisc> transmit_buffer;
 
   BridgeP4NetDevice *m_pNetDevice;
 };
