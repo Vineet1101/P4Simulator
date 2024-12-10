@@ -159,8 +159,8 @@ P4Switch::P4Switch (BridgeP4NetDevice *netDevice)
   m_pNetDevice = netDevice;
 
   // @TODO port priority
-  uint32_t nPorts = 4; // 假设有 4 个端口
-  uint32_t nPriorities = 2; // 假设每个端口有 2 个优先级
+  uint32_t nPorts = 4; // Default 4 ports
+  uint32_t nPriorities = 8; // Default 8 priorities (3 bits)
 
   input_buffer = CreateObject<TwoTierP4Queue> ();
   input_buffer->Initialize ();

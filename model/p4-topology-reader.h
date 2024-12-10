@@ -17,7 +17,7 @@
  *
  * Author: Tommaso Pecorella (tommaso.pecorella@unifi.it)
  * Author: Valerio Sartini (valesar@gmail.com)
- * Author: PengKuang <kphf1995cm@outlook.com>
+ * Modified by: PengKuang <kphf1995cm@outlook.com>
  * Modified by: Mingyu Ma (mingyu.ma@tu-dresden.de)
  */
 
@@ -45,6 +45,12 @@ namespace ns3 {
 class P4TopologyReader : public Object
 {
 public:
+  /**
+     * \brief Get the type ID.
+     * \return The object TypeId.
+     */
+  static TypeId GetTypeId (void);
+
   /**
      * \brief Inner class holding the details about a link between two nodes.
      *
@@ -128,12 +134,6 @@ public:
      * \brief Constant iterator to the list of the links.
      */
   typedef std::list<Link>::const_iterator ConstLinksIterator_t;
-
-  /**
-     * \brief Get the type ID.
-     * \return The object TypeId.
-     */
-  static TypeId GetTypeId (void);
 
   P4TopologyReader ();
   virtual ~P4TopologyReader ();
@@ -249,6 +249,18 @@ public:
      * \param link [in] The link to be added.
      */
   void AddLink (Link link);
+
+  NodeContainer
+  GetHosts (void) const
+  {
+    return m_hosts;
+  }
+
+  NodeContainer
+  GetSwitches (void) const
+  {
+    return m_switches;
+  }
 
 private:
   /**
