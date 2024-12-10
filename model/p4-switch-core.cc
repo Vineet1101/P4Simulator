@@ -324,6 +324,10 @@ P4Switch::enqueue (uint32_t egress_port, std::unique_ptr<bm::Packet> &&bm_packet
 
   Ptr<P4QueueItem> queue_item =
       this->get_ns3_packet_queue_item (std::move (bm_packet), PacketType::NORMAL);
+
+  queue_item->SetMetadataEgressPort (egress_port);
+  queue_item->SetMetadataPriority (priority);
+
   if (queue_buffer->Enqueue (queue_item))
     {
       NS_LOG_INFO ("Packet enqueued in P4QueueDisc, Port: " << egress_port
@@ -693,6 +697,7 @@ P4Switch::get_bm_packet (Ptr<P4QueueItem> item)
 std::unique_ptr<bm::Packet>
 P4Switch::get_bm_packet_from_ingress (Ptr<Packet> ns_packet, uint16_t in_port)
 {
+  // Deprecated
 
   int len = ns_packet->GetSize ();
   uint8_t *pkt_buffer = new uint8_t[len];

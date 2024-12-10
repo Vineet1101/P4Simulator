@@ -18,6 +18,12 @@
 #include <core.p4>
 #include <v1model.p4>
 
+
+// check https://github.com/p4lang/p4c/issues/1828 for the reason of this
+// we define "mark_to_drop2" for this
+#define BMV2_V1MODEL_SPECIAL_DROP_PORT  511
+
+
 const bit<16> TYPE_IPV4 = 0x800;
 const bit<16> TYPE_ARP = 0x806;
 
@@ -91,8 +97,8 @@ struct metadata {
 }
 
 struct headers {
-    arp_t           arp;
     ethernet_t      ethernet;
+    arp_t           arp;
     ipv4_t          ipv4;
     tcp_t           tcp;
     udp_t           udp;
@@ -183,9 +189,17 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
 control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
-    action drop() {
-        mark_to_drop(standard_metadata);
+    
+    action mark_to_drop2(inout standard_metadata_t stdmata) {
+        stdmata.egress_spec = BMV2_V1MODEL_SPECIAL_DROP_PORT;
+        stdmata.mcast_grp = 0;
     }
+
+    action drop() {
+        mark_to_drop2(standard_metadata);
+    }
+
+    
 
     action set_port(bit<9> port) {
         standard_metadata.egress_spec = port;
