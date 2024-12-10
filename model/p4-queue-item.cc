@@ -183,6 +183,12 @@ P4QueueItem::GetPacket (void) const
   return m_packet;
 }
 
+PacketType
+P4QueueItem::GetPacketType (void) const
+{
+  return m_packetType;
+}
+
 Time
 P4QueueItem::GetTimeStamp (void) const
 {
@@ -199,6 +205,21 @@ void
 P4QueueItem::SetMetadata (StandardMetadata *metadata)
 {
   m_metadata = metadata;
+}
+
+void
+P4QueueItem::SetMetadataEgressPort (uint32_t egress_port)
+{
+  m_port = egress_port;
+  m_metadata->egress_port = egress_port;
+}
+
+void
+P4QueueItem::SetMetadataPriority (uint8_t priority)
+{
+  // maximum priority is 7 (3 bits)
+  m_metadata->priority = (priority >= 8) ? 0 : priority;
+  m_priority = m_metadata->priority;
 }
 
 void

@@ -3,63 +3,19 @@
 // #include "ns3/p4-rr-pri-queue-disc.h"
 // #include "ns3/priority-port-tag.h"
 
+#include "ns3/p4-queue.h"
+#include "ns3/p4-queue-item.h"
+
 #include "ns3/test.h"
 #include "ns3/log.h"
 #include "ns3/assert.h"
-
-#include "ns3/packet-filter.h"
-#include "ns3/packet.h"
-#include "ns3/simulator.h"
-#include "ns3/socket.h"
-#include "ns3/string.h"
-#include "ns3/address.h"
-#include "ns3/tag.h"
+#include "ns3/rng-seed-manager.h"
+#include "ns3/random-variable-stream.h"
 
 #include <array>
 #include <queue>
 
 namespace ns3 {
-
-NS_LOG_COMPONENT_DEFINE ("P4QueueDiscTest");
-
-class P4QueueDiscTestItem : public QueueDiscItem
-{
-public:
-  /**
-   * Constructor
-   *
-   * \param p the packet
-   * \param addr the address
-   * \param priority the packet priority
-   */
-  P4QueueDiscTestItem (Ptr<Packet> p, const Address &addr, uint16_t port, uint8_t priority);
-  virtual ~P4QueueDiscTestItem ();
-  virtual void AddHeader (void);
-  virtual bool Mark (void);
-};
-
-P4QueueDiscTestItem::P4QueueDiscTestItem (Ptr<Packet> p, const Address &addr, uint16_t port,
-                                          uint8_t priority)
-    : QueueDiscItem (p, addr, 0)
-{
-  PriorityPortTag priority_port_tag = PriorityPortTag (priority, port);
-  p->ReplacePacketTag (priority_port_tag);
-}
-
-P4QueueDiscTestItem::~P4QueueDiscTestItem ()
-{
-}
-
-void
-P4QueueDiscTestItem::AddHeader ()
-{
-}
-
-bool
-P4QueueDiscTestItem::Mark ()
-{
-  return false;
-}
 
 class P4QueueDiscSetGetTestCase : public TestCase
 {
@@ -71,11 +27,13 @@ public:
 private:
   void DoRun () override;
 
+  void TestTwoTierP4QueueDisc ();
+
   /**
    * \brief Test the Enqueue methods of the NSP4PriQueueDisc class with priority tags
    *
    */
-  void TestEnqueueDequeue ();
+  void TestP4QueueBufferEnqueueDequeue ();
 };
 
 P4QueueDiscSetGetTestCase::P4QueueDiscSetGetTestCase ()
@@ -87,88 +45,171 @@ void
 P4QueueDiscSetGetTestCase::DoRun ()
 {
 
-  TestEnqueueDequeue ();
+  TestTwoTierP4QueueDisc ();
+  TestP4QueueBufferEnqueueDequeue ();
 }
 
 void
-P4QueueDiscSetGetTestCase::TestEnqueueDequeue ()
+P4QueueDiscSetGetTestCase::TestTwoTierP4QueueDisc ()
 {
-  // Create and initialize the NSP4PriQueueDisc object
-  Ptr<NSP4PriQueueDisc> queue = CreateObject<NSP4PriQueueDisc> ();
-  const uint8_t nbPorts = 2;
-  // const uint8_t nbPriorities = 3;
-  queue->SetAttribute ("NumPorts", UintegerValue (nbPorts));
-  // queue->SetAttribute ("NumPriorities", UintegerValue (nbPriorities));
+  // Step 1: Create a TwoTierP4Queue instance
+  Ptr<TwoTierP4Queue> queue = CreateObject<TwoTierP4Queue> ();
   queue->Initialize ();
 
-  // Create a packet and a test item
-  uint32_t pktSize = 1000;
-  Address dest;
-  Ptr<Packet> p1, p2, p3, p4, p5, p6;
+  // Ensure the queue is empty initially
+  NS_TEST_ASSERT_MSG_EQ (queue->IsEmpty (), true, "Queue should be empty after initialization.");
 
-  p1 = Create<Packet> (pktSize);
-  p2 = Create<Packet> (pktSize);
-  p3 = Create<Packet> (pktSize);
-  p4 = Create<Packet> (pktSize);
-  p5 = Create<Packet> (pktSize);
-  p6 = Create<Packet> (pktSize);
+  // Step 2: Create mock P4QueueItems and enqueue them
+  Ptr<P4QueueItem> highPriorityItem_1 =
+      Create<P4QueueItem> (Create<Packet> (100), PacketType::RECIRCULATE);
+  Ptr<P4QueueItem> highPriorityItem_2 =
+      Create<P4QueueItem> (Create<Packet> (150), PacketType::RESUBMIT);
+  Ptr<P4QueueItem> lowPriorityItem = Create<P4QueueItem> (Create<Packet> (200), PacketType::NORMAL);
 
-  // test queue length for port 0 with all virtual queues
-  NS_TEST_EXPECT_MSG_EQ (queue->GetVirtualQueueLengthPerPort (0, 0), 0,
-                         "There should be no packets in queue for port 0, priority 0");
-  NS_TEST_EXPECT_MSG_EQ (queue->GetVirtualQueueLengthPerPort (0, 1), 0,
-                         "There should be no packets in queue for port 0, priority 1");
-  NS_TEST_EXPECT_MSG_EQ (queue->GetVirtualQueueLengthPerPort (0, 2), 0,
-                         "There should be no packets in queue for port 0, priority 2");
+  // Enqueue items into the appropriate queues
+  NS_TEST_ASSERT_MSG_EQ (queue->Enqueue (lowPriorityItem), true,
+                         "Failed to enqueue low-priority item.");
+  NS_TEST_ASSERT_MSG_EQ (queue->Enqueue (highPriorityItem_1), true,
+                         "Failed to enqueue high-priority item.");
+  NS_TEST_ASSERT_MSG_EQ (queue->Enqueue (highPriorityItem_2), true,
+                         "Failed to enqueue high-priority item.");
 
-  queue->Enqueue (Create<P4QueueDiscTestItem> (p1, dest, 0, 0)); // port 0, priority 0
-  queue->Enqueue (Create<P4QueueDiscTestItem> (p2, dest, 0, 1)); // port 0, priority 1
-  queue->Enqueue (Create<P4QueueDiscTestItem> (p3, dest, 0, 2)); // port 0, priority 2
+  // Ensure the queue is not empty
+  NS_TEST_ASSERT_MSG_EQ (queue->IsEmpty (), false,
+                         "Queue should not be empty after enqueuing items.");
 
-  // test queue length for port 0 with all virtual queues
-  NS_TEST_EXPECT_MSG_EQ (queue->GetVirtualQueueLengthPerPort (0, 0), 1,
-                         "There should be one packets in queue for port 0, priority 0");
-  NS_TEST_EXPECT_MSG_EQ (queue->GetVirtualQueueLengthPerPort (0, 1), 1,
-                         "There should be one packets in queue for port 0, priority 1");
-  NS_TEST_EXPECT_MSG_EQ (queue->GetVirtualQueueLengthPerPort (0, 2), 1,
-                         "There should be one packets in queue for port 0, priority 2");
+  // Step 3: Dequeue items and check priorities
+  Ptr<P4QueueItem> dequeuedItem;
 
-  // // test dequeue operation
-  // Ptr<QueueDiscItem> item = queue->Dequeue ();
-  // Ptr<Packet> de_null = item->GetPacket ();
-  // NS_TEST_ASSERT_MSG_EQ (de_null, nullptr, "No packets is dequeued!");
-  // NS_TEST_EXPECT_MSG_EQ (queue->GetQueueTotalLengthPerPort (0), 3,
-  //                        "There should be 3 packets left in total for port 0");
+  // First dequeue should return the high-priority item 1
+  dequeuedItem = queue->Dequeue ();
+  NS_TEST_ASSERT_MSG_NE (dequeuedItem, nullptr, "Dequeued item should not be null.");
+  NS_TEST_ASSERT_MSG_EQ (dequeuedItem, highPriorityItem_1,
+                         "Dequeued item should be the high-priority item 1.");
 
-  // Simulator::Stop (MicroSeconds (10));
-  // Simulator::Run ();
+  // Second dequeue should return the high-priority item 2
+  dequeuedItem = queue->Dequeue ();
+  NS_TEST_ASSERT_MSG_NE (dequeuedItem, nullptr, "Dequeued item should not be null.");
+  NS_TEST_ASSERT_MSG_EQ (dequeuedItem, highPriorityItem_2,
+                         "Dequeued item should be the high-priority item 2.");
 
-  // // Perform Dequeue operation
-  // item = queue->Dequeue ();
-  // NS_LOG_DEBUG ("Dequeued packet from port 0 at time: " << Simulator::Now ().GetMilliSeconds ()
-  //                                                       << " ms");
+  // Third dequeue should return the low-priority item
+  dequeuedItem = queue->Dequeue ();
+  NS_TEST_ASSERT_MSG_NE (dequeuedItem, nullptr, "Dequeued item should not be null.");
+  NS_TEST_ASSERT_MSG_EQ (dequeuedItem, lowPriorityItem,
+                         "Dequeued item should be the low-priority item.");
 
-  // // Before enqueue, we add Tags for the packets, that makes the packet different.
-  // item = queue->Dequeue ();
-  // Ptr<Packet> de_p1 = item->GetPacket ();
-  // de_p1->RemoveAllPacketTags ();
-  // NS_TEST_ASSERT_MSG_EQ (de_p1, p1, "Dequeued packet mismatch!");
-  // NS_TEST_EXPECT_MSG_EQ (queue->GetQueueTotalLengthPerPort (0), 2,
-  //                        "There should be 2 packets left in total for port 0");
+  // Ensure the queue is empty again
+  NS_TEST_ASSERT_MSG_EQ (queue->IsEmpty (), true,
+                         "Queue should be empty after dequeuing all items.");
+}
 
-  // item = queue->Dequeue ();
-  // Ptr<Packet> de_p2 = item->GetPacket ();
-  // de_p2->RemoveAllPacketTags ();
-  // NS_TEST_ASSERT_MSG_EQ (de_p2, p2, "Dequeued packet mismatch!");
-  // NS_TEST_EXPECT_MSG_EQ (queue->GetQueueTotalLengthPerPort (0), 1,
-  //                        "There should be 1 packets left in total for port 0");
+void
+P4QueueDiscSetGetTestCase::TestP4QueueBufferEnqueueDequeue ()
+{
+  uint32_t random_seed = 1;
+  // Step 1: Create a P4Queuebuffer instance with 3 ports and 2 priority queues per port
+  uint32_t nPorts = 3;
+  uint32_t nPriorities = 2;
+  Ptr<P4Queuebuffer> queueBuffer = CreateObject<P4Queuebuffer> (nPorts, nPriorities);
+  // Step 2: Set a fixed random seed
+  queueBuffer->SetRandomSeed (random_seed);
 
-  // item = queue->Dequeue ();
-  // Ptr<Packet> de_p3 = item->GetPacket ();
-  // de_p3->RemoveAllPacketTags ();
-  // NS_TEST_ASSERT_MSG_EQ (de_p3, p3, "Dequeued packet mismatch!");
-  // NS_TEST_EXPECT_MSG_EQ (queue->GetQueueTotalLengthPerPort (0), 0,
-  //                        "There should be no packets left in total for port 0");
+  /**
+   * Test the random number generator by generating 10 random values
+   * With random_seed = 1, the first ten random values should be 2, 2, 1, 2, 1, 0, 0, 0, 0, 0
+   * That means, the dequeue order is 2, 2, 1, (2), 1, 0, 0, and the high priority packets should 
+   * first be dequeued, then the low priority packets. In the order there is a "(2)"", 
+   * Because the thrid 2 is empty, the next random value is 1.
+   */
+
+  // // Print the first 10 random values
+  // Ptr<UniformRandomVariable> temp_rng = CreateObject<UniformRandomVariable> ();
+  // temp_rng->SetStream (random_seed);
+  // for (int i = 0; i < 10; ++i)
+  //   {
+  //     int randomValue = temp_rng->GetInteger (0, nPorts - 1);
+  //     std::cout << "Random value " << i + 1 << ": " << randomValue << std::endl;
+  //   }
+
+  // Step 3: Enqueue packets into the buffer
+  Ptr<P4QueueItem> item0_0 =
+      Create<P4QueueItem> (Create<Packet> (100), PacketType::NORMAL); // For port 0, priority 0
+  Ptr<P4QueueItem> item0_1 =
+      Create<P4QueueItem> (Create<Packet> (150), PacketType::NORMAL); // For port 0, priority 1
+
+  item0_0->SetMetadataEgressPort (0);
+  item0_0->SetMetadataPriority (0);
+  item0_1->SetMetadataEgressPort (0);
+  item0_1->SetMetadataPriority (1);
+
+  Ptr<P4QueueItem> item1_0 =
+      Create<P4QueueItem> (Create<Packet> (200), PacketType::NORMAL); // For port 1, priority 0
+  Ptr<P4QueueItem> item1_1 =
+      Create<P4QueueItem> (Create<Packet> (250), PacketType::NORMAL); // For port 1, priority 1
+
+  item1_0->SetMetadataEgressPort (1);
+  item1_0->SetMetadataPriority (0);
+  item1_1->SetMetadataEgressPort (1);
+  item1_1->SetMetadataPriority (1);
+
+  Ptr<P4QueueItem> item2_0 = Create<P4QueueItem> (Create<Packet> (300),
+                                                  PacketType::NORMAL); // For port 2, priority 0
+  Ptr<P4QueueItem> item2_1 =
+      Create<P4QueueItem> (Create<Packet> (350), PacketType::NORMAL); // For port 2, priority 1
+
+  item2_0->SetMetadataEgressPort (2);
+  item2_0->SetMetadataPriority (0);
+  item2_1->SetMetadataEgressPort (2);
+  item2_1->SetMetadataPriority (1);
+
+  // first enqueue low priority packets
+  NS_TEST_ASSERT_MSG_EQ (queueBuffer->Enqueue (item0_0), true, "Failed to enqueue item0_0.");
+  NS_TEST_ASSERT_MSG_EQ (queueBuffer->Enqueue (item0_1), true, "Failed to enqueue item0_1.");
+  NS_TEST_ASSERT_MSG_EQ (queueBuffer->Enqueue (item1_0), true, "Failed to enqueue item1_0.");
+  NS_TEST_ASSERT_MSG_EQ (queueBuffer->Enqueue (item1_1), true, "Failed to enqueue item1_1.");
+  NS_TEST_ASSERT_MSG_EQ (queueBuffer->Enqueue (item2_0), true, "Failed to enqueue item2_0.");
+  NS_TEST_ASSERT_MSG_EQ (queueBuffer->Enqueue (item2_1), true, "Failed to enqueue item2_1.");
+
+  // Step 4: Dequeue packets and verify correct random port selection and priority behavior
+  Ptr<P4QueueItem> dequeuedItem;
+
+  dequeuedItem = queueBuffer->Dequeue ();
+  NS_TEST_ASSERT_MSG_NE (dequeuedItem, nullptr, "Dequeued item should not be null.");
+  NS_TEST_ASSERT_MSG_EQ (dequeuedItem->GetPacket ()->GetSize (), 350,
+                         "Dequeued wrong item for the first dequeue.");
+
+  dequeuedItem = queueBuffer->Dequeue ();
+  NS_TEST_ASSERT_MSG_NE (dequeuedItem, nullptr, "Dequeued item should not be null.");
+  NS_TEST_ASSERT_MSG_EQ (dequeuedItem->GetPacket ()->GetSize (), 300,
+                         "Dequeued wrong item for the second dequeue.");
+
+  dequeuedItem = queueBuffer->Dequeue ();
+  NS_TEST_ASSERT_MSG_NE (dequeuedItem, nullptr, "Dequeued item should not be null.");
+  NS_TEST_ASSERT_MSG_EQ (dequeuedItem->GetPacket ()->GetSize (), 250,
+                         "Dequeued wrong item for the second dequeue.");
+
+  dequeuedItem = queueBuffer->Dequeue ();
+  NS_TEST_ASSERT_MSG_NE (dequeuedItem, nullptr, "Dequeued item should not be null.");
+  NS_TEST_ASSERT_MSG_EQ (dequeuedItem->GetPacket ()->GetSize (), 200,
+                         "Dequeued wrong item for the second dequeue.");
+
+  dequeuedItem = queueBuffer->Dequeue ();
+  NS_TEST_ASSERT_MSG_NE (dequeuedItem, nullptr, "Dequeued item should not be null.");
+  NS_TEST_ASSERT_MSG_EQ (dequeuedItem->GetPacket ()->GetSize (), 150,
+                         "Dequeued wrong item for the second dequeue.");
+
+  dequeuedItem = queueBuffer->Dequeue ();
+  NS_TEST_ASSERT_MSG_NE (dequeuedItem, nullptr, "Dequeued item should not be null.");
+  NS_TEST_ASSERT_MSG_EQ (dequeuedItem->GetPacket ()->GetSize (), 100,
+                         "Dequeued wrong item for the second dequeue.");
+
+  // Ensure the buffer is empty after dequeuing all items
+  for (uint32_t port = 0; port < nPorts; ++port)
+    {
+      NS_TEST_ASSERT_MSG_EQ (queueBuffer->IsEmpty (port), true,
+                             "Port " << port << " should be empty after dequeuing all items.");
+    }
 }
 
 /**

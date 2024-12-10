@@ -48,6 +48,13 @@ public:
   Ptr<P4QueueItem> Dequeue (uint32_t port);
 
   /**
+   * \brief Set the random seed for the queue
+   * \param seed The random seed to set
+   * \return True if the seed is set successfully, false otherwise
+   */
+  bool SetRandomSeed (uint32_t seed);
+
+  /**
    * \brief Peek at the packet at the front of the specified port and priority queue
    * \param port The target port
    * \return The peeked item, or nullptr if the queue is empty

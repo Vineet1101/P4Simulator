@@ -33,6 +33,14 @@ P4Queuebuffer::~P4Queuebuffer ()
 }
 
 bool
+P4Queuebuffer::SetRandomSeed (uint32_t seed)
+{
+  NS_LOG_FUNCTION (this << seed);
+  m_rng->SetStream (seed);
+  return true;
+}
+
+bool
 P4Queuebuffer::Enqueue (Ptr<P4QueueItem> item)
 {
   NS_LOG_FUNCTION (this << item);
@@ -82,19 +90,21 @@ P4Queuebuffer::Dequeue ()
   else
     {
       uint32_t port = m_rng->GetInteger (0, m_nPorts - 1);
+      NS_LOG_INFO ("Random port selected: " << port);
+
       std::set<uint32_t> triedPorts;
       while (triedPorts.size () < m_nPorts)
         {
           // Check whether the current port has been traversed
           if (triedPorts.find (port) == triedPorts.end ())
             {
-              triedPorts.insert (port); // Log the ports that were tried
-
               if (IsEmpty (port))
                 {
                   NS_LOG_INFO ("Port " << port << " is empty. Trying another port...");
+                  triedPorts.insert (port); // Log the ports that were tried
                   // Choose a new random port
                   port = m_rng->GetInteger (0, m_nPorts - 1);
+                  NS_LOG_INFO ("choose new port because empty: " << port);
                 }
               else
                 {
@@ -106,6 +116,7 @@ P4Queuebuffer::Dequeue ()
             {
               // Choose a new random port
               port = m_rng->GetInteger (0, m_nPorts - 1);
+              NS_LOG_INFO ("choose new port because tried: " << port);
             }
         }
       // If all ports have been tried and are empty, return nullptr
@@ -126,7 +137,7 @@ P4Queuebuffer::Dequeue (uint32_t port)
     }
 
   // Dequeue from the highest-priority non-empty queue
-  for (uint32_t priority = 0; priority < m_nPriorities; ++priority)
+  for (uint32_t priority = m_nPriorities - 1; priority >= 0; priority--)
     {
       if (!m_queues[port][priority].empty ())
         {
@@ -258,7 +269,7 @@ TwoTierP4Queue::Enqueue (Ptr<P4QueueItem> item)
   NS_LOG_FUNCTION (this << item);
 
   // Check the PacketType from the metadata
-  PacketType type = item->GetMetadata ()->packet_type;
+  PacketType type = item->GetPacketType ();
   if (type == PacketType::NORMAL)
     {
       m_lowPriorityQueue.push (item);

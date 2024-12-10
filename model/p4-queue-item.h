@@ -112,6 +112,11 @@ public:
   Time GetTimeStamp (void) const;
 
   /**
+   * \brief Get the priority of the packet
+   * \return The priority of the packet
+   */
+  PacketType GetPacketType (void) const;
+  /**
    * \brief Print the item contents
    * \param os Output stream to print to
    */
@@ -122,6 +127,9 @@ public:
      * \return The metadata associated with the packet
      */
   StandardMetadata *GetMetadata (void) const;
+
+  void SetMetadataEgressPort (uint32_t egress_port);
+  void SetMetadataPriority (uint8_t priority);
 
   /**
      * \brief Set the metadata associated with the packet
