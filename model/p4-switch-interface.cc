@@ -989,13 +989,6 @@ P4SwitchInterface::Init ()
 
   int status = 0; // Status flag for initialization
 
-  std::vector<char *> args;
-  args.push_back (nullptr);
-  args.push_back (jsonPath_.data ());
-
-  // Initialize P4 core with local command line options
-  p4Core_->InitFromCommandLineOptionsLocal (static_cast<int> (args.size ()), args.data ());
-
   // Initialize P4 core model based on the flow table population method
   if (populateFLowTableWay_ == LOCAL_CALL)
     {
@@ -1004,6 +997,19 @@ P4SwitchInterface::Init ()
          * Other match types like "lpm" are not supported in this mode.
          */
       NS_LOG_INFO ("Initializing P4Switch with LOCAL_CALL mode.");
+
+      std::vector<char *> args;
+      args.push_back (nullptr);
+      args.push_back (jsonPath_.data ());
+
+      // Initialize P4 core with local command line options
+      status =
+          p4Core_->InitFromCommandLineOptionsLocal (static_cast<int> (args.size ()), args.data ());
+      if (status != 0)
+        {
+          NS_LOG_ERROR ("Failed to initialize P4Switch with local command line options.");
+          return; // Avoid exiting simulation
+        }
 
       // Read and populate flow table
       ReadP4Info ();
@@ -1040,9 +1046,10 @@ P4SwitchInterface::Init ()
       opt_parser.file_logger =
           "/tmp/bmv2-" + std::to_string (p4_switch_ctrl_plane_thrift_port) + "-pipeline.log";
       opt_parser.thrift_port = p4_switch_ctrl_plane_thrift_port++;
-      opt_parser.console_logging = true;
+      opt_parser.console_logging = false;
 
       // Initialize the switch
+      status = 0;
       status = p4Core_->init_from_options_parser (opt_parser);
       if (status != 0)
         {
@@ -1057,6 +1064,10 @@ P4SwitchInterface::Init ()
       // Execute CLI command to populate the flow table
       std::string cmd = "simple_switch_CLI --thrift-port " + std::to_string (port) + " < " +
                         P4GlobalVar::g_flowTablePath + " > /dev/null 2>&1";
+
+      // sleep for 4 second to avoid the server not ready
+      sleep (4);
+
       int result = std::system (cmd.c_str ());
       if (result != 0)
         {
