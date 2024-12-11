@@ -140,16 +140,7 @@ MirroringSessions::GetSession (int mirror_id, MirroringSessionConfig *config) co
 }
 
 // initialize static attributes
-
-// Single mapping table, bm::Packet UID -> latest ns3::Packet UID
-// For each new ns3::Packet created, it will have a new UID for the ns3::Packet, but we need to
-// keep the same UID for the bm::Packet, so we need to keep a mapping between the ns3::Packet
-// UID and bm::Packet UID, and after new ns3 packets creates, update the new value of
-// ns3::Packet UID for mapping.
 bm::packet_id_t P4Switch::packet_id = 0;
-// static std::unordered_map<uint64_t, PacketInfo> uidMap;
-// std::unordered_map<uint64_t, uint64_t> reverseUidMap;
-
 int P4Switch::thrift_port = 9090;
 
 P4Switch::P4Switch (BridgeP4NetDevice *netDevice)
@@ -158,8 +149,8 @@ P4Switch::P4Switch (BridgeP4NetDevice *netDevice)
 
   m_pNetDevice = netDevice;
 
-  // @TODO port priority
-  uint32_t nPorts = 4; // Default 4 ports
+  // Now init the switch queue with 0 port, later the bridge will add the ports
+  uint32_t nPorts = 0; // Default 0 ports
   uint32_t nPriorities = 8; // Default 8 priorities (3 bits)
 
   input_buffer = CreateObject<TwoTierP4Queue> ();
@@ -786,6 +777,17 @@ P4Switch::mirroring_get_session (int mirror_id, MirroringSessionConfig *config) 
   return mirroring_sessions->GetSession (mirror_id, config);
 }
 
+bool
+P4Switch::AddVritualQueue (uint32_t port_num)
+{
+  return queue_buffer->AddVirtualQueue (port_num);
+}
+
+bool
+P4Switch::RemoveVirtualQueue (uint32_t port_num)
+{
+  return queue_buffer->RemoveVirtualQueue (port_num);
+}
 // int
 // P4Switch::set_egress_priority_queue_depth(size_t port, size_t priority, const size_t depth_pkts)
 // {

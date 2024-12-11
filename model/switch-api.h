@@ -1,3 +1,8 @@
+/**
+ * 这里的switch_api是一个API的枚举类，里面记录了在switch运行时的各种API操作。
+ * 用于标识API的类型，包括流表操作、动作配置、间接表操作、流表项检索、计数器操作、计量器操作、寄存器操作、解析值集操作、运行时状态管理等。
+ */
+
 #ifndef SWITCH_API_H
 #define SWITCH_API_H
 

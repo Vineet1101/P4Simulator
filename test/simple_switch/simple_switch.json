@@ -71,32 +71,6 @@
         ["srcAddr", 32, false],
         ["dstAddr", 32, false]
       ]
-    },
-    {
-      "name" : "tcp_t",
-      "id" : 5,
-      "fields" : [
-        ["srcPort", 16, false],
-        ["dstPort", 16, false],
-        ["seqNo", 32, false],
-        ["ackNo", 32, false],
-        ["dataOffset", 4, false],
-        ["res", 4, false],
-        ["flags", 8, false],
-        ["window", 16, false],
-        ["checksum", 16, false],
-        ["urgentPtr", 16, false]
-      ]
-    },
-    {
-      "name" : "udp_t",
-      "id" : 6,
-      "fields" : [
-        ["sourcePort", 16, false],
-        ["destPort", 16, false],
-        ["length_", 16, false],
-        ["checksum", 16, false]
-      ]
     }
   ],
   "headers" : [
@@ -132,20 +106,6 @@
       "name" : "ipv4",
       "id" : 4,
       "header_type" : "ipv4_t",
-      "metadata" : false,
-      "pi_omit" : true
-    },
-    {
-      "name" : "tcp",
-      "id" : 5,
-      "header_type" : "tcp_t",
-      "metadata" : false,
-      "pi_omit" : true
-    },
-    {
-      "name" : "udp",
-      "id" : 6,
-      "header_type" : "udp_t",
       "metadata" : false,
       "pi_omit" : true
     }
@@ -252,18 +212,6 @@
           ],
           "transitions" : [
             {
-              "type" : "hexstr",
-              "value" : "0x11",
-              "mask" : null,
-              "next_state" : "parse_udp"
-            },
-            {
-              "type" : "hexstr",
-              "value" : "0x06",
-              "mask" : null,
-              "next_state" : "parse_tcp"
-            },
-            {
               "type" : "default",
               "value" : null,
               "mask" : null,
@@ -276,54 +224,6 @@
               "value" : ["ipv4", "protocol"]
             }
           ]
-        },
-        {
-          "name" : "parse_tcp",
-          "id" : 3,
-          "parser_ops" : [
-            {
-              "parameters" : [
-                {
-                  "type" : "regular",
-                  "value" : "tcp"
-                }
-              ],
-              "op" : "extract"
-            }
-          ],
-          "transitions" : [
-            {
-              "type" : "default",
-              "value" : null,
-              "mask" : null,
-              "next_state" : null
-            }
-          ],
-          "transition_key" : []
-        },
-        {
-          "name" : "parse_udp",
-          "id" : 4,
-          "parser_ops" : [
-            {
-              "parameters" : [
-                {
-                  "type" : "regular",
-                  "value" : "udp"
-                }
-              ],
-              "op" : "extract"
-            }
-          ],
-          "transitions" : [
-            {
-              "type" : "default",
-              "value" : null,
-              "mask" : null,
-              "next_state" : null
-            }
-          ],
-          "transition_key" : []
         }
       ]
     }
@@ -335,11 +235,11 @@
       "id" : 0,
       "source_info" : {
         "filename" : "simple_switch.p4",
-        "line" : 299,
+        "line" : 266,
         "column" : 8,
         "source_fragment" : "MyDeparser"
       },
-      "order" : ["ethernet", "arp", "ipv4", "udp", "tcp"],
+      "order" : ["ethernet", "arp", "ipv4"],
       "primitives" : []
     }
   ],
@@ -352,7 +252,7 @@
       "id" : 0,
       "source_info" : {
         "filename" : "simple_switch.p4",
-        "line" : 277,
+        "line" : 244,
         "column" : 8,
         "source_fragment" : "update_checksum( ..."
       },
@@ -409,7 +309,7 @@
       "id" : 1,
       "source_info" : {
         "filename" : "simple_switch.p4",
-        "line" : 159,
+        "line" : 127,
         "column" : 8,
         "source_fragment" : "verify_checksum( ..."
       },
@@ -605,7 +505,7 @@
           ],
           "source_info" : {
             "filename" : "simple_switch.p4",
-            "line" : 201,
+            "line" : 168,
             "column" : 8,
             "source_fragment" : "standard_metadata.egress_spec = port"
           }
@@ -624,7 +524,7 @@
           ],
           "source_info" : {
             "filename" : "simple_switch.p4",
-            "line" : 202,
+            "line" : 169,
             "column" : 8,
             "source_fragment" : "standard_metadata.egress_port = port"
           }
@@ -655,7 +555,7 @@
           ],
           "source_info" : {
             "filename" : "simple_switch.p4",
-            "line" : 206,
+            "line" : 173,
             "column" : 8,
             "source_fragment" : "meta.routing_metadata.nhop_ipv4 = nhop_ipv4"
           }
@@ -686,7 +586,7 @@
           ],
           "source_info" : {
             "filename" : "simple_switch.p4",
-            "line" : 210,
+            "line" : 177,
             "column" : 8,
             "source_fragment" : "meta.routing_metadata.nhop_ipv4 = nhop_ipv4"
           }
@@ -728,7 +628,7 @@
           ],
           "source_info" : {
             "filename" : "simple_switch.p4",
-            "line" : 211,
+            "line" : 178,
             "column" : 8,
             "source_fragment" : "hdr.ipv4.ttl = hdr.ipv4.ttl - 8w1"
           }
@@ -742,7 +642,7 @@
       "id" : 0,
       "source_info" : {
         "filename" : "simple_switch.p4",
-        "line" : 185,
+        "line" : 153,
         "column" : 8,
         "source_fragment" : "MyIngress"
       },
@@ -753,7 +653,7 @@
           "id" : 0,
           "source_info" : {
             "filename" : "simple_switch.p4",
-            "line" : 236,
+            "line" : 203,
             "column" : 10,
             "source_fragment" : "ipv4_nhop"
           },
@@ -791,7 +691,7 @@
           "id" : 1,
           "source_info" : {
             "filename" : "simple_switch.p4",
-            "line" : 214,
+            "line" : 181,
             "column" : 10,
             "source_fragment" : "arp_nhop"
           },
@@ -829,7 +729,7 @@
           "id" : 2,
           "source_info" : {
             "filename" : "simple_switch.p4",
-            "line" : 225,
+            "line" : 192,
             "column" : 10,
             "source_fragment" : "forward_table"
           },
@@ -870,7 +770,7 @@
           "id" : 0,
           "source_info" : {
             "filename" : "simple_switch.p4",
-            "line" : 248,
+            "line" : 215,
             "column" : 12,
             "source_fragment" : "hdr.ipv4.isValid() && hdr.ipv4.ttl > 8w0 || hdr.arp.isValid()"
           },
@@ -930,7 +830,7 @@
           "id" : 1,
           "source_info" : {
             "filename" : "simple_switch.p4",
-            "line" : 249,
+            "line" : 216,
             "column" : 16,
             "source_fragment" : "hdr.ipv4.isValid() && hdr.ipv4.ttl > 8w0"
           },
@@ -973,7 +873,7 @@
           "id" : 2,
           "source_info" : {
             "filename" : "simple_switch.p4",
-            "line" : 252,
+            "line" : 219,
             "column" : 20,
             "source_fragment" : "hdr.arp.isValid()"
           },
@@ -998,7 +898,7 @@
       "id" : 1,
       "source_info" : {
         "filename" : "simple_switch.p4",
-        "line" : 265,
+        "line" : 232,
         "column" : 8,
         "source_fragment" : "MyEgress"
       },
@@ -1014,7 +914,7 @@
       "id" : 0,
       "source_info" : {
         "filename" : "simple_switch.p4",
-        "line" : 277,
+        "line" : 244,
         "column" : 8,
         "source_fragment" : "update_checksum( ..."
       },
@@ -1040,7 +940,7 @@
       "id" : 1,
       "source_info" : {
         "filename" : "simple_switch.p4",
-        "line" : 159,
+        "line" : 127,
         "column" : 8,
         "source_fragment" : "verify_checksum( ..."
       },

@@ -89,6 +89,17 @@ public:
    */
   uint32_t GetVirtualQueueLengthPerPort (uint8_t port, uint8_t priority) const;
 
+  /**
+   * \brief Reset the virtual queue number, because the number of queues is changed
+   * 
+   * \return True if the change the port number, false otherwise
+   */
+  bool ReSetVirtualQueueNumber (uint32_t newSize);
+
+  bool AddVirtualQueue (uint32_t port_num);
+
+  bool RemoveVirtualQueue (uint32_t port_num);
+
 private:
   uint32_t m_nPorts; //!< Number of ports
   uint32_t m_nPriorities; //!< Number of priorities per port

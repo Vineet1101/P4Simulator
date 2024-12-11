@@ -199,7 +199,10 @@ public:
   bm::MatchKeyParam ParseMatchField (const std::string &field, bm::MatchKeyParam::Type matchType);
   bm::Meter::rate_config_t ParseRateConfig (const std::string &rateConfig);
 
-  // Initialize the switch interface
+  /**
+   * \brief Initialize the P4 switch core, based on the flow table population method.
+   * 
+   */
   void Init ();
 
 private:

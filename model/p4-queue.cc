@@ -247,6 +247,55 @@ P4Queuebuffer::IsEmpty (uint32_t port) const
   return true;
 }
 
+bool
+P4Queuebuffer::ReSetVirtualQueueNumber (uint32_t newSize)
+{
+  // Clear the existing map
+  m_queues.clear ();
+
+  // Resize the map to have num_queue keys
+  for (uint32_t i = 0; i < newSize; ++i)
+    {
+      std::vector<std::queue<Ptr<P4QueueItem>>> queues_vector (m_nPriorities);
+      m_queues[i] = queues_vector;
+    }
+
+  NS_LOG_INFO ("ReSetVirtualQueueNumber: Resized to " << newSize << " queues.");
+  return false;
+}
+
+bool
+P4Queuebuffer::AddVirtualQueue (uint32_t port_num)
+{
+  // Add a new virtual queue
+  if (port_num < m_nPorts)
+    {
+      NS_LOG_ERROR ("Invalid port number");
+      return false;
+    }
+
+  std::vector<std::queue<Ptr<P4QueueItem>>> queues_vector (m_nPriorities);
+  m_queues[port_num] = queues_vector;
+  m_nPorts++;
+  NS_LOG_INFO ("AddVirtualQueue: Added a new virtual queue.");
+  return true;
+}
+
+bool
+P4Queuebuffer::RemoveVirtualQueue (uint32_t port_num)
+{
+  if (port_num > m_nPorts || port_num < 0)
+    {
+      NS_LOG_ERROR ("No virtual queues to remove.");
+      return false;
+    }
+  // Remove the last virtual queue
+  m_queues.erase (port_num);
+  m_nPorts--;
+  NS_LOG_INFO ("RemoveVirtualQueue: Removed the last virtual queue.");
+  return true;
+}
+
 TwoTierP4Queue::TwoTierP4Queue ()
 {
   NS_LOG_FUNCTION (this);

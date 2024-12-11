@@ -31,6 +31,7 @@ const bit<16> TYPE_ARP = 0x806;
 *********************** H E A D E R S  ***********************************
 *************************************************************************/
 
+typedef bit<9>  egressSpec_t;
 typedef bit<48> macAddr_t;
 typedef bit<32> ip4Addr_t;
 
@@ -53,6 +54,26 @@ header ipv4_t {
     bit<16>   hdrChecksum;
     ip4Addr_t srcAddr;
     ip4Addr_t dstAddr;
+}
+
+header udp_t {
+    bit<16> sourcePort;
+    bit<16> destPort;
+    bit<16> length_;
+    bit<16> checksum;
+}
+
+header tcp_t {
+    bit<16> srcPort;
+    bit<16> dstPort;
+    bit<32> seqNo;
+    bit<32> ackNo;
+    bit<4>  dataOffset;
+    bit<4>  res;
+    bit<8>  flags;
+    bit<16> window;
+    bit<16> checksum;
+    bit<16> urgentPtr;
 }
 
 header arp_t {
@@ -79,6 +100,8 @@ struct headers {
     ethernet_t      ethernet;
     arp_t           arp;
     ipv4_t          ipv4;
+    tcp_t           tcp;
+    udp_t           udp;
 }
 
 /*************************************************************************
@@ -108,13 +131,26 @@ parser MyParser(packet_in packet,
         transition accept;
     }
 
+
     state parse_ipv4 {
         packet.extract(hdr.ipv4);
         transition select(hdr.ipv4.protocol) {
+            8w17: parse_udp;
+            8w6: parse_tcp;
             default: accept;
         }
     }
 
+    state parse_tcp {
+        packet.extract(hdr.tcp);
+	transition accept;
+
+    }
+    
+    state parse_udp {
+        packet.extract(hdr.udp);
+	transition accept;
+    }
 
 }
 
@@ -162,6 +198,7 @@ control MyIngress(inout headers hdr,
     action drop() {
         mark_to_drop2(standard_metadata);
     }
+
     
 
     action set_port(bit<9> port) {
@@ -268,6 +305,8 @@ control MyDeparser(packet_out packet, in headers hdr) {
         packet.emit(hdr.ethernet);
         packet.emit(hdr.arp);
         packet.emit(hdr.ipv4);
+        packet.emit(hdr.udp);
+        packet.emit(hdr.tcp);
     }
 }
 
