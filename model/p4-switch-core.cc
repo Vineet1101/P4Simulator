@@ -26,9 +26,9 @@
 #include "ns3/register_access.h"
 
 #include "ns3/ethernet-header.h"
+#include "ns3/log.h"
 #include "ns3/simulator.h"
 #include "ns3/socket.h"
-#include "ns3/log.h"
 
 #define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_OFF
 #include <bm/spdlog/spdlog.h>
@@ -86,6 +86,9 @@ struct bmv2_hash
 REGISTER_HASH (hash_ex);
 REGISTER_HASH (bmv2_hash);
 
+bm::packet_id_t P4Switch::packet_id = 0;
+int P4Switch::thrift_port = 9090;
+
 bool
 MirroringSessions::AddSession (int mirror_id, const MirroringSessionConfig &config)
 {
@@ -139,23 +142,33 @@ MirroringSessions::GetSession (int mirror_id, MirroringSessionConfig *config) co
   return true;
 }
 
-// initialize static attributes
-bm::packet_id_t P4Switch::packet_id = 0;
-int P4Switch::thrift_port = 9090;
-
 P4Switch::P4Switch (BridgeP4NetDevice *netDevice)
 {
   NS_LOG_FUNCTION (this);
 
+  static int switch_id = 1;
+  p4_switch_ID = switch_id++;
+  NS_LOG_INFO ("Init P4 Switch ID: " << p4_switch_ID);
+
   m_pNetDevice = netDevice;
 
-  // Now init the switch queue with 0 port, later the bridge will add the ports
-  uint32_t nPorts = 0; // Default 0 ports
-  uint32_t nPriorities = 8; // Default 8 priorities (3 bits)
+  // init the scheduler with [pps] packets per second
+  m_ingressTimerEvent = EventId (); // default initial value
+  m_egressTimerEvent = EventId (); // default initial value
+  std::string time_ref_fast = std::to_string (P4GlobalVar::g_switchBottleNeck / 2) + "us";
+  std::string time_ref_bottle_neck = std::to_string (P4GlobalVar::g_switchBottleNeck) + "us";
+  NS_LOG_INFO ("Time reference for ingress: " << time_ref_fast
+                                              << ", for egress: " << time_ref_bottle_neck);
+  m_ingressTimeReference = Time (time_ref_fast);
+  m_egressTimeReference = Time (time_ref_bottle_neck);
 
+  // Now init the switch queue with 0 port, later the bridge will add the ports
+  uint32_t nPorts = netDevice->GetNBridgePorts ();
+  uint32_t nPriorities = 8; // Default 8 priorities (3 bits)
+  NS_LOG_INFO ("Init the switch queue with " << nPorts << " ports and " << nPriorities
+                                             << " priorities");
   input_buffer = CreateObject<TwoTierP4Queue> ();
   input_buffer->Initialize ();
-
   queue_buffer = CreateObject<P4Queuebuffer> (nPorts, nPriorities);
   queue_buffer->Initialize ();
 }
@@ -202,7 +215,7 @@ P4Switch::run_cli (std::string commandsFile)
 {
   int port = get_runtime_port ();
   bm_runtime::start_server (this, port);
-  start_and_return ();
+  // start_and_return ();
 
   std::this_thread::sleep_for (std::chrono::seconds (5));
 
@@ -223,6 +236,23 @@ P4Switch::start_and_return_ ()
 {
   NS_LOG_FUNCTION ("p4_switch has been start");
   check_queueing_metadata ();
+
+  if (!m_ingressTimeReference.IsZero ())
+    {
+      NS_LOG_INFO ("Scheduling initial timer event using m_ingressTimeReference = "
+                   << m_ingressTimeReference.GetNanoSeconds () << " ns");
+      m_ingressTimerEvent =
+          Simulator::Schedule (m_ingressTimeReference, &P4Switch::parser_ingress_processing, this);
+    }
+
+  // start the egress local thread
+  if (!m_egressTimeReference.IsZero ())
+    {
+      NS_LOG_INFO ("Scheduling initial timer event using m_egressTimeReference = "
+                   << m_egressTimeReference.GetNanoSeconds () << " ns");
+      m_egressTimerEvent =
+          Simulator::Schedule (m_egressTimeReference, &P4Switch::egress_deparser_processing, this);
+    }
 }
 
 void
@@ -264,7 +294,6 @@ P4Switch::ReceivePacket (Ptr<Packet> packetIn, int inPort, uint16_t protocol,
                          const Address &destination)
 {
   NS_LOG_FUNCTION (this);
-  // @TODO Now Tag free, but we can add metadata for each pkt.
 
   Ptr<P4QueueItem> queue_item = Create<P4QueueItem> (packetIn, PacketType::NORMAL);
   input_buffer->Enqueue (queue_item);
@@ -345,7 +374,7 @@ P4Switch::parser_ingress_processing ()
   Ptr<P4QueueItem> item = input_buffer->Dequeue ();
   if (item == nullptr)
     {
-      NS_LOG_WARN ("P4 Input Buffer is empty, no packet to dequeue");
+      // NS_LOG_WARN ("P4 Input Buffer is empty, no packet to dequeue");
       return;
     }
 
@@ -514,16 +543,19 @@ void
 P4Switch::egress_deparser_processing ()
 {
   NS_LOG_FUNCTION ("Dequeue packet from QueueBuffer");
-  // Here need the ID.
   Ptr<P4QueueItem> item = queue_buffer->Dequeue ();
   if (item == nullptr)
     {
-      NS_LOG_WARN ("GetQueueBuffer is empty, no packet to dequeue");
+      // NS_LOG_WARN ("GetQueueBuffer is empty, no packet to dequeue");
       return;
     }
 
   StandardMetadata *metadata = item->GetMetadata (); // use ptr
+
+  // this information is done before egress processing
   uint32_t port = metadata->egress_port;
+  uint16_t protocol = metadata->ns3_protocol;
+  Address destination = metadata->ns3_destination;
 
   auto bm_packet = get_bm_packet (item);
 
@@ -656,8 +688,12 @@ P4Switch::egress_deparser_processing ()
       return;
     }
 
-  // output_buffer.push_front(std::move(packet));
   // \TODO put pkts into the egress buffer with priority
+  Ptr<P4QueueItem> queue_item =
+      this->get_ns3_packet_queue_item (std::move (bm_packet), PacketType::NORMAL);
+  Ptr<Packet> ns_packet = queue_item->GetPacket ();
+
+  m_pNetDevice->SendNs3Packet (ns_packet, port, protocol, destination);
 }
 
 std::unique_ptr<bm::Packet>

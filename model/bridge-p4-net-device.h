@@ -45,7 +45,7 @@ class P4Switch;
 /**
  * \defgroup bridge Bridge P4 Network Device
  *
- * \brief A Bridge Net Device with Programmable Data Plane
+ * \brief A Bridge Net Device with Programmable Data Plane, based on ns3::BridgeNetDevice
  *
  * BridgeP4NetDevice is a subclass of NetDevice in the ns-3 domain and serves as
  * the network layer of a P4 target. It is compatible with other net devices
@@ -54,10 +54,6 @@ class P4Switch;
  * \attention The Spanning Tree Protocol part of 802.1D is not
  * implemented.  Therefore, you have to be careful not to create
  * bridging loops, or else the network will collapse.
- *
- * \attention Bridging is designed to work only with NetDevices
- * modelling IEEE 802-style technologies, such as CsmaNetDevice and
- * WifiNetDevice.
  *
  * \TODO Create a new channel class supporting arbitrary underlying channel.
  */

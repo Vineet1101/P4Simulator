@@ -6,8 +6,8 @@
 #if defined(WIN32)
 #include <windows.h>
 #elif defined(OS_VXWORKS)
-#include <vxWorks.h>
 #include <sysLib.h>
+#include <vxWorks.h>
 #elif defined(__unix__) || defined(__APPLE__)
 #include <sys/time.h>
 #endif

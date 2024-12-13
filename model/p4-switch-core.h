@@ -78,19 +78,10 @@ public:
 
   ~P4Switch ();
 
-  /**
-     * \brief Run the provided CLI commands to populate table entries
-     */
   void run_cli (std::string commandsFile);
-
-  /**
-     * \brief Unused
-     */
+  
   int receive_ (uint32_t port_num, const char *buffer, int len) override;
 
-  /**
-     * \brief Unused
-     */
   void start_and_return_ () override;
 
   // void reset_target_state_() override;
@@ -178,6 +169,14 @@ private:
                                      PktInstanceType copy_type, int field_list_id);
 
   bm::TargetParserBasic *m_argParser; //!< Structure of parsers
+
+  int p4_switch_ID; //!< ID of the switch
+
+  // time event for processing
+  EventId m_ingressTimerEvent; //!< The timer event ID [Ingress]
+  Time m_ingressTimeReference; //!< Desired time between timer event triggers
+  EventId m_egressTimerEvent; //!< The timer event ID [Egress]
+  Time m_egressTimeReference; //!< Desired time between timer event triggers
 
   bool skip_tracing = true; // whether to skip tracing
   bool with_queueing_metadata{true}; // whether to include queueing metadata

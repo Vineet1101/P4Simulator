@@ -189,6 +189,10 @@ BridgeP4NetDevice::AddBridgePort (Ptr<NetDevice> bridgePort)
                                    bridgePort, true);
   m_ports.push_back (bridgePort);
   m_channel->AddChannel (bridgePort->GetChannel ());
+
+  // Add the bridge port to the P4 switch
+  m_p4Switch->AddVritualQueue (m_ports.size () -
+                               1); // Add a new virtual queue from number 0 (if port size = 1)
 }
 
 uint32_t
@@ -337,7 +341,6 @@ BridgeP4NetDevice::SendFrom (Ptr<Packet> packet, const Address &src, const Addre
   //     }
   // }
 
-  // 广播数据包
   // data was not unicast or no state has been learned for that mac
   // address => flood through all ports.
   Ptr<Packet> pktCopy;
@@ -355,8 +358,7 @@ void
 BridgeP4NetDevice::SendPacket (Ptr<Packet> packetOut, int outPort, uint16_t protocol,
                                const Address &destination)
 {
-  // this->SendNs3Packet(packetOut, outPort, protocol, destination);
-  return;
+  SendNs3Packet (packetOut, outPort, protocol, destination);
 }
 
 void
@@ -398,7 +400,7 @@ bool
 BridgeP4NetDevice::NeedsArp () const
 {
   NS_LOG_FUNCTION_NOARGS ();
-  return false;
+  return true;
 }
 
 void
@@ -419,7 +421,7 @@ bool
 BridgeP4NetDevice::SupportsSendFrom () const
 {
   NS_LOG_FUNCTION_NOARGS ();
-  return false;
+  return true;
 }
 
 Address
