@@ -18,13 +18,9 @@ build_lib(
         model/p4-switch-core.cc
         model/p4-switch-interface.cc
         model/bridge-p4-net-device.cc
-        model/standard-metadata-tag.cc
-        model/p4-queue-item.cc
-        model/p4-rr-pri-queue-disc.cc
         model/format-utils.cc
         model/switch-api.cc
         helper/p4sim-helper.cc
-        helper/priority-port-tag.cc
         helper/global.cc
         helper/p4-exception-handle.cc
         helper/p4-topology-reader-helper.cc
@@ -36,14 +32,10 @@ build_lib(
         model/p4-switch-core.h
         model/p4-switch-interface.h
         model/bridge-p4-net-device.h
-        model/standard-metadata-tag.h
-        model/p4-queue-item.h
-        model/p4-rr-pri-queue-disc.h
         model/format-utils.h
         model/switch-api.h
         model/register_access.h
         helper/p4sim-helper.h
-        helper/priority-port-tag.h
         helper/global.h
         helper/p4-exception-handle.h
         helper/p4-topology-reader-helper.h

@@ -901,7 +901,7 @@ P4SwitchInterface::Init ()
 
       std::vector<char *> args;
       args.push_back (nullptr);
-      args.push_back (jsonPath_.data ());
+      args.push_back (P4GlobalVar::g_p4JsonPath.data ());
 
       // Initialize P4 core with local command line options
       status =
@@ -969,7 +969,7 @@ P4SwitchInterface::Init ()
       int result = std::system (cmd.c_str ());
 
       // sleep for 2 second to avoid the server not ready
-      sleep (2);
+      sleep (5);
       if (result != 0)
         {
           NS_LOG_ERROR ("Error executing flow table population command: " << cmd);

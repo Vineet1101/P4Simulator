@@ -11,7 +11,7 @@
 
 #define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_OFF
 #include <bm/spdlog/spdlog.h>
-#undef LOG_INFO // 防止冲突
+#undef LOG_INFO
 #undef LOG_ERROR
 #undef LOG_DEBUG
 

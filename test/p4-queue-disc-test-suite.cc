@@ -118,8 +118,8 @@
 //   /**
 //    * Test the random number generator by generating 10 random values
 //    * With random_seed = 1, the first ten random values should be 2, 2, 1, 2, 1, 0, 0, 0, 0, 0
-//    * That means, the dequeue order is 2, 2, 1, (2), 1, 0, 0, and the high priority packets should 
-//    * first be dequeued, then the low priority packets. In the order there is a "(2)"", 
+//    * That means, the dequeue order is 2, 2, 1, (2), 1, 0, 0, and the high priority packets should
+//    * first be dequeued, then the low priority packets. In the order there is a "(2)"",
 //    * Because the thrid 2 is empty, the next random value is 1.
 //    */
 

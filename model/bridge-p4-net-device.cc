@@ -74,7 +74,8 @@ BridgeP4NetDevice::BridgeP4NetDevice () : m_node (nullptr), m_ifIndex (0)
       P4GlobalVar::g_flowTablePath); //!< Path to the flow table file.
   p4SwitchInterface->SetViewFlowTablePath (
       P4GlobalVar::g_viewFlowTablePath); //!< Path to the view flow table file.
-  p4SwitchInterface->SetNetworkFunc (P4GlobalVar::g_networkFunc); //!< Network function ID.
+  p4SwitchInterface->SetNetworkFunc (
+      static_cast<unsigned int> (P4GlobalVar::g_networkFunc)); //!< Network function ID.
   p4SwitchInterface->SetPopulateFlowTableWay (
       P4GlobalVar::g_populateFlowTableWay); //!< Method to populate the flow table.
 
@@ -162,6 +163,8 @@ Ptr<NetDevice>
 BridgeP4NetDevice::GetBridgePort (uint32_t n) const
 {
   NS_LOG_FUNCTION_NOARGS ();
+  if (n >= m_ports.size ())
+    return NULL;
   return m_ports[n];
 }
 

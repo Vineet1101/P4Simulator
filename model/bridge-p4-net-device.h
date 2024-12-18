@@ -117,6 +117,17 @@ public:
   Ptr<NetDevice> GetBridgePort (uint32_t n) const;
 
   /**
+		* \brief Forwards a broadcast or a multicast packet
+		* \param incomingPort the packet incoming port
+		* \param packet the packet
+		* \param protocol the packet protocol (e.g., Ethertype)
+		* \param src the packet source
+		* \param dst the packet destination
+		*/
+  void ForwardBroadcast (Ptr<NetDevice> incomingPort, Ptr<const Packet> packet, uint16_t protocol,
+                         Mac48Address src, Mac48Address dst);
+
+  /**
      * \brief This method sends a packet out to the destination port.
      * \param packetOut the packet need to be send out
      * \param outPort the port index to send out

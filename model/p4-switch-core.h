@@ -23,7 +23,6 @@
 #define P4_SWITCH_CORE_H
 
 #include "bridge-p4-net-device.h"
-#include "ns3/p4-queue-item.h"
 #include "ns3/p4-queue.h"
 #include "ns3/delay-jitter-estimation.h"
 
@@ -68,7 +67,7 @@ public:
   static TypeId GetTypeId (void);
   P4Switch (BridgeP4NetDevice *netDevice, bool enable_swap = false,
             port_t drop_port = default_drop_port,
-            size_t nb_queues_per_port = default_nb_queues_per_port);  
+            size_t nb_queues_per_port = default_nb_queues_per_port);
   ~P4Switch ();
 
   struct MirroringSessionConfig
@@ -94,15 +93,16 @@ public:
     size_t nb_threads;
   };
 
+  // void Init ();
   void run_cli (std::string commandsFile);
 
   int receive_ (uint32_t port_num, const char *buffer, int len) override;
 
   void start_and_return_ () override;
 
-  // void reset_target_state_() override;
-
   void swap_notify_ () override;
+
+  void reset_target_state_ () override;
 
   bool mirroring_add_session (int mirror_id, const MirroringSessionConfig &config);
 
@@ -121,17 +121,9 @@ public:
   void packets_process_pipeline (Ptr<Packet> packetIn, int inPort, uint16_t protocol,
                                  const Address &destination);
 
-  // void push_input_buffer (Ptr<Packet> packetIn);
-
-  // void push_input_buffer (Ptr<P4QueueItem> queue_item);
-
-  // void push_input_buffer (std::unique_ptr<bm::Packet> &&bm_packet, PacketType packet_type);
-
   void push_transmit_buffer (std::unique_ptr<bm::Packet> &&bm_packet);
 
   void parser_ingress_processing ();
-
-  // void enqueue (uint32_t egress_port, Ptr<P4QueueItem> queue_item);
 
   void enqueue (port_t egress_port, std::unique_ptr<bm::Packet> &&packet);
 
@@ -140,16 +132,17 @@ public:
   void multicast (bm::Packet *packet, unsigned int mgid);
 
   void check_queueing_metadata ();
+  int set_egress_priority_queue_depth (size_t port, size_t priority, const size_t depth_pkts);
+  int set_egress_queue_depth (size_t port, const size_t depth_pkts);
+  int set_all_egress_queue_depths (const size_t depth_pkts);
 
-  // bool AddVritualQueue (uint32_t port_num);
-
-  // bool RemoveVirtualQueue (uint32_t port_num);
+  int set_egress_priority_queue_rate (size_t port, size_t priority, const uint64_t rate_pps);
+  int set_egress_queue_rate (size_t port, const uint64_t rate_pps);
+  int set_all_egress_queue_rates (const uint64_t rate_pps);
 
   void RunIngressTimerEvent ();
   void RunEgressTimerEvent ();
 
-  // std::unique_ptr<bm::Packet> get_bm_packet (Ptr<P4QueueItem> item);
-  // std::unique_ptr<bm::Packet> get_bm_packet_from_ingress (Ptr<Packet> ns_packet, uint16_t in_port);
   Ptr<Packet> get_ns3_packet (std::unique_ptr<bm::Packet> &&bm_packet);
 
   int GetAddressIndex (const Address &destination);
@@ -161,15 +154,13 @@ public:
   P4Switch &&operator= (P4Switch &&) = delete;
 
 protected:
-
   static int thrift_port;
 
 private:
   class MirroringSessions;
-  
 
   int p4_switch_ID; //!< ID of the switch
-  
+
   size_t worker_id; //!< worker_id = threads_id, here only one
   mutable std::mutex m_tag_queue_mutex;
   std::map<int64_t, DelayJitterEstimationTimestampTag> tag_map;
@@ -202,7 +193,6 @@ private:
                                      PktInstanceType copy_type, int field_list_id);
 
   bm::TargetParserBasic *m_argParser; //!< Structure of parsers
-  // bool skip_tracing = true; // whether to skip tracing
 
   std::vector<Address> destination_list; //!< List of addresses (O(log n) search)
   std::map<Address, int> address_map; //!< Map for fast lookup
@@ -219,8 +209,6 @@ private:
   std::shared_ptr<bm::McSimplePreLAG> m_pre;
   std::chrono::high_resolution_clock::time_point start;
   std::unique_ptr<MirroringSessions> mirroring_sessions;
-
-  
 };
 
 } // namespace ns3
