@@ -947,7 +947,7 @@ P4SwitchInterface::Init ()
       opt_parser.file_logger =
           "/tmp/bmv2-" + std::to_string (p4_switch_ctrl_plane_thrift_port) + "-pipeline.log";
       opt_parser.thrift_port = p4_switch_ctrl_plane_thrift_port++;
-      opt_parser.console_logging = false;
+      opt_parser.console_logging = true;
 
       // Initialize the switch
       status = 0;
@@ -966,10 +966,10 @@ P4SwitchInterface::Init ()
       std::string cmd = "simple_switch_CLI --thrift-port " + std::to_string (port) + " < " +
                         P4GlobalVar::g_flowTablePath + " > /dev/null 2>&1";
 
-      // sleep for 4 second to avoid the server not ready
-      sleep (4);
-
       int result = std::system (cmd.c_str ());
+
+      // sleep for 2 second to avoid the server not ready
+      sleep (2);
       if (result != 0)
         {
           NS_LOG_ERROR ("Error executing flow table population command: " << cmd);

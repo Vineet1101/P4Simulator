@@ -164,10 +164,9 @@ StandardMetadata::WriteMetadataToBMPacket (std::unique_ptr<bm::Packet> &&bm_pack
   phv->get_field ("standard_metadata.parser_error").set (static_cast<uint32_t> (parser_error));
 }
 
-P4QueueItem::P4QueueItem (Ptr<Packet> p, PacketType type)
-    : m_packet (p), m_packetType (type), m_tstamp (Simulator::Now ())
+P4QueueItem::P4QueueItem (std::unique_ptr<bm::Packet> &&p, PacketType type)
+    : m_packet (std::move (p)), m_packetType (type), m_tstamp (Simulator::Now ())
 {
-  NS_LOG_FUNCTION (this << p << type << m_tstamp);
   m_metadata = new StandardMetadata ();
 }
 
@@ -177,10 +176,20 @@ P4QueueItem::~P4QueueItem ()
   delete m_metadata;
 }
 
-Ptr<Packet>
-P4QueueItem::GetPacket (void) const
+void
+P4QueueItem::SetPacket (std::unique_ptr<bm::Packet> &&p)
 {
-  return m_packet;
+  m_packet = std::move(p);
+}
+
+/**
+ * @brief 获取并转移 m_packet 的所有权。
+ * @return std::unique_ptr<bm::Packet> 转移的 Packet，m_packet 将变为空。
+ */
+std::unique_ptr<bm::Packet>
+P4QueueItem::GetPacket (void)
+{
+  return std::move (m_packet);
 }
 
 PacketType
@@ -225,7 +234,7 @@ P4QueueItem::SetMetadataPriority (uint8_t priority)
 void
 P4QueueItem::Print (std::ostream &os) const
 {
-  os << "P4QueueItem: Packet=" << m_packet;
+  // os << "P4QueueItem: Packet=" << m_packet;
   // print metadata
   m_metadata->PrintMetadata (os);
 }

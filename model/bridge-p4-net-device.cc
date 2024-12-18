@@ -191,8 +191,8 @@ BridgeP4NetDevice::AddBridgePort (Ptr<NetDevice> bridgePort)
   m_channel->AddChannel (bridgePort->GetChannel ());
 
   // Add the bridge port to the P4 switch
-  m_p4Switch->AddVritualQueue (m_ports.size () -
-                               1); // Add a new virtual queue from number 0 (if port size = 1)
+  // m_p4Switch->AddVritualQueue (m_ports.size () -
+  //                              1); // Add a new virtual queue from number 0 (if port size = 1)
 }
 
 uint32_t

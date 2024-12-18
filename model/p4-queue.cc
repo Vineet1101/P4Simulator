@@ -89,37 +89,67 @@ P4Queuebuffer::Dequeue ()
     }
   else
     {
-      uint32_t port = m_rng->GetInteger (0, m_nPorts - 1);
-      NS_LOG_INFO ("Random port selected: " << port);
+      // uint32_t port = m_rng->GetInteger (0, m_nPorts - 1);
+      // NS_LOG_INFO ("Random port selected: " << port);
 
-      std::set<uint32_t> triedPorts;
-      while (triedPorts.size () < m_nPorts)
+      // std::set<uint32_t> triedPorts;
+      // while (triedPorts.size () < m_nPorts)
+      //   {
+      //     // Check whether the current port has been traversed
+      //     if (triedPorts.find (port) == triedPorts.end ())
+      //       {
+      //         if (IsEmpty (port))
+      //           {
+      //             NS_LOG_INFO ("Port " << port << " is empty. Trying another port...");
+      //             triedPorts.insert (port); // Log the ports that were tried
+      //             // Choose a new random port
+      //             port = m_rng->GetInteger (0, m_nPorts - 1);
+      //             NS_LOG_INFO ("choose new port because empty: " << port);
+      //           }
+      //         else
+      //           {
+      //             NS_LOG_INFO ("Packet dequeued from port " << port);
+      //             return Dequeue (port); // If it is not empty, return directly
+      //           }
+      //       }
+      //     else
+      //       {
+      //         // Choose a new random port
+      //         port = m_rng->GetInteger (0, m_nPorts - 1);
+      //         NS_LOG_INFO ("choose new port because tried: " << port);
+      //       }
+      //   }
+      // // If all ports have been tried and are empty, return nullptr
+      // NS_LOG_WARN ("All ports are empty. No packet dequeued.");
+      // return nullptr;
+
+      std::vector<uint32_t> ports;
+      for (uint32_t i = 0; i < m_nPorts; ++i)
         {
-          // Check whether the current port has been traversed
-          if (triedPorts.find (port) == triedPorts.end ())
+          ports.push_back (i);
+        }
+
+      // Shuffle the ports using a random number generator
+      for (size_t i = ports.size () - 1; i > 0; --i)
+        {
+          uint32_t j = m_rng->GetInteger (0, i);
+          std::swap (ports[i], ports[j]);
+        }
+
+      for (uint32_t port : ports)
+        {
+          NS_LOG_INFO ("Checking port " << port);
+          if (!IsEmpty (port))
             {
-              if (IsEmpty (port))
-                {
-                  NS_LOG_INFO ("Port " << port << " is empty. Trying another port...");
-                  triedPorts.insert (port); // Log the ports that were tried
-                  // Choose a new random port
-                  port = m_rng->GetInteger (0, m_nPorts - 1);
-                  NS_LOG_INFO ("choose new port because empty: " << port);
-                }
-              else
-                {
-                  NS_LOG_INFO ("Packet dequeued from port " << port);
-                  return Dequeue (port); // If it is not empty, return directly
-                }
+              NS_LOG_INFO ("Packet dequeued from port " << port);
+              return Dequeue (port);
             }
           else
             {
-              // Choose a new random port
-              port = m_rng->GetInteger (0, m_nPorts - 1);
-              NS_LOG_INFO ("choose new port because tried: " << port);
+              NS_LOG_INFO ("Port " << port << " is empty.");
             }
         }
-      // If all ports have been tried and are empty, return nullptr
+
       NS_LOG_WARN ("All ports are empty. No packet dequeued.");
       return nullptr;
     }

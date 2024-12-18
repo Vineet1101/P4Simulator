@@ -161,7 +161,7 @@ public:
    * \brief Constructor
    * \param p The packet included in the queue item
    */
-  P4QueueItem (Ptr<Packet> p, PacketType type);
+  P4QueueItem (std::unique_ptr<bm::Packet> &&p, PacketType type);
 
   /**
    * \brief Destructor
@@ -169,10 +169,16 @@ public:
   virtual ~P4QueueItem ();
 
   /**
+   * \brief Set the packet stored in this item
+   * \param p The packet to store in this item
+   */
+  void SetPacket (std::unique_ptr<bm::Packet> &&p);
+
+  /**
    * \brief Get the packet stored in this item
    * \return The packet stored in this item
    */
-  Ptr<Packet> GetPacket (void) const;
+  std::unique_ptr<bm::Packet>  GetPacket (void);
 
   /**
    * \brief Get the timestamp included in this item
@@ -207,7 +213,8 @@ public:
   void SetMetadata (StandardMetadata *metadata);
 
 private:
-  Ptr<Packet> m_packet; //!< The packet contained in this queue item
+  // Ptr<Packet> m_packet; //!< The packet contained in this queue item
+  std::unique_ptr<bm::Packet> m_packet; //!< The bm packet contained in this queue item
   PacketType m_packetType; //!< The type of the packet
   int m_priority{0}; //!< The priority of the packet
   int m_port{0}; //!< The port of the egress switch

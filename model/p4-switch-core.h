@@ -25,61 +25,74 @@
 #include "bridge-p4-net-device.h"
 #include "ns3/p4-queue-item.h"
 #include "ns3/p4-queue.h"
-
-// #include "ns3/register_access.h"
+#include "ns3/delay-jitter-estimation.h"
 
 #include <bm/bm_sim/packet.h>
 #include <bm/bm_sim/switch.h>
+#include <bm/bm_sim/simple_pre_lag.h>
+
+#define SSWITCH_PRIORITY_QUEUEING_SRC "intrinsic_metadata.priority"
 
 namespace ns3 {
 
 class BridgeP4NetDevice;
-
-// struct PacketInfo
-// {
-//   int in_port;
-//   uint16_t protocol;
-//   Address destination;
-//   u_int64_t packet_id;
-// };
-
-struct MirroringSessionConfig
-{
-  uint32_t egress_port;
-  bool egress_port_valid;
-  unsigned int mgid;
-  bool mgid_valid;
-};
-
-class MirroringSessions
-{
-public:
-  bool AddSession (int mirror_id, const MirroringSessionConfig &config);
-
-  bool DeleteSession (int mirror_id);
-
-  bool GetSession (int mirror_id, MirroringSessionConfig *config) const;
-
-private:
-  std::unordered_map<int, MirroringSessionConfig> sessions_map;
-};
+class InputBuffer;
 
 /**
- * \ingroup p4-pipeline
- *
- * Base class for a P4 programmable pipeline.
- */
+* @brief A P4 Pipeline Implementation to be wrapped in P4 Device
+*
+* The P4Switch is using pipeline implementation provided by
+* `Behavioral Model` (https://github.com/p4lang/behavioral-model).
+* In particular, some internal processing functions and the `switch`
+* class are used. However, the way P4Switch processes packets is
+* adapted to the requirements of ns-3.
+*
+* P4Switch is initialized along with P4 Device, and expose a public
+* function called \p receivePacket() to the P4 Device. Whenever P4
+* Device has a packet needing handling, it call receivePacket and
+* wait for this function to return. \p receivePacket() puts the packet
+* through P4 pipeline and returns when the packet is ready to be
+*
+*/
 class P4Switch : public bm::Switch
 {
 public:
-  P4Switch (BridgeP4NetDevice *netDevice);
+  static constexpr port_t default_drop_port = 511;
+  static constexpr size_t default_nb_queues_per_port = 8;
+
+  using TransmitFn = std::function<void (port_t, uint64_t, const char *, int)>;
 
   static TypeId GetTypeId (void);
-
+  P4Switch (BridgeP4NetDevice *netDevice, bool enable_swap = false,
+            port_t drop_port = default_drop_port,
+            size_t nb_queues_per_port = default_nb_queues_per_port);  
   ~P4Switch ();
 
+  struct MirroringSessionConfig
+  {
+    port_t egress_port;
+    bool egress_port_valid;
+    unsigned int mgid;
+    bool mgid_valid;
+  };
+
+  struct EgressThreadMapper
+  {
+    explicit EgressThreadMapper (size_t nb_threads) : nb_threads (nb_threads)
+    {
+    }
+
+    size_t
+    operator() (size_t egress_port) const
+    {
+      return egress_port % nb_threads;
+    }
+
+    size_t nb_threads;
+  };
+
   void run_cli (std::string commandsFile);
-  
+
   int receive_ (uint32_t port_num, const char *buffer, int len) override;
 
   void start_and_return_ () override;
@@ -97,9 +110,6 @@ public:
   int ReceivePacket (Ptr<Packet> packetIn, int inPort, uint16_t protocol,
                      const Address &destination);
 
-  // !!! Deprecated function, see p4-switch-interface.cc for the new init function
-  // int init(int argc, char* argv[]);
-
   /**
      * \brief configure switch with json file
      */
@@ -108,51 +118,69 @@ public:
   void packets_process_pipeline (Ptr<Packet> packetIn, int inPort, uint16_t protocol,
                                  const Address &destination);
 
-  void push_input_buffer (Ptr<Packet> packetIn);
+  // void push_input_buffer (Ptr<Packet> packetIn);
 
-  void push_input_buffer (std::unique_ptr<bm::Packet> &&bm_packet, PacketType packet_type);
+  // void push_input_buffer (Ptr<P4QueueItem> queue_item);
+
+  // void push_input_buffer (std::unique_ptr<bm::Packet> &&bm_packet, PacketType packet_type);
 
   void push_transmit_buffer (std::unique_ptr<bm::Packet> &&bm_packet);
 
   void parser_ingress_processing ();
 
-  void enqueue (uint32_t egress_port, std::unique_ptr<bm::Packet> &&bm_packet);
+  // void enqueue (uint32_t egress_port, Ptr<P4QueueItem> queue_item);
 
-  void egress_deparser_processing ();
+  void enqueue (port_t egress_port, std::unique_ptr<bm::Packet> &&packet);
+
+  void egress_deparser_processing (size_t worker_id);
 
   void multicast (bm::Packet *packet, unsigned int mgid);
 
   void check_queueing_metadata ();
 
-  void
-  SetSkipTracing (bool skipTracing)
-  {
-    skip_tracing = skipTracing;
-  }
+  // bool AddVritualQueue (uint32_t port_num);
 
-  bool AddVritualQueue (uint32_t port_num);
+  // bool RemoveVirtualQueue (uint32_t port_num);
 
-  bool RemoveVirtualQueue (uint32_t port_num);
+  void RunIngressTimerEvent ();
+  void RunEgressTimerEvent ();
 
-  std::unique_ptr<bm::Packet> get_bm_packet (Ptr<P4QueueItem> item);
+  // std::unique_ptr<bm::Packet> get_bm_packet (Ptr<P4QueueItem> item);
   std::unique_ptr<bm::Packet> get_bm_packet_from_ingress (Ptr<Packet> ns_packet, uint16_t in_port);
-  // Ptr<Packet> get_ns3_packet (std::unique_ptr<bm::Packet> bm_packet);
+  Ptr<Packet> get_ns3_packet (std::unique_ptr<bm::Packet> &&bm_packet);
 
-  Ptr<P4QueueItem> get_ns3_packet_queue_item (std::unique_ptr<bm::Packet> bm_packet,
-                                              PacketType packet_type);
   P4Switch (const P4Switch &) = delete;
   P4Switch &operator= (const P4Switch &) = delete;
   P4Switch (P4Switch &&) = delete;
   P4Switch &&operator= (P4Switch &&) = delete;
 
-  static constexpr uint32_t default_drop_port = 511;
-
 protected:
-  static bm::packet_id_t packet_id;
+
   static int thrift_port;
 
 private:
-  // class MirroringSessions;
+  class MirroringSessions;
+  
+
+  int p4_switch_ID; //!< ID of the switch
+  
+  size_t worker_id; //!< worker_id = threads_id, here only one
+  mutable std::mutex m_tag_queue_mutex;
+  std::map<int64_t, DelayJitterEstimationTimestampTag> tag_map;
+
+  // time event for processing
+  EventId m_ingressTimerEvent; //!< The timer event ID [Ingress]
+  Time m_ingressTimeReference; //!< Desired time between timer event triggers
+  EventId m_egressTimerEvent; //!< The timer event ID [Egress]
+  Time m_egressTimeReference; //!< Desired time between timer event triggers
+  EventId m_transmitTimerEvent; //!< The timer event ID [Transfer]
+  Time m_transmitTimeReference; //!< Desired time between timer event triggers
+
+  static constexpr size_t nb_egress_threads =
+      1u; // 4u default in bmv2, but in ns-3 remove the multi-thread
+  static uint64_t packet_id;
+  int address_num;
+  BridgeP4NetDevice *m_pNetDevice;
 
   enum PktInstanceType {
     PKT_INSTANCE_TYPE_NORMAL,
@@ -169,29 +197,22 @@ private:
                                      PktInstanceType copy_type, int field_list_id);
 
   bm::TargetParserBasic *m_argParser; //!< Structure of parsers
+  // bool skip_tracing = true; // whether to skip tracing
+  std::vector<Address> destination_list; //!< list for address, using by index
+  bool with_queueing_metadata{true};
 
-  int p4_switch_ID; //!< ID of the switch
-
-  // time event for processing
-  EventId m_ingressTimerEvent; //!< The timer event ID [Ingress]
-  Time m_ingressTimeReference; //!< Desired time between timer event triggers
-  EventId m_egressTimerEvent; //!< The timer event ID [Egress]
-  Time m_egressTimeReference; //!< Desired time between timer event triggers
-
-  bool skip_tracing = true; // whether to skip tracing
-  bool with_queueing_metadata{true}; // whether to include queueing metadata
-
-  size_t nb_queues_per_port{8}; // 3 bit for the queue number, max value is 8
-
+  // INIT P4 SWITCH
+  port_t drop_port; //!< Port to drop packets
+  std::unique_ptr<InputBuffer> input_buffer;
+  size_t nb_queues_per_port;
+  NSQueueingLogicPriRL<std::unique_ptr<bm::Packet>, EgressThreadMapper> egress_buffers;
+  bm::Queue<std::unique_ptr<bm::Packet>> output_buffer;
+  TransmitFn my_transmit_fn;
+  std::shared_ptr<bm::McSimplePreLAG> m_pre;
+  std::chrono::high_resolution_clock::time_point start;
   std::unique_ptr<MirroringSessions> mirroring_sessions;
 
-  std::vector<Address> destination_list; //!< list for address, using by index
-
-  Ptr<TwoTierP4Queue> input_buffer;
-  Ptr<P4Queuebuffer> queue_buffer;
-  // Ptr<FifoQueueDisc> transmit_buffer;
-
-  BridgeP4NetDevice *m_pNetDevice;
+  
 };
 
 } // namespace ns3
