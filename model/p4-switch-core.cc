@@ -43,10 +43,6 @@
 #include <bm/bm_sim/switch.h>
 #include <bm/bm_sim/core/primitives.h>
 
-#include <unordered_map>
-
-
-
 NS_LOG_COMPONENT_DEFINE ("P4SwitchCore");
 
 namespace ns3 {
@@ -222,9 +218,6 @@ P4Switch::P4Switch (BridgeP4NetDevice *netDevice, bool enable_swap, port_t drop_
   uint32_t nPriorities = 8; // Default 8 priorities (3 bits)
   NS_LOG_INFO ("Init the switch queue with " << nPorts << " ports and " << nPriorities
                                              << " priorities");
-
-  // ns3 settings init @mingyu
-  address_num = 0;
 }
 
 P4Switch::~P4Switch ()
@@ -386,7 +379,13 @@ P4Switch::ReceivePacket (Ptr<Packet> packetIn, int inPort, uint16_t protocol,
   bm_packet.get ()->set_ingress_port (inPort);
 
   phv->reset_metadata ();
+
+  // reset, set ns3 protocol and address
   RegisterAccess::clear_all (bm_packet.get ());
+  RegisterAccess::set_ns_protocol (bm_packet.get (), protocol);
+
+  int addr_index = GetAddressIndex (destination);
+  RegisterAccess::set_ns_address (bm_packet.get (), addr_index);
 
   // setting standard metadata
   phv->get_field ("standard_metadata.ingress_port").set (inPort);
@@ -890,12 +889,11 @@ P4Switch::egress_deparser_processing (size_t worker_id)
       // return;
     }
 
-  int protocol = phv->get_field ("standard_metadata.egress_spec").get_uint ();
-  Address destination = Address ();
+  uint16_t protocol = RegisterAccess::get_ns_protocol (bm_packet.get ());
+  int addr_index = RegisterAccess::get_ns_address (bm_packet.get ());
 
-  // \TODO put pkts into the egress buffer with priority
   Ptr<Packet> ns_packet = this->get_ns3_packet (std::move (bm_packet));
-  m_pNetDevice->SendNs3Packet (ns_packet, port, protocol, destination);
+  m_pNetDevice->SendNs3Packet (ns_packet, port, protocol, destination_list[addr_index]);
 }
 
 // std::unique_ptr<bm::Packet>
@@ -923,22 +921,22 @@ P4Switch::egress_deparser_processing (size_t worker_id)
 //   return bm_packet;
 // }
 
-std::unique_ptr<bm::Packet>
-P4Switch::get_bm_packet_from_ingress (Ptr<Packet> ns_packet, uint16_t in_port)
-{
-  int len = ns_packet->GetSize ();
-  uint8_t *pkt_buffer = new uint8_t[len];
-  ns_packet->CopyData (pkt_buffer, len);
-  bm::PacketBuffer buffer (len + 512, (char *) pkt_buffer, len);
+// std::unique_ptr<bm::Packet>
+// P4Switch::get_bm_packet_from_ingress (Ptr<Packet> ns_packet, uint16_t in_port)
+// {
+//   int len = ns_packet->GetSize ();
+//   uint8_t *pkt_buffer = new uint8_t[len];
+//   ns_packet->CopyData (pkt_buffer, len);
+//   bm::PacketBuffer buffer (len + 512, (char *) pkt_buffer, len);
 
-  std::unique_ptr<bm::Packet> bm_packet =
-      new_packet_ptr (in_port, packet_id++, len, std::move (buffer));
-  delete[] pkt_buffer;
+//   std::unique_ptr<bm::Packet> bm_packet =
+//       new_packet_ptr (in_port, packet_id++, len, std::move (buffer));
+//   delete[] pkt_buffer;
 
-  // \TODO metadata
+//   // \TODO metadata
 
-  return bm_packet;
-}
+//   return bm_packet;
+// }
 
 Ptr<Packet>
 P4Switch::get_ns3_packet (std::unique_ptr<bm::Packet> &&bm_packet)
@@ -1006,6 +1004,31 @@ P4Switch::mirroring_get_session (int mirror_id, MirroringSessionConfig *config) 
 {
   return mirroring_sessions->get_session (mirror_id, config);
 }
+
+int
+P4Switch::GetAddressIndex (const Address &destination)
+{
+  auto it = address_map.find (destination);
+  if (it != address_map.end ())
+    {
+      // Address already exists, return its index
+      return it->second;
+    }
+  else
+    {
+      // Address does not exist, add it to the list and map
+      int new_index = destination_list.size ();
+      destination_list.push_back (destination);
+      address_map[destination] = new_index;
+      return new_index;
+    }
+}
+
+// const Address &
+// P4Switch::GetAddressFromIndex (int index) const
+// {
+//   return destination_list[index];
+// }
 
 // bool
 // P4Switch::AddVritualQueue (uint32_t port_num)

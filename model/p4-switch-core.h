@@ -27,6 +27,9 @@
 #include "ns3/p4-queue.h"
 #include "ns3/delay-jitter-estimation.h"
 
+#include <map>
+#include <vector>
+
 #include <bm/bm_sim/packet.h>
 #include <bm/bm_sim/switch.h>
 #include <bm/bm_sim/simple_pre_lag.h>
@@ -146,8 +149,11 @@ public:
   void RunEgressTimerEvent ();
 
   // std::unique_ptr<bm::Packet> get_bm_packet (Ptr<P4QueueItem> item);
-  std::unique_ptr<bm::Packet> get_bm_packet_from_ingress (Ptr<Packet> ns_packet, uint16_t in_port);
+  // std::unique_ptr<bm::Packet> get_bm_packet_from_ingress (Ptr<Packet> ns_packet, uint16_t in_port);
   Ptr<Packet> get_ns3_packet (std::unique_ptr<bm::Packet> &&bm_packet);
+
+  int GetAddressIndex (const Address &destination);
+  // const Address &GetAddressFromIndex (int index) const;
 
   P4Switch (const P4Switch &) = delete;
   P4Switch &operator= (const P4Switch &) = delete;
@@ -179,7 +185,6 @@ private:
   static constexpr size_t nb_egress_threads =
       1u; // 4u default in bmv2, but in ns-3 remove the multi-thread
   static uint64_t packet_id;
-  int address_num;
   BridgeP4NetDevice *m_pNetDevice;
 
   enum PktInstanceType {
@@ -198,7 +203,10 @@ private:
 
   bm::TargetParserBasic *m_argParser; //!< Structure of parsers
   // bool skip_tracing = true; // whether to skip tracing
-  std::vector<Address> destination_list; //!< list for address, using by index
+
+  std::vector<Address> destination_list; //!< List of addresses (O(log n) search)
+  std::map<Address, int> address_map; //!< Map for fast lookup
+
   bool with_queueing_metadata{true};
 
   // INIT P4 SWITCH
