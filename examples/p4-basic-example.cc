@@ -259,7 +259,119 @@ main (int argc, char *argv[])
       switchPortInfo[i] = switchNodes[i].switchPortInfos;
     }
 
-  // Print IP and MAC addresses
+  // =============================== assgin the MAC address ===============================
+  // NetDeviceContainer host_devices;
+  // NetDeviceContainer switch_devices;
+  // for (unsigned int i = 0; i < hostNum; i++)
+  //   {
+  //     Ptr<Node> nodehost = terminals.Get (i);
+  //     Ptr<NetDevice> device = nodehost->GetDevice (0);
+  //   }
+
+  // Mac48Address address ("00:00:00:00:00:01");
+  // Ptr<NetDevice> device = host_devices.Get (0);
+  // device->SetAddress (address);
+  // address = Mac48Address ("00:00:00:00:00:03");
+  // device = host_devices.Get (1);
+  // device->SetAddress (address);
+  // address = Mac48Address ("00:00:00:00:00:05");
+  // device = host_devices.Get (2);
+  // device->SetAddress (address);
+  // address = Mac48Address ("00:00:00:00:00:07");
+  // device = host_devices.Get (3);
+  // device->SetAddress (address);
+
+  // for (unsigned int i = 0; i < switchNum; i++)
+  //   {
+  //     for (int j = 0; j < 4; j++)
+  //       {
+  //         Ptr<Node> nodeswitch = switchNode.Get (i);
+  //         Ptr<NetDevice> device = nodeswitch->GetDevice (j);
+  //         switch_devices.Add (device);
+  //       }
+  //   }
+  // address = Mac48Address ("00:00:0a:00:00:01");
+  // device = switch_devices.Get (0);
+  // device->SetAddress (address);
+  // address = Mac48Address ("00:00:0a:00:00:02");
+  // device = switch_devices.Get (1);
+  // device->SetAddress (address);
+  // address = Mac48Address ("00:00:0a:00:00:03");
+  // device = switch_devices.Get (2);
+  // device->SetAddress (address);
+  // address = Mac48Address ("00:00:0a:00:00:04");
+  // device = switch_devices.Get (3);
+  // device->SetAddress (address);
+
+  // address = Mac48Address ("00:00:0a:01:00:01");
+  // device = switch_devices.Get (4);
+  // device->SetAddress (address);
+  // address = Mac48Address ("00:00:0a:01:00:02");
+  // device = switch_devices.Get (5);
+  // device->SetAddress (address);
+  // address = Mac48Address ("00:00:0a:01:00:03");
+  // device = switch_devices.Get (6);
+  // device->SetAddress (address);
+  // address = Mac48Address ("00:00:0a:01:00:04");
+  // device = switch_devices.Get (7);
+  // device->SetAddress (address);
+
+  // address = Mac48Address ("00:00:0a:02:00:01");
+  // device = switch_devices.Get (8);
+  // device->SetAddress (address);
+  // address = Mac48Address ("00:00:0a:02:00:02");
+  // device = switch_devices.Get (9);
+  // device->SetAddress (address);
+  // address = Mac48Address ("00:00:0a:02:00:03");
+  // device = switch_devices.Get (10);
+  // device->SetAddress (address);
+  // address = Mac48Address ("00:00:0a:02:00:04");
+  // device = switch_devices.Get (11);
+  // device->SetAddress (address);
+
+  // address = Mac48Address ("00:00:0a:03:00:01");
+  // device = switch_devices.Get (12);
+  // device->SetAddress (address);
+  // address = Mac48Address ("00:00:0a:03:00:02");
+  // device = switch_devices.Get (13);
+  // device->SetAddress (address);
+  // address = Mac48Address ("00:00:0a:03:00:03");
+  // device = switch_devices.Get (14);
+  // device->SetAddress (address);
+  // address = Mac48Address ("00:00:0a:04:00:04");
+  // device = switch_devices.Get (15);
+  // device->SetAddress (address);
+  // ***************************** print node id *****************************
+
+  // NS_LOG_LOGIC("***************************** print node id
+  // *****************************");
+  // for (unsigned int i = 0; i < hostNum; i++)
+  //   {
+  //     Ptr<Node> nodehost = terminals.Get (i);
+  //     std::cout << "host " << i << " is with id: " << nodehost->GetId () << std::endl;
+  //     // cout the mac address
+  //     Ptr<NetDevice> device = nodehost->GetDevice (0);
+  //     if (device == 0)
+  //       {
+  //         NS_LOG_LOGIC ("Could not get NetDevice with index ");
+  //       }
+  //     else
+  //       {
+  //         Mac48Address address;
+  //         address.ConvertFrom (device->GetAddress ());
+  //         NS_LOG_LOGIC ("Device in host " << i << " MAC address: " << address);
+  //       }
+  //   }
+
+  // for (unsigned int i = 0; i < switchNum; i++)
+  //   {
+  //     Ptr<Node> nodeswitch = switchNode.Get (i);
+  //     std::cout << "switch " << i << " is with id: " << nodeswitch->GetId () << std::endl;
+  //   }
+
+  // std::cout << "************************************ " << std::endl;
+
+  //===============================  Print IP and MAC addresses===============================
   NS_LOG_INFO ("Node IP and MAC addresses:");
   for (uint32_t i = 0; i < terminals.GetN (); ++i)
     {
