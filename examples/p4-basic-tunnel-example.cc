@@ -318,8 +318,7 @@ main (int argc, char *argv[])
         }
     }
 
-  // == First == send link h1 -----> h2
-
+  // == First == send link h0 -----> h1
   unsigned int serverI = 1;
   unsigned int clientI = 0;
   uint16_t servPort = 9093; // setting for port

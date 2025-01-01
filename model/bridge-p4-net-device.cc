@@ -141,10 +141,13 @@ BridgeP4NetDevice::ReceiveFromDevice (Ptr<NetDevice> incomingPort, Ptr<const Pac
 
   int inPort = GetPortNumber (incomingPort);
 
+  // Add eeh header as layer 2 header
   EthernetHeader eeh;
   eeh.SetDestination (dst48);
   eeh.SetSource (src48);
   eeh.SetLengthType (protocol);
+
+  // Add other headers for packet
 
   Ptr<ns3::Packet> ns3Packet ((ns3::Packet *) PeekPointer (packet));
   ns3Packet->AddHeader (eeh);
