@@ -14,7 +14,7 @@
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE ("P4BasicTunnelExample");
+NS_LOG_COMPONENT_DEFINE ("P4BasicTest");
 
 unsigned long start = getTickCount ();
 
@@ -68,15 +68,15 @@ struct HostNodeC_t
 int
 main (int argc, char *argv[])
 {
-  LogComponentEnable ("P4BasicTunnelExample", LOG_LEVEL_INFO);
+  LogComponentEnable ("P4BasicTest", LOG_LEVEL_INFO);
 
   // ============================ parameters ============================
 
   // Simulation parameters
   uint16_t pktSize = 512; //in Bytes. 1458 to prevent fragments, default 512
 
-  // h1 -> h3 with 2.0Mbps, h2 -> h4 with 1.0Mbps
-  std::string appDataRate[] = {"2.0Mbps", "1.0Mbps"};
+  // h1 -> h2 with 2.0Mbps
+  std::string appDataRate[] = {"2.0Mbps"};
 
   P4GlobalVar::g_switchBottleNeck = 2430; // 1 / 445 = 2247 2450
   double global_start_time = 1.0;
@@ -102,7 +102,7 @@ main (int argc, char *argv[])
   // ============================ topo -> network ============================
 
   // loading from topo file --> gene topo(linking the nodes)
-  std::string topoInput = P4GlobalVar::PathConfig::NfDir + "basic_tunnel/topo.txt";
+  std::string topoInput = P4GlobalVar::PathConfig::NfDir + "test_simple/topo.txt";
   std::string topoFormat ("CsmaTopo");
 
   P4TopologyReaderHelper p4TopoHelp;
@@ -227,14 +227,6 @@ main (int argc, char *argv[])
   internet.Install (switchNode);
 
   //  ===============================  Assign IP addresses ===============================
-  /**
-   * Node IP and MAC addresses:
-   * Node 0: IP = 10.1.1.1, MAC = 00:00:00:00:00:01
-   * Node 1: IP = 10.1.1.2, MAC = 00:00:00:00:00:03
-   * Node 2: IP = 10.1.1.3, MAC = 00:00:00:00:00:05
-   * Node 3: IP = 10.1.1.4, MAC = 00:00:00:00:00:07
-   * .....
-   */
   Ipv4AddressHelper ipv4;
   ipv4.SetBase ("10.1.1.0", "255.255.255.0");
   for (unsigned int i = 0; i < hostNum; i++)
@@ -295,10 +287,8 @@ main (int argc, char *argv[])
       P4Helper p4Bridge;
       for (unsigned int i = 0; i < switchNum; i++)
         {
-          P4GlobalVar::g_p4JsonPath =
-              P4GlobalVar::PathConfig::NfDir + "basic_tunnel/basic_tunnel.json";
-          P4GlobalVar::g_flowTablePath = P4GlobalVar::PathConfig::NfDir +
-                                         "basic_tunnel/flowtable_" + std::to_string (i) + ".txt";
+          P4GlobalVar::g_flowTablePath = P4GlobalVar::PathConfig::NfDir + "test_simple/flowtable_" +
+                                         std::to_string (i) + ".txt";
           P4GlobalVar::g_viewFlowTablePath = P4GlobalVar::g_flowTablePath;
           NS_LOG_INFO ("*** Installing P4 bridge [ "
                        << i << " ]device with configuration: " << std::endl
@@ -340,14 +330,14 @@ main (int argc, char *argv[])
   onOff1.SetAttribute ("DataRate", StringValue (appDataRate[0]));
   onOff1.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]"));
   onOff1.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0]"));
-  onOff1.SetAttribute ("MaxBytes", UintegerValue (5000));
+  onOff1.SetAttribute ("MaxBytes", UintegerValue (2000));
 
   ApplicationContainer app1 = onOff1.Install (terminals.Get (clientI));
   app1.Start (Seconds (client_start_time));
   app1.Stop (Seconds (client_stop_time));
 
   // Enable pcap tracing
-  csma.EnablePcapAll ("p4-basic-tunnel-example");
+  csma.EnablePcapAll ("p4-basic-test");
 
   // Run simulation
   NS_LOG_INFO ("Running simulation...");
