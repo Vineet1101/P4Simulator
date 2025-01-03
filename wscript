@@ -35,6 +35,7 @@ def build(bld):
     module.source = [
         'model/p4sim.cc',
         'model/p4-queue.cc',
+        'model/p4-bridge-channel.cc',
         'model/p4-p2p-channel.cc',
         'model/custom-header.cc',
         'model/p4-controller.cc',
@@ -74,6 +75,7 @@ def build(bld):
     headers.source = [
         'model/p4sim.h',
         'model/p4-queue.h',
+        'model/p4-bridge-channel.h',
         'model/p4-p2p-channel.h',
         'model/custom-header.h',
         'model/p4-controller.h',

@@ -11,6 +11,9 @@
 
 namespace ns3 {
 
+class CustomP2PNetDevice;
+class Packet;
+
 /**
  * \brief P4P2PChannel: A specialized channel for P4-based bridges.
  *

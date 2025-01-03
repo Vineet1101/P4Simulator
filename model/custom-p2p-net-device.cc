@@ -526,6 +526,8 @@ CustomP2PNetDevice::SendFrom (Ptr<Packet> packet, const Address &source, const A
 
   Mac48Address mac_destination = Mac48Address::ConvertFrom (dest);
   Mac48Address mac_source = Mac48Address::ConvertFrom (source);
+  NS_LOG_LOGIC ("source=" << mac_source << ", dest=" << mac_destination);
+
   // AddHeader (packet, source, destination, protocolNumber); // @TODO
 
   m_macTxTrace (packet);
@@ -675,19 +677,19 @@ CustomP2PNetDevice::GetMtu (void) const
 //   return 0;
 // }
 
-bool
-CustomP2PNetDevice::Send (Ptr<Packet> packet, const Address &dest, uint16_t protocol)
-{
-  NS_LOG_FUNCTION (this << packet << dest << protocol);
+// bool
+// CustomP2PNetDevice::Send (Ptr<Packet> packet, const Address &dest, uint16_t protocol)
+// {
+//   NS_LOG_FUNCTION (this << packet << dest << protocol);
 
-  // Add custom header before sending
-  AddCustomHeader (packet, dest, protocol);
+//   // Add custom header before sending
+//   AddCustomHeader (packet, dest, protocol);
 
-  // Call the base class or the actual transmission method (if needed)
-  // Example: Forward to the lower layers or physical medium
-  NS_LOG_INFO ("Sending packet with custom header.");
-  return true; // Assume successful transmission
-}
+//   // Call the base class or the actual transmission method (if needed)
+//   // Example: Forward to the lower layers or physical medium
+//   NS_LOG_INFO ("Sending packet with custom header.");
+//   return true; // Assume successful transmission
+// }
 
 void
 CustomP2PNetDevice::SetWithCustomHeader (bool withHeader)
