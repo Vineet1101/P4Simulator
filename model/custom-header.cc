@@ -55,6 +55,30 @@ CustomHeader::GetField (const std::string &name) const
   throw std::invalid_argument ("Field not found: " + name);
 }
 
+void
+CustomHeader::SetLayer (HeaderLayer layer)
+{
+  m_layer = layer;
+}
+
+HeaderLayer
+CustomHeader::GetLayer () const
+{
+  return m_layer;
+}
+
+void
+CustomHeader::SetOperator (HeaderLayerOperator op)
+{
+  m_op = op;
+}
+
+HeaderLayerOperator
+CustomHeader::GetOperator () const
+{
+  return m_op;
+}
+
 TypeId
 CustomHeader::GetTypeId (void)
 {

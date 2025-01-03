@@ -8,29 +8,50 @@
 
 namespace ns3 {
 
+enum HeaderLayer {
+  LAYER_2 = 2, // Data Link Layer
+  LAYER_3 = 3, // Network Layer
+  LAYER_4 = 4, // Transport Layer
+  LAYER_5 = 5 // Application or custom user-defined Layer
+};
+
+enum HeaderLayerOperator {
+  ADD_BEFORE = 1, // add before the current header exsit in this layer
+  REPLACE = 2, // replace the current header exsit in this layer
+  ADD_AFTER = 3 // add after the current header exsit in this layer
+};
+
 class CustomHeader : public Header
 {
 public:
   struct Field
   {
-    std::string name; // 字段名称
-    uint32_t bitWidth; // 字段位宽
-    uint64_t value; // 字段值
+    std::string name; // Field name
+    uint32_t bitWidth; // Field bit-width
+    uint64_t value; // Field value
   };
 
   CustomHeader ();
   virtual ~CustomHeader ();
 
-  // 添加字段定义
+  // Add a field definition
   void AddField (const std::string &name, uint32_t bitWidth);
 
-  // 设置字段值
+  // Set a field value
   void SetField (const std::string &name, uint64_t value);
 
-  // 获取字段值
+  // Get a field value
   uint64_t GetField (const std::string &name) const;
 
-  // 必须实现的 NS-3 方法
+  // Set and get header layer
+  void SetLayer (HeaderLayer layer);
+  HeaderLayer GetLayer () const;
+
+  // Set and get header operator
+  void SetOperator (HeaderLayerOperator op);
+  HeaderLayerOperator GetOperator () const;
+
+  // NS-3 required methods
   static TypeId GetTypeId (void);
   virtual TypeId GetInstanceTypeId (void) const override;
 
@@ -40,7 +61,9 @@ public:
   virtual void Print (std::ostream &os) const override;
 
 private:
-  std::vector<Field> m_fields; // 动态字段列表
+  HeaderLayer m_layer; // OSI Layer for this header
+  HeaderLayerOperator m_op; // Operator for this header
+  std::vector<Field> m_fields; // Dynamic list of fields
 };
 
 } // namespace ns3

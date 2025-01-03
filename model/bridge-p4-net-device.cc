@@ -446,9 +446,9 @@ BridgeP4NetDevice::SendNs3Packet (Ptr<Packet> packetOut, int outPort, uint16_t p
           uint16_t protocol_eth = eeh_1.GetLengthType ();
           NS_LOG_DEBUG ("Source MAC: " << src_mac << ", Destination MAC: " << dst_mac
                                        << ", Protocol: " << protocol_eth);
-          std::cout << "<= Ethernet header: Source MAC: " << src_mac
-                    << ", Destination MAC: " << dst_mac << ", Protocol: " << protocol_eth
-                    << std::endl;
+          // std::cout << "<= Ethernet header: Source MAC: " << src_mac
+          //           << ", Destination MAC: " << dst_mac << ", Protocol: " << protocol_eth
+          //           << std::endl;
         }
 
       EthernetHeader eeh;
