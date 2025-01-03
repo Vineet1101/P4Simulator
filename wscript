@@ -49,7 +49,8 @@ def build(bld):
         'helper/p4-helper.cc',
         'helper/global.cc',
         'helper/p4-exception-handle.cc',
-        'helper/p4-topology-reader-helper.cc'
+        'helper/p4-topology-reader-helper.cc',
+        'helper/p4-p2p-helper.cc'
         ]
 
     # module.include = [
@@ -62,6 +63,7 @@ def build(bld):
         'test/format-utils-test-suite.cc',
         # 'test/p4-queue-disc-test-suite.cc',
         'test/p4-topology-reader-test-suite.cc',
+        'test/p4-p2p-channel-test-suite.cc',
         ]
     
     # Tests encapsulating example programs should be listed here
@@ -90,7 +92,8 @@ def build(bld):
         'helper/p4-helper.h',
         'helper/global.h',
         'helper/p4-exception-handle.h',
-        'helper/p4-topology-reader-helper.h'
+        'helper/p4-topology-reader-helper.h',
+        'helper/p4-p2p-helper.h'
         ]
 
     # Add library dependencies

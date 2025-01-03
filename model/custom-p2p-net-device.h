@@ -190,13 +190,15 @@ private:
   virtual void DoDispose (void);
 
 private:
-  void AddCustomHeader (Ptr<Packet> packet, const Address &dest, uint16_t protocol);
+  // void AddCustomHeader (Ptr<Packet> packet, const Address &dest, uint16_t protocol);
 
   /**
    * \returns the address of the remote device connected to this device
    * through the point to point channel.
    */
   Address GetRemote (void) const;
+
+  void AddCustomHeader (Ptr<Packet> p);
 
   /**
    * Adds the necessary headers and trailers to a packet of data in order to
@@ -206,6 +208,9 @@ private:
    */
   void AddHeader (Ptr<Packet> p, uint16_t protocolNumber);
 
+  void AddHeader (Ptr<Packet> p, Mac48Address source, Mac48Address dest, uint16_t protocolNumber);
+
+  void PrintPacketHeaders (Ptr<Packet> p);
   /**
    * Removes, from a packet of data, all headers and trailers that
    * relate to the protocol implemented by the agent
@@ -215,6 +220,9 @@ private:
    * protocol stack.
    */
   bool ProcessHeader (Ptr<Packet> p, uint16_t &param);
+
+  /** */
+  void RestoreOriginalHeaders (Ptr<Packet> p);
 
   /**
    * Start Sending a Packet Down the Wire.

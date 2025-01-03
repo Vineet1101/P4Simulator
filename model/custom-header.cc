@@ -190,7 +190,7 @@ CustomHeader::Print (std::ostream &os) const
   os << "CustomHeader { ";
   for (const auto &field : m_fields)
     {
-      os << field.name << ": " << field.value << " ";
+      os << field.name << ": 0x" << std::hex << std::uppercase << field.value << " ";
     }
   os << "}";
 }
