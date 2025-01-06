@@ -1,33 +1,3 @@
-/**
- * 
- * 
- * 
-===================================================
-Ethernet header found: 1
-Remove ethernet header, packet size: 1020
-IPv4 header found: 1
-Remove ipv4 header, packet size: 1000
-IPv4 header added, packet length: 1020
-Custom header added, packet length: 1027
-under layer ethernet added, packet length: 1041
-******** Changed Packet:
-Ethernet packet
-* Ethernet header: Source MAC: 00:11:22:33:44:55, Destination MAC: AA:BB:CC:DD:EE:FF, Protocol: 0x800
-Deserializing 7 bytes...
-Field Field1: 0xAB
-Field Field2: 0x1234
-Field Field3: 0x89ABCDEF
-Custom header detected
-** Custom header content: 
-CustomHeader { Field1: 0xAB Field2: 0x1234 Field3: 0x89ABCDEF }
-Deserializing 7 bytes...
-Field Field1: 0xAB
-Field Field2: 0x1234
-Field Field3: 0x89ABCDEF
-IPv4 packet
-** IPv4 header: Source IP: 1.1.1.1, Destination IP: 1.1.1.2, TTL: 40, Protocol: 11
- */
-
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
 #include "ns3/custom-header.h"

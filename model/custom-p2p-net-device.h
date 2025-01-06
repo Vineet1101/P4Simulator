@@ -158,6 +158,13 @@ public:
   virtual void SetPromiscReceiveCallback (PromiscReceiveCallback cb);
   virtual bool SupportsSendFrom (void) const;
 
+  uint16_t CheckIfEthernetHeader (Ptr<Packet> p);
+  uint8_t CheckIfIpv4Header (Ptr<Packet> p);
+  bool CheckIfArpHeader (Ptr<Packet> p);
+  uint64_t CheckIfCustomHeader (Ptr<Packet> p);
+  bool CheckIfUdpHeader (Ptr<Packet> p);
+  bool CheckIfTcpHeader (Ptr<Packet> p);
+
 protected:
   /**
    * \brief Handler for MPI receive event
@@ -414,6 +421,7 @@ private:
 
   bool m_withCustomHeader; //!< Identify if the device has custom header
   CustomHeader m_header; //!< Custom header
+  uint16_t m_protocol; //!< Custom header
 
   NetDevice::ReceiveCallback m_rxCallback; //!< Receive callback
   NetDevice::PromiscReceiveCallback m_promiscCallback; //!< Receive callback
@@ -436,19 +444,19 @@ private:
 
   Ptr<Packet> m_currentPkt; //!< Current packet processed
 
-  /**
-   * \brief PPP to Ethernet protocol number mapping
-   * \param protocol A PPP protocol number
-   * \return The corresponding Ethernet protocol number
-   */
-  static uint16_t PppToEther (uint16_t protocol);
+  // /**
+  //  * \brief PPP to Ethernet protocol number mapping
+  //  * \param protocol A PPP protocol number
+  //  * \return The corresponding Ethernet protocol number
+  //  */
+  // static uint16_t PppToEther (uint16_t protocol);
 
-  /**
-   * \brief Ethernet to PPP protocol number mapping
-   * \param protocol An Ethernet protocol number
-   * \return The corresponding PPP protocol number
-   */
-  static uint16_t EtherToPpp (uint16_t protocol);
+  // /**
+  //  * \brief Ethernet to PPP protocol number mapping
+  //  * \param protocol An Ethernet protocol number
+  //  * \return The corresponding PPP protocol number
+  //  */
+  // static uint16_t EtherToPpp (uint16_t protocol);
 };
 
 } // namespace ns3

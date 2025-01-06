@@ -22,7 +22,7 @@ int
 main (int argc, char *argv[])
 {
   LogComponentEnable ("P4PointToPointCustomHeaderTest", LOG_LEVEL_INFO);
-  uint16_t pktSize = 512;
+  uint16_t pktSize = 1000;
   std::string appDataRate[] = {"2.0Mbps", "1.0Mbps"};
 
   double global_start_time = 1.0;
@@ -90,7 +90,7 @@ main (int argc, char *argv[])
   OnOffHelper onOff1 ("ns3::UdpSocketFactory", dst1);
   onOff1.SetAttribute ("PacketSize", UintegerValue (pktSize));
   onOff1.SetAttribute ("DataRate", StringValue (appDataRate[0]));
-  onOff1.SetAttribute ("MaxBytes", UintegerValue (2000));
+  onOff1.SetAttribute ("MaxBytes", UintegerValue (1200));
   onOff1.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]"));
   onOff1.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0]"));
 
