@@ -17,7 +17,7 @@
 #include <ns3/ipv4-l3-protocol.h>
 #include <ns3/tcp-l4-protocol.h>
 #include <ns3/udp-l4-protocol.h>
-// #include "ppp-header.h"
+#include "ns3/ppp-header.h"
 
 namespace ns3 {
 
@@ -145,11 +145,21 @@ CustomP2PNetDevice::~CustomP2PNetDevice ()
 }
 
 void
+CustomP2PNetDevice::SetCustomHeader (CustomHeader customHeader)
+{
+  m_header = customHeader;
+  m_withCustomHeader = true;
+}
+
+void
 CustomP2PNetDevice::AddCustomHeader (Ptr<Packet> p)
 {
   NS_LOG_FUNCTION (this << p);
   if (m_withCustomHeader)
     {
+      // PppHeader ppp;
+      // bool hasPpp = p->PeekHeader (ppp); // Peek PPP header
+
       // Insert / Add the custom header to the packet for the host
       EthernetHeader eeh;
       bool hasEthernet = p->PeekHeader (eeh); // Peek Ethernet header
@@ -187,7 +197,6 @@ CustomP2PNetDevice::AddCustomHeader (Ptr<Packet> p)
         {
           if (op == HeaderLayerOperator::ADD_BEFORE) // Add CustomHeader before existing L3 headers
             {
-              p->AddHeader (m_header);
               if (hasIpv4)
                 {
                   p->AddHeader (ip_hd);
@@ -195,6 +204,14 @@ CustomP2PNetDevice::AddCustomHeader (Ptr<Packet> p)
               else if (hasArp)
                 {
                   p->AddHeader (arp_hd);
+                }
+              p->AddHeader (m_header);
+
+              // Test
+              CustomHeader test_header;
+              if (p->PeekHeader (test_header))
+                {
+                  std::cout << "Test Header: " << test_header.GetLayer () << std::endl;
                 }
             }
           else if (op == HeaderLayerOperator::REPLACE) // Replace L3 header with CustomHeader
@@ -203,6 +220,7 @@ CustomP2PNetDevice::AddCustomHeader (Ptr<Packet> p)
             }
           else if (op == HeaderLayerOperator::ADD_AFTER) // Add CustomHeader after L3 headers
             {
+              p->AddHeader (m_header);
               if (hasIpv4)
                 {
                   p->AddHeader (ip_hd);
@@ -211,18 +229,20 @@ CustomP2PNetDevice::AddCustomHeader (Ptr<Packet> p)
                 {
                   p->AddHeader (arp_hd);
                 }
-              p->AddHeader (m_header);
             }
+          // Add the under layer
+          p->AddHeader (eeh);
         }
       else if (layer == LAYER_2) // Data Link Layer (Ethernet)
         {
           if (op == HeaderLayerOperator::ADD_BEFORE) // Add CustomHeader before Ethernet
             {
-              p->AddHeader (m_header);
+
               if (hasEthernet)
                 {
                   p->AddHeader (eeh);
                 }
+              p->AddHeader (m_header);
             }
           else if (op == HeaderLayerOperator::REPLACE) // Replace Ethernet header
             {
@@ -230,26 +250,34 @@ CustomP2PNetDevice::AddCustomHeader (Ptr<Packet> p)
             }
           else if (op == HeaderLayerOperator::ADD_AFTER) // Add CustomHeader after Ethernet
             {
+              p->AddHeader (m_header);
               if (hasEthernet)
                 {
                   p->AddHeader (eeh);
                 }
-              p->AddHeader (m_header);
             }
         }
+      // No layer under Ethernet
     }
+
+  // 检查 CustomHeader是否正确添加
+  std::cout << "After Add CustomHeader:" << std::endl;
+  PrintPacketHeaders (p);
+  std::cout << "****" << std::endl;
 }
 
 void
 CustomP2PNetDevice::AddHeader (Ptr<Packet> p, uint16_t protocolNumber)
 {
   NS_LOG_FUNCTION (this << p << protocolNumber);
-  // PppHeader ppp;
-  // ppp.SetProtocol (EtherToPpp (protocolNumber));
-  // p->AddHeader (ppp);
+
   // add the header @TODO
 
   AddCustomHeader (p);
+
+  PppHeader ppp;
+  ppp.SetProtocol (EtherToPpp (protocolNumber));
+  p->AddHeader (ppp);
 }
 
 void
@@ -259,15 +287,14 @@ CustomP2PNetDevice::AddHeader (Ptr<Packet> p, Mac48Address source, Mac48Address 
   NS_LOG_FUNCTION (p << source << dest << protocolNumber);
 
   // Replace the Ethernet header with the new MAC address
-  EthernetHeader header (false);
 
+  EthernetHeader header (false);
   bool hasEthernet = p->PeekHeader (header); // Peek Ethernet header
   if (hasEthernet)
     {
       // Remove the existing Ethernet header
       p->RemoveHeader (header);
     }
-
   header.SetSource (source);
   header.SetDestination (dest);
 
@@ -283,6 +310,10 @@ CustomP2PNetDevice::AddHeader (Ptr<Packet> p, Mac48Address source, Mac48Address 
   // p->AddTrailer (trailer);
 
   AddCustomHeader (p);
+
+  PppHeader ppp;
+  ppp.SetProtocol (EtherToPpp (protocolNumber));
+  p->AddHeader (ppp);
 }
 
 bool
@@ -290,9 +321,9 @@ CustomP2PNetDevice::ProcessHeader (Ptr<Packet> p, uint16_t &param)
 {
   NS_LOG_FUNCTION (this << p << param);
   // process the header @TODO
-  // PppHeader ppp;
-  // p->RemoveHeader (ppp);
-  // param = PppToEther (ppp.GetProtocol ());
+  PppHeader ppp;
+  p->RemoveHeader (ppp);
+  param = PppToEther (ppp.GetProtocol ());
 
   if (m_withCustomHeader)
     {
@@ -357,6 +388,9 @@ CustomP2PNetDevice::RestoreOriginalHeaders (Ptr<Packet> p)
     {
       p->AddHeader (arp_hd);
     }
+
+  // 检查 CustomHeader是否正确移除
+  PrintPacketHeaders (p);
 }
 
 void
@@ -486,6 +520,8 @@ CustomP2PNetDevice::Receive (Ptr<Packet> packet)
   NS_LOG_FUNCTION (this << packet);
   uint16_t protocol = 0;
 
+  PrintPacketHeaders (packet);
+
   if (m_receiveErrorModel && m_receiveErrorModel->IsCorrupt (packet))
     {
       //
@@ -518,6 +554,8 @@ CustomP2PNetDevice::Receive (Ptr<Packet> packet)
       // normal receive callback sees.
       //
       ProcessHeader (packet, protocol);
+
+      PrintPacketHeaders (packet); // @TEST
 
       if (!m_promiscCallback.IsNull ())
         {
@@ -849,51 +887,37 @@ CustomP2PNetDevice::GetMtu (void) const
   return m_mtu;
 }
 
-// uint16_t
-// CustomP2PNetDevice::PppToEther (uint16_t proto)
-// {
-//   NS_LOG_FUNCTION_NOARGS ();
-//   switch (proto)
-//     {
-//     case 0x0021:
-//       return 0x0800; //IPv4
-//     case 0x0057:
-//       return 0x86DD; //IPv6
-//     default:
-//       NS_ASSERT_MSG (false, "PPP Protocol number not defined!");
-//     }
-//   return 0;
-// }
+uint16_t
+CustomP2PNetDevice::PppToEther (uint16_t proto)
+{
+  NS_LOG_FUNCTION_NOARGS ();
+  switch (proto)
+    {
+    case 0x0021:
+      return 0x0800; //IPv4
+    case 0x0057:
+      return 0x86DD; //IPv6
+    default:
+      NS_ASSERT_MSG (false, "PPP Protocol number not defined!");
+    }
+  return 0;
+}
 
-// uint16_t
-// CustomP2PNetDevice::EtherToPpp (uint16_t proto)
-// {
-//   NS_LOG_FUNCTION_NOARGS ();
-//   switch (proto)
-//     {
-//     case 0x0800:
-//       return 0x0021; //IPv4
-//     case 0x86DD:
-//       return 0x0057; //IPv6
-//     default:
-//       NS_ASSERT_MSG (false, "PPP Protocol number not defined!");
-//     }
-//   return 0;
-// }
-
-// bool
-// CustomP2PNetDevice::Send (Ptr<Packet> packet, const Address &dest, uint16_t protocol)
-// {
-//   NS_LOG_FUNCTION (this << packet << dest << protocol);
-
-//   // Add custom header before sending
-//   AddCustomHeader (packet, dest, protocol);
-
-//   // Call the base class or the actual transmission method (if needed)
-//   // Example: Forward to the lower layers or physical medium
-//   NS_LOG_INFO ("Sending packet with custom header.");
-//   return true; // Assume successful transmission
-// }
+uint16_t
+CustomP2PNetDevice::EtherToPpp (uint16_t proto)
+{
+  NS_LOG_FUNCTION_NOARGS ();
+  switch (proto)
+    {
+    case 0x0800:
+      return 0x0021; //IPv4
+    case 0x86DD:
+      return 0x0057; //IPv6
+    default:
+      NS_ASSERT_MSG (false, "PPP Protocol number not defined!");
+    }
+  return 0;
+}
 
 void
 CustomP2PNetDevice::SetWithCustomHeader (bool withHeader)
@@ -935,6 +959,14 @@ CustomP2PNetDevice::IsWithCustomHeader (void) const
 void
 CustomP2PNetDevice::PrintPacketHeaders (Ptr<Packet> p)
 {
+  PppHeader ppp;
+  if (p->PeekHeader (ppp))
+    {
+      NS_LOG_DEBUG ("PPP packet");
+      uint16_t protocol_ppp = ppp.GetProtocol ();
+      NS_LOG_DEBUG ("* PPP header: Protocol: " << std::hex << "0x" << protocol_ppp);
+    }
+
   EthernetHeader eeh;
   if (p->PeekHeader (eeh))
     {

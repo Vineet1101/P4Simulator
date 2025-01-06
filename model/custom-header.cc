@@ -139,8 +139,10 @@ CustomHeader::Deserialize (Buffer::Iterator start)
     }
 
   uint32_t bytesToRead = (totalBits + 7) / 8;
+
   std::vector<uint8_t> buffer (bytesToRead);
 
+  NS_LOG_DEBUG ("Deserializing " << bytesToRead << " bytes...");
   for (uint32_t i = 0; i < bytesToRead; ++i)
     {
       buffer[i] = start.ReadU8 ();
@@ -168,6 +170,7 @@ CustomHeader::Deserialize (Buffer::Iterator start)
         }
 
       field.value = value;
+      NS_LOG_DEBUG ("Field " << field.name << ": 0x" << std::hex << std::uppercase << field.value);
     }
 
   return bytesToRead;
@@ -176,6 +179,7 @@ CustomHeader::Deserialize (Buffer::Iterator start)
 uint32_t
 CustomHeader::GetSerializedSize (void) const
 {
+  // Bytes required to store all fields
   uint32_t totalBits = 0;
   for (const auto &field : m_fields)
     {

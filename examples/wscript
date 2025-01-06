@@ -18,3 +18,6 @@ def build(bld):
     
     obj = bld.create_ns3_program('p4-basic-tunnel-example', ['p4sim', 'internet', 'applications', 'network'])
     obj.source = 'p4-basic-tunnel-example.cc'
+    
+    obj = bld.create_ns3_program('p4-p2p-custom-header-test', ['p4sim', 'internet', 'applications', 'network'])
+    obj.source = 'p4-p2p-custom-header-test.cc'
