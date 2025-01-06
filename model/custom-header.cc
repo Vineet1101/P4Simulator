@@ -5,7 +5,7 @@ namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("CustomHeader");
 
-CustomHeader::CustomHeader ()
+CustomHeader::CustomHeader () : m_protocol_number (0)
 {
 }
 
@@ -53,6 +53,39 @@ CustomHeader::GetField (const std::string &name) const
         }
     }
   throw std::invalid_argument ("Field not found: " + name);
+}
+
+void
+CustomHeader::SetProtocolFieldNumber (uint64_t id)
+{
+  if (m_fields.empty ()) // 判断是否已经赋值
+    {
+      NS_LOG_WARN ("m_fields is empty! Set protocol number.");
+    }
+
+  else if (id >= m_fields.size ())
+    {
+      NS_LOG_WARN ("Invalid protocol number assignment: id = " << id << ", but m_fields size = "
+                                                               << m_fields.size ());
+      return;
+    }
+
+  m_protocol_number = id;
+}
+
+uint64_t
+CustomHeader::GetProtocolNumber ()
+{
+  NS_LOG_INFO ("Protocol number: " << m_protocol_number);
+
+  if (m_protocol_number >= m_fields.size ())
+    {
+      NS_LOG_ERROR ("Index out of bounds: m_protocol_number = "
+                    << m_protocol_number << ", but m_fields size = " << m_fields.size ());
+      return 0;
+    }
+
+  return m_fields[m_protocol_number].value;
 }
 
 void

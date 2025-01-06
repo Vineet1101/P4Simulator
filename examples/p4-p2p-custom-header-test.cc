@@ -59,7 +59,7 @@ main (int argc, char *argv[])
   customHeader.AddField ("Field2", 16); // 16-bit field
   customHeader.AddField ("Field3", 32); // 32-bit field
 
-  customHeader.SetField ("Field1", 0xAB);
+  customHeader.SetField ("Field1", 0x11); // Protocol : UDP
   customHeader.SetField ("Field2", 0x1234);
   customHeader.SetField ("Field3", 0x89ABCDEF);
 

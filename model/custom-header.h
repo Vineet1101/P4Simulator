@@ -40,6 +40,12 @@ public:
   // Set a field value
   void SetField (const std::string &name, uint64_t value);
 
+  // Set protocol number
+  void SetProtocolFieldNumber (uint64_t id);
+
+  // Get protocol number
+  uint64_t GetProtocolNumber ();
+
   // Get a field value
   uint64_t GetField (const std::string &name) const;
 
@@ -63,6 +69,7 @@ public:
 private:
   HeaderLayer m_layer; // OSI Layer for this header
   HeaderLayerOperator m_op; // Operator for this header
+  uint64_t m_protocol_number; // Protocol number
   std::vector<Field> m_fields; // Dynamic list of fields
 };
 

@@ -63,7 +63,7 @@ public:
   static std::string g_flowTablePath;
   static std::string g_viewFlowTablePath;
   static std::string g_p4JsonPath;
-  static constexpr uint16_t g_p4Protocol = 0x1234; // 改成 uint16_t 并使用 constexpr
+  static constexpr uint64_t g_p4Protocol = 0x12; // 改成 uint16_t 并使用 constexpr
 
   // Bottleneck configuration
   static int g_switchBottleNeck;

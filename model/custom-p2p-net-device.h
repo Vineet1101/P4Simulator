@@ -160,10 +160,10 @@ public:
 
   uint16_t CheckIfEthernetHeader (Ptr<Packet> p);
   uint8_t CheckIfIpv4Header (Ptr<Packet> p);
-  bool CheckIfArpHeader (Ptr<Packet> p);
+  uint64_t CheckIfArpHeader (Ptr<Packet> p);
   uint64_t CheckIfCustomHeader (Ptr<Packet> p);
-  bool CheckIfUdpHeader (Ptr<Packet> p);
-  bool CheckIfTcpHeader (Ptr<Packet> p);
+  uint64_t CheckIfUdpHeader (Ptr<Packet> p);
+  uint64_t CheckIfTcpHeader (Ptr<Packet> p);
 
 protected:
   /**
