@@ -28,6 +28,8 @@
 #include <ns3/global.h>
 // #include "ns3/ppp-header.h"
 
+#include <arpa/inet.h>
+
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("CustomP2PNetDevice");
@@ -143,7 +145,7 @@ CustomP2PNetDevice::GetTypeId (void)
 }
 
 CustomP2PNetDevice::CustomP2PNetDevice ()
-    : m_txMachineState (READY), m_channel (0), m_protocol (1), m_linkUp (false), m_currentPkt (0)
+    : m_txMachineState (READY), m_channel (0), m_protocol (0x1), m_linkUp (false), m_currentPkt (0)
 {
   NS_LOG_FUNCTION (this);
   // m_protocol = 0x1; // Ethernet protocol number (start parser with Ethernet)
@@ -165,104 +167,104 @@ void
 CustomP2PNetDevice::AddCustomHeader (Ptr<Packet> p)
 {
   NS_LOG_FUNCTION (this << p);
-  NS_LOG_DEBUG ("packet with length " << p->GetSize ());
-  if (m_withCustomHeader)
-    {
-      // Insert / Add the custom header to the packet for the host
-      EthernetHeader eeh;
-      bool hasEthernet = p->RemoveHeader (eeh); // Peek Ethernet header
-      NS_LOG_DEBUG ("Ethernet header found: " << hasEthernet
-                                              << " packet size (after remove): " << p->GetSize ());
+  // NS_LOG_DEBUG ("packet with length " << p->GetSize ());
+  // if (m_withCustomHeader)
+  //   {
+  //     // Insert / Add the custom header to the packet for the host
+  //     EthernetHeader eeh;
+  //     bool hasEthernet = p->RemoveHeader (eeh); // Peek Ethernet header
+  //     NS_LOG_DEBUG ("Ethernet header found: " << hasEthernet
+  //                                             << " packet size (after remove): " << p->GetSize ());
 
-      Ipv4Header ip_hd;
-      bool hasIpv4 = p->RemoveHeader (ip_hd); // Peek IPv4 header
-      NS_LOG_DEBUG ("IPv4 header found: " << hasIpv4
-                                          << " packet size (after remove): " << p->GetSize ());
+  //     Ipv4Header ip_hd;
+  //     bool hasIpv4 = p->RemoveHeader (ip_hd); // Peek IPv4 header
+  //     NS_LOG_DEBUG ("IPv4 header found: " << hasIpv4
+  //                                         << " packet size (after remove): " << p->GetSize ());
 
-      ArpHeader arp_hd;
-      bool hasArp = p->RemoveHeader (arp_hd);
-      NS_LOG_DEBUG ("ARP header found: " << hasArp
-                                         << " packet size (after remove): " << p->GetSize ());
+  //     ArpHeader arp_hd;
+  //     bool hasArp = p->RemoveHeader (arp_hd);
+  //     NS_LOG_DEBUG ("ARP header found: " << hasArp
+  //                                        << " packet size (after remove): " << p->GetSize ());
 
-      HeaderLayer layer = m_header.GetLayer ();
-      HeaderLayerOperator op = m_header.GetOperator ();
+  //     HeaderLayer layer = m_header.GetLayer ();
+  //     HeaderLayerOperator op = m_header.GetOperator ();
 
-      // // Remove existing headers
-      // if (hasEthernet)
-      //   {
-      //     p->RemoveHeader (eeh);
-      //   }
-      // if (hasIpv4)
-      //   {
-      //     p->RemoveHeader (ip_hd);
-      //   }
-      // if (hasArp)
-      //   {
-      //     p->RemoveHeader (arp_hd);
-      //   }
+  //     // // Remove existing headers
+  //     // if (hasEthernet)
+  //     //   {
+  //     //     p->RemoveHeader (eeh);
+  //     //   }
+  //     // if (hasIpv4)
+  //     //   {
+  //     //     p->RemoveHeader (ip_hd);
+  //     //   }
+  //     // if (hasArp)
+  //     //   {
+  //     //     p->RemoveHeader (arp_hd);
+  //     //   }
 
-      // Process based on layer and operation
-      if (layer == HeaderLayer::LAYER_3) // Network Layer (IPv4/ARP)
-        {
-          if (op == HeaderLayerOperator::ADD_BEFORE) // Add CustomHeader before existing L3 headers
-            {
-              if (hasIpv4)
-                {
-                  p->AddHeader (ip_hd);
-                }
-              else if (hasArp)
-                {
-                  p->AddHeader (arp_hd);
-                }
-              p->AddHeader (m_header);
-            }
-          else if (op == HeaderLayerOperator::REPLACE) // Replace L3 header with CustomHeader
-            {
-              p->AddHeader (m_header);
-            }
-          else if (op == HeaderLayerOperator::ADD_AFTER) // Add CustomHeader after L3 headers
-            {
-              p->AddHeader (m_header);
-              if (hasIpv4)
-                {
-                  p->AddHeader (ip_hd);
-                }
-              else if (hasArp)
-                {
-                  p->AddHeader (arp_hd);
-                }
-            }
-          // Add the under layer
-          p->AddHeader (eeh);
-        }
-      else if (layer == LAYER_2) // Data Link Layer (Ethernet)
-        {
-          if (op == HeaderLayerOperator::ADD_BEFORE) // Add CustomHeader before Ethernet
-            {
-              if (hasEthernet)
-                {
-                  p->AddHeader (eeh);
-                }
-              p->AddHeader (m_header);
-            }
-          else if (op == HeaderLayerOperator::REPLACE) // Replace Ethernet header
-            {
-              p->AddHeader (m_header);
-            }
-          else if (op == HeaderLayerOperator::ADD_AFTER) // Add CustomHeader after Ethernet
-            {
-              p->AddHeader (m_header);
-              if (hasEthernet)
-                {
-                  p->AddHeader (eeh);
-                }
-            }
-        }
-      // No layer under Ethernet
-    }
+  //     // Process based on layer and operation
+  //     if (layer == HeaderLayer::LAYER_3) // Network Layer (IPv4/ARP)
+  //       {
+  //         if (op == HeaderLayerOperator::ADD_BEFORE) // Add CustomHeader before existing L3 headers
+  //           {
+  //             if (hasIpv4)
+  //               {
+  //                 p->AddHeader (ip_hd);
+  //               }
+  //             else if (hasArp)
+  //               {
+  //                 p->AddHeader (arp_hd);
+  //               }
+  //             p->AddHeader (m_header);
+  //           }
+  //         else if (op == HeaderLayerOperator::REPLACE) // Replace L3 header with CustomHeader
+  //           {
+  //             p->AddHeader (m_header);
+  //           }
+  //         else if (op == HeaderLayerOperator::ADD_AFTER) // Add CustomHeader after L3 headers
+  //           {
+  //             p->AddHeader (m_header);
+  //             if (hasIpv4)
+  //               {
+  //                 p->AddHeader (ip_hd);
+  //               }
+  //             else if (hasArp)
+  //               {
+  //                 p->AddHeader (arp_hd);
+  //               }
+  //           }
+  //         // Add the under layer
+  //         p->AddHeader (eeh);
+  //       }
+  //     else if (layer == LAYER_2) // Data Link Layer (Ethernet)
+  //       {
+  //         if (op == HeaderLayerOperator::ADD_BEFORE) // Add CustomHeader before Ethernet
+  //           {
+  //             if (hasEthernet)
+  //               {
+  //                 p->AddHeader (eeh);
+  //               }
+  //             p->AddHeader (m_header);
+  //           }
+  //         else if (op == HeaderLayerOperator::REPLACE) // Replace Ethernet header
+  //           {
+  //             p->AddHeader (m_header);
+  //           }
+  //         else if (op == HeaderLayerOperator::ADD_AFTER) // Add CustomHeader after Ethernet
+  //           {
+  //             p->AddHeader (m_header);
+  //             if (hasEthernet)
+  //               {
+  //                 p->AddHeader (eeh);
+  //               }
+  //           }
+  //       }
+  //     // No layer under Ethernet
+  //   }
 
-  // 检查 CustomHeader是否正确添加
-  PrintPacketHeaders (p);
+  // // 检查 CustomHeader是否正确添加
+  // PrintPacketHeaders (p);
 }
 
 // void
@@ -294,84 +296,252 @@ void
 CustomP2PNetDevice::AddHeader (Ptr<Packet> p, Mac48Address source, Mac48Address dest,
                                uint16_t protocolNumber)
 {
+  /*
+      *** Ethernet protocolNumber: 0x800
+    ==========*** Print Packet Headers ***==========
+    ns3::EthernetHeader ( length/type=0x12, source=00:00:00:00:00:01, destination=ff:ff:ff:ff:ff:ff) ns3::CustomHeader (CustomHeader { }) ns3::Ipv4Header (tos 0x0 DSCP Default ECN Not-ECT ttl 64 id 0 protocol 17 offset (bytes) 0 flags [none] length: 1028 10.1.1.1 > 10.1.1.2) ns3::UdpHeader (length: 1008 49153 > 9093) Payload (size=1000) 
+    * Ethernet header detecting, packet length: 1050
+    ** Ethernet packet
+    Network order: 0x12
+    Host order: 0x1200
+    *** Ethernet header: Source MAC: 00:00:00:00:00:01, Destination MAC: ff:ff:ff:ff:ff:ff, Protocol: 0x12
+    Parser: Ethernet protocol: 18
+    * Custom header detecting, packet length: 1036
+    ** Custom header detected
+    *** Custom header content: 
+    CustomHeader { Field1: 0x800 Field2: 0x1234 Field3: 0x89ABCDEF }
+    * IPv4 header detecting, packet length: 1028
+    ** IPv4 packet
+    *** IPv4 header: Source IP: 10.1.1.1, Destination IP: 10.1.1.2, TTL: 64, Protocol: 17
+    Parser: IPv4 protocol: 17
+    * UDP header detecting, packet length: 1008
+    ** UDP packet
+    *** UDP header: Source Port: 49153, Destination Port: 9093
+    ==========*** ====== ***==========
+  */
   NS_LOG_FUNCTION (p << source << dest << protocolNumber);
 
   // ADD the Ethernet header with "new" MAC address
   EthernetHeader eeh_header (false);
   eeh_header.SetSource (source);
   eeh_header.SetDestination (dest);
-  eeh_header.SetLengthType (0x800); // IPv4
+
+  NS_LOG_DEBUG ("Ethernet protocolNumber: " << std::hex << "0x" << protocolNumber << std::dec);
+  eeh_header.SetLengthType (protocolNumber);
+  // uint16_t ttt = eeh_header.GetLengthType ();
+  // NS_LOG_DEBUG ("*** Ethernet protocolNumber: " << std::hex << "0x" << ttt << std::dec);
+
+  NS_LOG_DEBUG ("Sending: after adding the ethernet header");
+  p->Print (std::cout);
+  std::cout << " " << std::endl;
 
   // Set the protocol number in the header
   if (m_header.GetLayer () == HeaderLayer::LAYER_2)
     {
-      if (m_header.GetOperator () == HeaderLayerOperator::REPLACE ||
-          m_header.GetOperator () == HeaderLayerOperator::ADD_BEFORE)
+      if (m_header.GetOperator () == HeaderLayerOperator::ADD_BEFORE)
         {
           // In this case, we set m_protocol (parser start number)
+          // Layer 2: [custom] [ethernet] layer 3: [ipv4] layer 4: [udp/tcp]
           m_protocol = P4GlobalVar::g_p4Protocol;
-          // and other header no change
+          m_header.SetProtocolFieldNumber (0x1); // ethernet
+
+          p->AddHeader (eeh_header);
+          p->AddHeader (m_header);
+        }
+      else if (m_header.GetOperator () == HeaderLayerOperator::REPLACE)
+        {
+          // In this case, we set m_protocol (parser start number)
+          // Layer 2: [custom] layer 3: [ipv4] layer 4: [udp/tcp]
+          m_protocol = P4GlobalVar::g_p4Protocol;
+          m_header.SetProtocolFieldNumber (0x0800); //ipv4
+
+          p->AddHeader (m_header);
+        }
+      else if (m_header.GetOperator () == HeaderLayerOperator::ADD_AFTER)
+        {
+          // Layer 2: [ethernet] [custom] layer 3: [ipv4] layer 4: [udp/tcp]
+          eeh_header.SetLengthType (P4GlobalVar::g_p4Protocol);
+          m_header.SetProtocolFieldNumber (0x0800); //ipv4
+
+          p->AddHeader (m_header);
+          p->AddHeader (eeh_header);
+        }
+      else
+        {
+          NS_LOG_WARN ("Unknown operator for LAYER_2");
         }
     }
   else if (m_header.GetLayer () == HeaderLayer::LAYER_3)
     {
-      if (m_header.GetOperator () == HeaderLayerOperator::REPLACE ||
-          m_header.GetOperator () == HeaderLayerOperator::ADD_BEFORE)
+      if (m_header.GetOperator () == HeaderLayerOperator::ADD_BEFORE)
         {
-          // In this case, we set the protocol number in Ethernet header to the custom header
+          // Layer 2: [ethernet] layer 3: [custom] [ipv4] layer 4: [udp/tcp]
           eeh_header.SetLengthType (P4GlobalVar::g_p4Protocol);
+          m_header.SetProtocolFieldNumber (0x0800); //ipv4
+
+          p->AddHeader (m_header);
+          p->AddHeader (eeh_header);
         }
-      else
+      else if (m_header.GetOperator () == HeaderLayerOperator::REPLACE)
         {
-          // In this ADD_AFTER case, we set the ipv4'protocol number to the custom header
-          if (protocolNumber == 0x800)
+          // Layer 2: [ethernet] layer 3: [custom] layer 4: [udp/tcp]
+          eeh_header.SetLengthType (P4GlobalVar::g_p4Protocol);
+
+          Ipv4Header ip_hd;
+          bool hasIpv4 = p->RemoveHeader (ip_hd); // Remove IPv4 header
+          if (hasIpv4)
             {
-              Ipv4Header ip_hd;
-              bool hasIpv4 = p->RemoveHeader (ip_hd); // Peek IPv4 header
-              if (hasIpv4)
-                {
-                  ip_hd.SetProtocol (P4GlobalVar::g_p4Protocol);
-                }
-              p->AddHeader (ip_hd);
+              uint16_t protocol_temp = ip_hd.GetProtocol ();
+              m_header.SetProtocolFieldNumber (protocol_temp);
+
+              p->AddHeader (m_header);
+              p->AddHeader (eeh_header);
             }
-          // and other header no change
+          else
+            {
+              NS_LOG_WARN ("No IPv4 header found in the packet");
+            }
+        }
+      else if (m_header.GetOperator () == HeaderLayerOperator::ADD_AFTER)
+        {
+          // Layer 2: [ethernet] layer 3: [ipv4] [custom] layer 4: [udp/tcp]
+          Ipv4Header ip_hd;
+          bool hasIpv4 = p->RemoveHeader (ip_hd); // Remove IPv4 header
+          if (hasIpv4)
+            {
+              ip_hd.SetProtocol (P4GlobalVar::g_p4Protocol);
+              uint16_t protocol_temp = ip_hd.GetProtocol ();
+              m_header.SetProtocolFieldNumber (protocol_temp);
+
+              p->AddHeader (m_header);
+              p->AddHeader (ip_hd);
+              p->AddHeader (eeh_header);
+            }
+          else
+            {
+              NS_LOG_WARN ("No IPv4 header found in the packet");
+            }
         }
     }
   else if (m_header.GetLayer () == HeaderLayer::LAYER_4)
     {
-      if (m_header.GetOperator () == HeaderLayerOperator::REPLACE ||
-          m_header.GetOperator () == HeaderLayerOperator::ADD_BEFORE)
+      if (m_header.GetOperator () == HeaderLayerOperator::ADD_BEFORE)
         {
-          // Modify the ipv4 header protocol number to the custom header
-          if (protocolNumber == 0x800)
+          // Layer 2: [ethernet] layer 3: [ipv4] [custom] layer 4: [udp/tcp]
+          Ipv4Header ip_hd;
+          bool hasIpv4 = p->RemoveHeader (ip_hd); // Remove IPv4 header
+          if (hasIpv4)
             {
-              Ipv4Header ip_hd;
-              bool hasIpv4 = p->RemoveHeader (ip_hd); // Peek IPv4 header
-              if (hasIpv4)
-                {
-                  ip_hd.SetProtocol (P4GlobalVar::g_p4Protocol);
-                }
+              ip_hd.SetProtocol (P4GlobalVar::g_p4Protocol);
+              uint16_t protocol_temp = ip_hd.GetProtocol ();
+              m_header.SetProtocolFieldNumber (protocol_temp);
+
+              p->AddHeader (m_header);
               p->AddHeader (ip_hd);
+              p->AddHeader (eeh_header);
+            }
+          else
+            {
+              NS_LOG_WARN ("No IPv4 header found in the packet");
             }
         }
-      else
+      else if (m_header.GetOperator () == HeaderLayerOperator::REPLACE)
         {
-          // In this ADD_AFTER case, because the udp don't have the protocol number,
-          // so we don't need to change the protocol number
-          NS_LOG_DEBUG ("LAYER 4 ADD AFTER: No need to change the protocol number");
+          // Layer 2: [ethernet] layer 3: [ipv4] layer 4: [custom]
+          Ipv4Header ip_hd;
+          bool hasIpv4 = p->RemoveHeader (ip_hd); // Remove IPv4 header
+          if (hasIpv4)
+            {
+              // Set the ipv4'protocol number to the custom header
+              uint16_t protocol_temp = ip_hd.GetProtocol ();
+              if (protocol_temp == 0x11)
+                {
+                  NS_LOG_DEBUG ("Custom header replace UDP protocol");
+                  UdpHeader udp_hd;
+                  p->RemoveHeader (udp_hd); // Remove UDP header
+                }
+              else if (protocol_temp == 0x06)
+                {
+                  NS_LOG_DEBUG ("Custom header replace TCP protocol");
+                  TcpHeader tcp_hd;
+                  p->RemoveHeader (tcp_hd); // Remove TCP header
+                }
+              else
+                {
+                  NS_LOG_INFO ("No Layer 4 protocol found in the packet");
+                }
+
+              // Set the ipv4'protocol number to the custom header
+              ip_hd.SetProtocol (P4GlobalVar::g_p4Protocol);
+              m_header.SetProtocolFieldNumber (0);
+              p->AddHeader (m_header);
+              p->AddHeader (ip_hd);
+              p->AddHeader (eeh_header);
+            }
+          else
+            {
+              NS_LOG_WARN ("LAYER 4 REPLACE: No IPv4 header found in the packet");
+            }
         }
+      else if (m_header.GetOperator () == HeaderLayerOperator::ADD_AFTER)
+        {
+          // Layer 2: [ethernet] layer 3: [ipv4] layer 4: [udp/tcp] [custom]
+          Ipv4Header ip_hd;
+          bool hasIpv4 = p->RemoveHeader (ip_hd); // Remove IPv4 header
+          if (hasIpv4)
+            {
+              // Set the ipv4'protocol number to the custom header
+              uint16_t protocol_temp = ip_hd.GetProtocol ();
+              m_header.SetProtocolFieldNumber (0);
+
+              if (protocol_temp == 0x11)
+                {
+                  NS_LOG_DEBUG ("Custom header replace UDP protocol");
+                  UdpHeader udp_hd;
+                  p->RemoveHeader (udp_hd); // Remove UDP header
+                  p->AddHeader (m_header);
+                  p->AddHeader (udp_hd);
+                }
+              else if (protocol_temp == 0x06)
+                {
+                  NS_LOG_DEBUG ("Custom header replace TCP protocol");
+                  TcpHeader tcp_hd;
+                  p->RemoveHeader (tcp_hd); // Remove TCP header
+                  p->AddHeader (m_header);
+                  p->AddHeader (tcp_hd);
+                }
+              else
+                {
+                  NS_LOG_WARN ("LAYER 4 ADD_AFTER: Unknown protocol number");
+                }
+              p->AddHeader (ip_hd);
+              p->AddHeader (eeh_header);
+            }
+        }
+
+      NS_LOG_DEBUG ("Ethernet header added, packet size: " << p->GetSize ());
+
+      // if (Node::ChecksumEnabled ())
+      //   {
+      //     trailer.EnableFcs (true);
+      //   }
+      // trailer.CalcFcs (p);
+      // p->AddTrailer (trailer);
+
+      // AddCustomHeader (p);
     }
-  p->AddHeader (eeh_header);
-  NS_LOG_DEBUG ("Ethernet header added, packet size: " << p->GetSize ());
+  else
+    {
+      NS_LOG_WARN ("Unknown layer for the custom header");
+    }
 
-  // if (Node::ChecksumEnabled ())
-  //   {
-  //     trailer.EnableFcs (true);
-  //   }
-  // trailer.CalcFcs (p);
-  // p->AddTrailer (trailer);
+  NS_LOG_DEBUG ("Sending: after adding the header");
+  p->EnablePrinting ();
+  p->Print (std::cout);
+  std::cout << " " << std::endl;
 
-  AddCustomHeader (p);
+  // PrintPacketHeaders (p);
+  // NS_LOG_DEBUG ("Sender Side END");
 }
 
 bool
@@ -395,59 +565,164 @@ void
 CustomP2PNetDevice::RestoreOriginalHeaders (Ptr<Packet> p)
 {
   NS_LOG_FUNCTION (this << p);
-  // Restore the original headers @TODO
+  // Restore the original headers
   // for the switch port net-device, no need to processing the header.
 
-  EthernetHeader eeh;
-  bool hasEthernet = p->PeekHeader (eeh); // Peek Ethernet header
+  // Parser with the order
+  if (m_header.GetLayer () == HeaderLayer::LAYER_2)
+    {
+      if (m_header.GetOperator () == HeaderLayerOperator::ADD_BEFORE)
+        {
+          bool hasCustom = p->PeekHeader (m_header);
+          // with CallBack @todo
+          if (hasCustom)
+            {
+              p->RemoveHeader (m_header);
+            }
+        }
+      else if (m_header.GetOperator () == HeaderLayerOperator::REPLACE)
+        {
+          bool hasCustom = p->PeekHeader (m_header);
+          // with CallBack @todo
+          if (hasCustom)
+            {
+              p->RemoveHeader (m_header);
+            }
+          // Add Ethernet header @todo
+        }
+      else if (m_header.GetOperator () == HeaderLayerOperator::ADD_AFTER)
+        {
+          EthernetHeader eeh;
+          p->RemoveHeader (eeh);
+          bool hasCustom = p->PeekHeader (m_header);
+          // with CallBack @todo
+          if (hasCustom)
+            {
+              p->RemoveHeader (m_header);
+            }
+          p->AddHeader (eeh);
+        }
+      else
+        {
+          NS_LOG_WARN ("No Operator for custom header!");
+        }
+    }
+  else if (m_header.GetLayer () == HeaderLayer::LAYER_3)
+    {
+      if (m_header.GetOperator () == HeaderLayerOperator::ADD_BEFORE)
+        {
+          EthernetHeader eeh;
+          p->RemoveHeader (eeh);
+          bool hasCustom = p->PeekHeader (m_header);
+          // with CallBack @todo
+          if (hasCustom)
+            {
+              p->RemoveHeader (m_header);
+            }
+          p->AddHeader (eeh);
+        }
+      else if (m_header.GetOperator () == HeaderLayerOperator::REPLACE)
+        {
+          EthernetHeader eeh;
+          p->RemoveHeader (eeh);
+          bool hasCustom = p->PeekHeader (m_header);
+          // with CallBack @todo
+          if (hasCustom)
+            {
+              p->RemoveHeader (m_header);
+            }
+          // Add Ethernet header @todo
+          p->AddHeader (eeh);
+        }
+      else if (m_header.GetOperator () == HeaderLayerOperator::ADD_AFTER)
+        {
+          EthernetHeader eeh;
+          p->RemoveHeader (eeh);
+          Ipv4Header ip_hd;
+          p->RemoveHeader (ip_hd);
 
-  Ipv4Header ip_hd;
-  bool hasIpv4 = p->PeekHeader (ip_hd); // Peek IPv4 header
+          bool hasCustom = p->PeekHeader (m_header);
+          // with CallBack @todo
+          if (hasCustom)
+            {
+              p->RemoveHeader (m_header);
+            }
+          p->AddHeader (ip_hd);
+          p->AddHeader (eeh);
+        }
+      else
+        {
+          NS_LOG_WARN ("No Operator for custom header!");
+        }
+    }
+  else if (m_header.GetLayer () == HeaderLayer::LAYER_4)
+    {
+      if (m_header.GetOperator () == HeaderLayerOperator::ADD_BEFORE)
+        {
+          EthernetHeader eeh;
+          p->RemoveHeader (eeh);
+          Ipv4Header ip_hd;
+          p->RemoveHeader (ip_hd);
 
-  ArpHeader arp_hd;
-  bool hasArp = false;
+          bool hasCustom = p->PeekHeader (m_header);
+          // with CallBack @todo
+          if (hasCustom)
+            {
+              p->RemoveHeader (m_header);
+            }
+          p->AddHeader (ip_hd);
+          p->AddHeader (eeh);
+        }
+      else if (m_header.GetOperator () == HeaderLayerOperator::REPLACE)
+        {
+          NS_LOG_WARN ("Not support yet now");
+        }
+      else if (m_header.GetOperator () == HeaderLayerOperator::ADD_AFTER)
+        {
+          EthernetHeader eeh;
+          p->RemoveHeader (eeh);
+          Ipv4Header ip_hd;
+          bool hasIpv4 = p->RemoveHeader (ip_hd);
+          if (hasIpv4)
+            {
+              // Set the ipv4'protocol number to the custom header
+              uint16_t protocol_temp = ip_hd.GetProtocol ();
+              m_header.SetProtocolFieldNumber (0);
 
-  bool hasCustom = p->PeekHeader (m_header); // Peek CustomHeader
-
-  if (!hasIpv4) // If no IPv4, check for ARP
-    {
-      hasArp = p->PeekHeader (arp_hd);
+              if (protocol_temp == 0x11)
+                {
+                  NS_LOG_DEBUG ("Custom header replace UDP protocol");
+                  UdpHeader udp_hd;
+                  p->RemoveHeader (udp_hd); // Remove UDP header
+                  p->RemoveHeader (m_header);
+                  p->AddHeader (udp_hd);
+                }
+              else if (protocol_temp == 0x06)
+                {
+                  NS_LOG_DEBUG ("Custom header replace TCP protocol");
+                  TcpHeader tcp_hd;
+                  p->RemoveHeader (tcp_hd); // Remove TCP header
+                  p->RemoveHeader (m_header);
+                  p->AddHeader (tcp_hd);
+                }
+              else
+                {
+                  NS_LOG_WARN ("LAYER 4 ADD_AFTER: Unknown protocol number");
+                }
+              p->AddHeader (ip_hd);
+              p->AddHeader (eeh);
+            }
+        }
+      else
+        {
+          NS_LOG_WARN ("No Operator for custom header!");
+        }
     }
 
-  // **移除 Headers**
-  if (hasEthernet)
-    {
-      p->RemoveHeader (eeh);
-    }
-  if (hasIpv4)
-    {
-      p->RemoveHeader (ip_hd);
-    }
-  if (hasArp)
-    {
-      p->RemoveHeader (arp_hd);
-    }
-  if (hasCustom)
-    {
-      p->RemoveHeader (m_header); // 移除 CustomHeader
-    }
+  p->Print (std::cout);
+  std::cout << " " << std::endl;
 
-  // **恢复原始 Headers**
-  if (hasEthernet)
-    {
-      p->AddHeader (eeh);
-    }
-  if (hasIpv4)
-    {
-      p->AddHeader (ip_hd);
-    }
-  if (hasArp)
-    {
-      p->AddHeader (arp_hd);
-    }
-
-  // 检查 CustomHeader是否正确移除
-  PrintPacketHeaders (p);
+  // PrintPacketHeaders (p);
 }
 
 void
@@ -577,7 +852,8 @@ CustomP2PNetDevice::Receive (Ptr<Packet> packet)
   NS_LOG_FUNCTION (this << packet);
   uint16_t protocol = 0;
 
-  PrintPacketHeaders (packet);
+  NS_LOG_LOGIC ("Receiver SIDE Start: ");
+  // PrintPacketHeaders (packet);
 
   if (m_receiveErrorModel && m_receiveErrorModel->IsCorrupt (packet))
     {
@@ -612,7 +888,7 @@ CustomP2PNetDevice::Receive (Ptr<Packet> packet)
       //
       ProcessHeader (packet, protocol);
 
-      PrintPacketHeaders (packet); // @TEST
+      // PrintPacketHeaders (packet); // @TEST
 
       if (!m_promiscCallback.IsNull ())
         {
@@ -765,6 +1041,20 @@ bool
 CustomP2PNetDevice::SendFrom (Ptr<Packet> packet, const Address &source, const Address &dest,
                               uint16_t protocolNumber)
 {
+  /**
+    ==========*** Print Packet Headers ***==========
+    * Ethernet header detecting, packet length: 1049
+    ** Ethernet packet
+    *** Ethernet header: Source MAC: 00:00:00:00:00:01, Destination MAC: ff:ff:ff:ff:ff:ff, Protocol: 0x12
+    * Custom header detecting, packet length: 1035
+    ** Custom header detected
+    *** Custom header content: 
+    CustomHeader { Field1: 0x11 Field2: 0x1234 Field3: 0x89ABCDEF }
+    * UDP header detecting, packet length: 1028
+    ** UDP packet
+    *** UDP header: Source Port: 17664, Destination Port: 1028
+    ==========*** ====== ***==========
+   */
   NS_LOG_FUNCTION (this << packet << source << dest << protocolNumber);
   NS_LOG_LOGIC ("packet =" << packet);
   NS_LOG_LOGIC ("UID is " << packet->GetUid () << ")");
@@ -973,17 +1263,21 @@ CustomP2PNetDevice::IsWithCustomHeader (void) const
 uint16_t
 CustomP2PNetDevice::CheckIfEthernetHeader (Ptr<Packet> p)
 {
-  NS_LOG_DEBUG ("Ethernet header detecting, packet length: " << p->GetSize ());
+  NS_LOG_DEBUG ("* Ethernet header detecting, packet length: " << p->GetSize ());
   EthernetHeader eeh;
   if (p->PeekHeader (eeh))
     {
-      NS_LOG_DEBUG ("Ethernet packet");
+      NS_LOG_DEBUG ("** Ethernet packet");
       Mac48Address src_mac = eeh.GetSource ();
       Mac48Address dst_mac = eeh.GetDestination ();
-      uint16_t protocol_eth = eeh.GetLengthType ();
-      NS_LOG_DEBUG ("* Ethernet header: Source MAC: " << src_mac << ", Destination MAC: " << dst_mac
-                                                      << ", Protocol: " << std::hex << "0x"
-                                                      << protocol_eth << std::dec);
+      uint16_t protocol_eth = eeh.GetLengthType (); // Network Byte Order
+      uint16_t host_order = ntohs (protocol_eth); // 转换为主机字节序
+      NS_LOG_DEBUG ("Network order: 0x" << std::hex << protocol_eth << std::dec);
+      NS_LOG_DEBUG ("Host order: 0x" << std::hex << host_order << std::dec);
+
+      NS_LOG_DEBUG ("*** Ethernet header: Source MAC: " << src_mac << ", Destination MAC: "
+                                                        << dst_mac << ", Protocol: " << std::hex
+                                                        << "0x" << protocol_eth << std::dec);
       p->RemoveHeader (eeh);
       return protocol_eth;
     }
@@ -997,21 +1291,26 @@ CustomP2PNetDevice::CheckIfEthernetHeader (Ptr<Packet> p)
 uint8_t
 CustomP2PNetDevice::CheckIfIpv4Header (Ptr<Packet> p)
 {
-  NS_LOG_DEBUG ("IPv4 header detecting, packet length: " << p->GetSize ());
+  NS_LOG_DEBUG ("* IPv4 header detecting, packet length: " << p->GetSize ());
 
   Ipv4Header ip_hd;
   if (p->PeekHeader (ip_hd))
     {
-      NS_LOG_DEBUG ("IPv4 packet");
+      NS_LOG_DEBUG ("** IPv4 packet");
       Ipv4Address src_ip = ip_hd.GetSource ();
       Ipv4Address dst_ip = ip_hd.GetDestination ();
       uint8_t ttl = ip_hd.GetTtl ();
       uint8_t protocol = ip_hd.GetProtocol ();
-      NS_LOG_DEBUG ("* IPv4 header: Source IP: " << src_ip << ", Destination IP: " << dst_ip
-                                                 << ", TTL: " << (uint32_t) ttl
-                                                 << ", Protocol: " << (uint32_t) protocol);
+      NS_LOG_DEBUG ("*** IPv4 header: Source IP: " << src_ip << ", Destination IP: " << dst_ip
+                                                   << ", TTL: " << (uint32_t) ttl
+                                                   << ", Protocol: " << (uint32_t) protocol);
       p->RemoveHeader (ip_hd);
       return protocol;
+    }
+  else
+    {
+      NS_LOG_DEBUG ("** No IPv4 header detected");
+      return 0;
     }
   return 0;
 }
@@ -1020,19 +1319,23 @@ uint64_t
 CustomP2PNetDevice::CheckIfArpHeader (Ptr<Packet> p)
 {
   // ARP will be the END, there is no option to modify the ARP header to add a followed custom header
-  NS_LOG_DEBUG ("ARP header detecting, packet length: " << p->GetSize ());
+  NS_LOG_DEBUG ("* ARP header detecting, packet length: " << p->GetSize ());
   ArpHeader arp_hd;
   if (p->PeekHeader (arp_hd))
     {
-      NS_LOG_DEBUG ("ARP packet");
+      NS_LOG_DEBUG ("** ARP packet");
       Address src_mac = arp_hd.GetSourceHardwareAddress ();
       Address dst_mac = arp_hd.GetDestinationHardwareAddress ();
       Ipv4Address src_ip = arp_hd.GetSourceIpv4Address ();
       Ipv4Address dst_ip = arp_hd.GetDestinationIpv4Address ();
-      NS_LOG_DEBUG ("* ARP header: Source MAC: " << src_mac << ", Destination MAC: " << dst_mac
-                                                 << ", Source IP: " << src_ip
-                                                 << ", Destination IP: " << dst_ip);
+      NS_LOG_DEBUG ("*** ARP header: Source MAC: " << src_mac << ", Destination MAC: " << dst_mac
+                                                   << ", Source IP: " << src_ip
+                                                   << ", Destination IP: " << dst_ip);
       p->RemoveHeader (arp_hd);
+    }
+  else
+    {
+      NS_LOG_DEBUG ("** No ARP header detected");
     }
   return 0;
 }
@@ -1041,15 +1344,15 @@ uint64_t
 CustomP2PNetDevice::CheckIfCustomHeader (Ptr<Packet> p)
 {
   // CustomHeader custom_hd;
-  NS_LOG_DEBUG ("Custom header detecting, packet length: " << p->GetSize ());
+  NS_LOG_DEBUG ("* Custom header detecting, packet length: " << p->GetSize ());
 
   // Here we must PeekHeader with the same FieldList as the CustomHeader,
   // otherwise, the PeekHeader will fail. So that we can't create a new
   // CustomHeader object to PeekHeader (NULL).
   if (p->PeekHeader (m_header))
     {
-      NS_LOG_DEBUG ("Custom header detected");
-      NS_LOG_DEBUG ("** Custom header content: ");
+      NS_LOG_DEBUG ("** Custom header detected");
+      NS_LOG_DEBUG ("*** Custom header content: ");
       m_header.Print (std::cout);
       std::cout << std::endl;
       p->RemoveHeader (m_header);
@@ -1066,16 +1369,20 @@ CustomP2PNetDevice::CheckIfCustomHeader (Ptr<Packet> p)
 uint64_t
 CustomP2PNetDevice::CheckIfUdpHeader (Ptr<Packet> p)
 {
-  NS_LOG_DEBUG ("UDP header detecting, packet length: " << p->GetSize ());
+  NS_LOG_DEBUG ("* UDP header detecting, packet length: " << p->GetSize ());
   UdpHeader udp_hd;
   if (p->PeekHeader (udp_hd))
     {
-      NS_LOG_DEBUG ("UDP packet");
+      NS_LOG_DEBUG ("** UDP packet");
       uint16_t src_port = udp_hd.GetSourcePort ();
       uint16_t dst_port = udp_hd.GetDestinationPort ();
-      NS_LOG_DEBUG ("* UDP header: Source Port: " << src_port
-                                                  << ", Destination Port: " << dst_port);
+      NS_LOG_DEBUG ("*** UDP header: Source Port: " << src_port
+                                                    << ", Destination Port: " << dst_port);
       p->RemoveHeader (udp_hd);
+    }
+  else
+    {
+      NS_LOG_DEBUG ("** No UDP header detected");
     }
   return 0;
 }
@@ -1083,14 +1390,19 @@ CustomP2PNetDevice::CheckIfUdpHeader (Ptr<Packet> p)
 uint64_t
 CustomP2PNetDevice::CheckIfTcpHeader (Ptr<Packet> p)
 {
-  NS_LOG_DEBUG ("TCP header detecting, packet length: " << p->GetSize ());
+  NS_LOG_DEBUG ("*TCP header detecting, packet length: " << p->GetSize ());
   TcpHeader tcp_hd;
   if (p->PeekHeader (tcp_hd))
     {
+      NS_LOG_DEBUG ("** TCP packet");
       // uint16_t src_port = tcp_hd.GetSourcePort ();
       // uint16_t dst_port = tcp_hd.GetDestinationPort ();
-      NS_LOG_DEBUG ("* TCP header: " << tcp_hd);
+      NS_LOG_DEBUG ("*** TCP header: " << tcp_hd);
       p->RemoveHeader (tcp_hd);
+    }
+  else
+    {
+      NS_LOG_DEBUG ("** No TCP header detected");
     }
   return 0;
 }
@@ -1098,16 +1410,21 @@ CustomP2PNetDevice::CheckIfTcpHeader (Ptr<Packet> p)
 void
 CustomP2PNetDevice::PrintPacketHeaders (Ptr<Packet> p)
 {
+  // Deprecated function
+
+  NS_LOG_DEBUG ("==========*** Print Packet Headers ***==========");
   Ptr<Packet> copy = p->Copy ();
-  uint16_t eth_protocol = 0;
-  uint8_t ipv4_protocol = 0;
+
+  copy->EnablePrinting ();
+  copy->Print (std::cout);
+  std::cout << " " << std::endl;
 
   if (!m_withCustomHeader)
     {
-      eth_protocol = CheckIfEthernetHeader (copy);
+      uint16_t eth_protocol = CheckIfEthernetHeader (copy);
       if (eth_protocol == 0x0800) // IPv4
         {
-          ipv4_protocol = CheckIfIpv4Header (copy);
+          uint8_t ipv4_protocol = CheckIfIpv4Header (copy);
           if (ipv4_protocol == 17)
             {
               CheckIfUdpHeader (copy);
@@ -1132,9 +1449,11 @@ CustomP2PNetDevice::PrintPacketHeaders (Ptr<Packet> p)
             {
             case 0x1: // Ethernet (Assume in p4sim)
               protocol = CheckIfEthernetHeader (copy);
+              NS_LOG_DEBUG ("Parser: Ethernet protocol: " << protocol);
               break;
             case 0x0800: // IPv4
               protocol = CheckIfIpv4Header (copy);
+              NS_LOG_DEBUG ("Parser: IPv4 protocol: " << (uint32_t) protocol);
               break;
             case 0x0806: // ARP
               protocol = CheckIfArpHeader (copy);
@@ -1167,6 +1486,8 @@ CustomP2PNetDevice::PrintPacketHeaders (Ptr<Packet> p)
             }
         }
     }
+
+  NS_LOG_DEBUG ("==========*** ====== ***==========");
 
   // // Step 1: 解析 CustomHeader（如果 ADD_BEFORE）
   // if (m_withCustomHeader && m_header.GetLayer () == LAYER_2 &&

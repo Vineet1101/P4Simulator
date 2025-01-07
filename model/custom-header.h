@@ -1,3 +1,8 @@
+/**
+ * 
+ * @TODO Copy function, etc
+ */
+
 #ifndef CUSTOM_HEADER_H
 #define CUSTOM_HEADER_H
 

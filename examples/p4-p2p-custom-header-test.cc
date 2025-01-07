@@ -22,6 +22,8 @@ int
 main (int argc, char *argv[])
 {
   LogComponentEnable ("P4PointToPointCustomHeaderTest", LOG_LEVEL_INFO);
+  ns3::PacketMetadata::Enable ();
+
   uint16_t pktSize = 1000;
   std::string appDataRate[] = {"2.0Mbps", "1.0Mbps"};
 
@@ -55,11 +57,13 @@ main (int argc, char *argv[])
   customHeader.SetLayer (HeaderLayer::LAYER_3);
   customHeader.SetOperator (HeaderLayerOperator::ADD_BEFORE);
 
-  customHeader.AddField ("Field1", 8); // 8-bit field
+  // [ethernet] [custom] [ipv4] [udp]
+
+  customHeader.AddField ("Field1", 16); // 16-bit field
   customHeader.AddField ("Field2", 16); // 16-bit field
   customHeader.AddField ("Field3", 32); // 32-bit field
 
-  customHeader.SetField ("Field1", 0x11); // Protocol : UDP
+  customHeader.SetField ("Field1", 0x0800); // Protocol : UDP
   customHeader.SetField ("Field2", 0x1234);
   customHeader.SetField ("Field3", 0x89ABCDEF);
 
@@ -90,7 +94,7 @@ main (int argc, char *argv[])
   OnOffHelper onOff1 ("ns3::UdpSocketFactory", dst1);
   onOff1.SetAttribute ("PacketSize", UintegerValue (pktSize));
   onOff1.SetAttribute ("DataRate", StringValue (appDataRate[0]));
-  onOff1.SetAttribute ("MaxBytes", UintegerValue (1200));
+  onOff1.SetAttribute ("MaxBytes", UintegerValue (200));
   onOff1.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]"));
   onOff1.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0]"));
 
