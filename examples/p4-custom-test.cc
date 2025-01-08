@@ -11,6 +11,7 @@
 #include "ns3/custom-header.h"
 #include "ns3/format-utils.h"
 #include "ns3/p4-topology-reader-helper.h"
+#include "ns3/custom-p2p-net-device.h"
 
 #include <iomanip>
 
@@ -107,10 +108,9 @@ main (int argc, char *argv[])
   // ============================ topo -> network ============================
 
   // loading from topo file --> gene topo(linking the nodes)
+  P4TopologyReaderHelper p4TopoHelp;
   std::string topoInput = P4GlobalVar::PathConfig::NfDir + "basic_tunnel/topo.txt";
   std::string topoFormat ("P4Topo");
-
-  P4TopologyReaderHelper p4TopoHelp;
   p4TopoHelp.SetFileName (topoInput);
   p4TopoHelp.SetFileType (topoFormat);
   NS_LOG_INFO ("*** Reading topology from file: " << topoInput << " with format: " << topoFormat);
@@ -130,8 +130,8 @@ main (int argc, char *argv[])
   const unsigned int switchNum = switchNode.GetN ();
   NS_LOG_INFO ("*** Host number: " << hostNum << ", Switch number: " << switchNum);
 
-  P4PointToPointHelper p4helper;
-  p4helper.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (0.01)));
+  P4PointToPointHelper p4p2phelper;
+  p4p2phelper.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (0.01)));
 
   //  ============================  init network link info ============================
   P4TopologyReader::ConstLinksIterator_t iter;
@@ -139,15 +139,16 @@ main (int argc, char *argv[])
   HostNodeC_t hostNodes[hostNum];
   unsigned int fromIndex, toIndex;
   std::string dataRate, delay;
+
   for (iter = topoReader->LinksBegin (); iter != topoReader->LinksEnd (); iter++)
     {
       // if (iter->GetAttributeFailSafe ("DataRate", dataRate))
-      //   p4helper.SetChannelAttribute ("DataRate", StringValue (dataRate));
+      //   p4p2phelper.SetChannelAttribute ("DataRate", StringValue (dataRate));
       if (iter->GetAttributeFailSafe ("Delay", delay))
-        p4helper.SetChannelAttribute ("Delay", StringValue (delay));
+        p4p2phelper.SetChannelAttribute ("Delay", StringValue (delay));
 
       NetDeviceContainer link =
-          p4helper.Install (NodeContainer (iter->GetFromNode (), iter->GetToNode ()));
+          p4p2phelper.Install (NodeContainer (iter->GetFromNode (), iter->GetToNode ()));
       fromIndex = iter->GetFromIndex ();
       toIndex = iter->GetToIndex ();
       if (iter->GetFromType () == 's' && iter->GetToType () == 's')
@@ -207,20 +208,39 @@ main (int argc, char *argv[])
             }
         }
     }
+  // ============================ print host netdevice info ============================
+  for (unsigned int i = 0; i < hostNum; i++)
+    {
+      Ptr<NetDevice> device = hostNodes[i].hostDevice.Get (0);
+      NS_LOG_DEBUG ("Host " << i
+                            << " has NetDevice type: " << device->GetInstanceTypeId ().GetName ());
+
+      if (device->GetObject<CustomP2PNetDevice> ())
+        {
+          NS_LOG_DEBUG ("Host " << i << " NetDevice is CustomP2PNetDevice");
+        }
+      else
+        {
+          NS_LOG_WARN ("Host " << i << " has an unknown NetDevice type!");
+        }
+    }
 
   // ============================ print topo info ============================
   // view host link info
   for (unsigned int i = 0; i < hostNum; i++)
-    std::cout << "host " << i << ": connect with switch " << hostNodes[i].linkSwitchIndex
-              << " port " << hostNodes[i].linkSwitchPort << std::endl;
+    {
+      NS_LOG_DEBUG ("host " << i << ": connect with switch " << hostNodes[i].linkSwitchIndex
+                            << " port " << hostNodes[i].linkSwitchPort);
+    }
 
   // view switch port info
   for (unsigned int i = 0; i < switchNum; i++)
     {
-      std::cout << "switch " << i << " connect with: ";
+      NS_LOG_DEBUG ("switch " << i << " connect with: ");
       for (size_t k = 0; k < switchNodes[i].switchPortInfos.size (); k++)
-        std::cout << switchNodes[i].switchPortInfos[k] << " ";
-      std::cout << std::endl;
+        {
+          NS_LOG_DEBUG (switchNodes[i].switchPortInfos[k] << " ");
+        }
     }
 
   // ============================ add internet stack to the hosts ============================
@@ -335,10 +355,25 @@ main (int argc, char *argv[])
   myTunnelHeader.SetField ("proto_id", 0x0800); // Example: IPv4 protocol
   myTunnelHeader.SetField ("dst_id", 0x22); // Example: Destination ID
 
-  // == First == send link h0 -----> h1
+  // Set for the NetDevice
+  for (unsigned int i = 0; i < hostNum; i++)
+    {
+      Ptr<NetDevice> device = hostNodes[i].hostDevice.Get (0);
+      if (device->GetObject<CustomP2PNetDevice> ())
+        {
+          NS_LOG_DEBUG (
+              "Host " << i << " NetDevice is CustomP2PNetDevice, Setting for the Tunnel Header!");
+          Ptr<CustomP2PNetDevice> customDevice = DynamicCast<CustomP2PNetDevice> (device);
+          customDevice->SetWithCustomHeader (true);
+          customDevice->SetCustomHeader (myTunnelHeader);
+        }
+    }
+
+  // == First Stream == send link h0 -----> h1: port 12000
+
   unsigned int serverI = 1;
   unsigned int clientI = 0;
-  uint16_t servPort = 9093; // setting for port
+  uint16_t servPort = 12000;
 
   Ptr<Node> node = terminals.Get (serverI);
   Ptr<Ipv4> ipv4_adder = node->GetObject<Ipv4> ();
@@ -363,11 +398,40 @@ main (int argc, char *argv[])
   app1.Start (Seconds (client_start_time));
   app1.Stop (Seconds (client_stop_time));
 
+  // == Second Stream == send link h0 -----> h1: port 9090
+
+  // unsigned int server2 = 1;
+  // unsigned int client2 = 0;
+  // uint16_t servPort2 = 9090;
+
+  // Ptr<Node> node_2 = terminals.Get (server2);
+  // Ptr<Ipv4> ipv4_adder_2 = node_2->GetObject<Ipv4> ();
+  // Ipv4Address serverAddr2 =
+  //     ipv4_adder_2->GetAddress (1, 0)
+  //         .GetLocal (); // Interface index 1 corresponds to the first assigned IP
+  // InetSocketAddress dst2 = InetSocketAddress (serverAddr2, servPort2);
+  // PacketSinkHelper sink2 = PacketSinkHelper ("ns3::UdpSocketFactory", dst2);
+  // ApplicationContainer sinkApp2 = sink2.Install (terminals.Get (server2));
+
+  // sinkApp2.Start (Seconds (sink_start_time));
+  // sinkApp2.Stop (Seconds (sink_stop_time));
+
+  // OnOffHelper onOff2 ("ns3::UdpSocketFactory", dst2);
+  // onOff2.SetAttribute ("PacketSize", UintegerValue (pktSize));
+  // onOff2.SetAttribute ("DataRate", StringValue (appDataRate[1]));
+  // onOff2.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]"));
+  // onOff2.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0]"));
+  // onOff2.SetAttribute ("MaxBytes", UintegerValue (1000));
+
+  // ApplicationContainer app2 = onOff2.Install (terminals.Get (client2));
+  // app2.Start (Seconds (client_start_time));
+  // app2.Stop (Seconds (client_stop_time));
+
   // Enable pcap tracing
-  p4helper.EnablePcapAll ("p4-custom-test");
+  p4p2phelper.EnablePcapAll ("p4-custom-test");
 
   // Run simulation
-  NS_LOG_INFO ("Running simulation...");
+  NS_LOG_INFO ("======================= Running simulation =======================");
   unsigned long simulate_start = getTickCount ();
   Simulator::Stop (Seconds (global_stop_time));
   Simulator::Run ();

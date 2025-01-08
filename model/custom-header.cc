@@ -1,16 +1,109 @@
 #include "custom-header.h"
 #include "ns3/log.h"
+#include "ns3/string.h" // For StringValue
+#include "ns3/attribute.h" // For MakeStringAccessor and MakeStringChecker
 
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("CustomHeader");
 
+std::vector<std::pair<std::string, uint32_t>> CustomHeader::m_templateFields;
+
+TypeId
+CustomHeader::GetTypeId (void)
+{
+  static TypeId tid =
+      TypeId ("ns3::CustomHeader")
+          .SetParent<Header> ()
+          .SetGroupName ("Custom")
+          .AddConstructor<CustomHeader> ()
+          .AddAttribute ("TemplateFields", "Predefined fields for this header", StringValue (),
+                         MakeStringAccessor (&CustomHeader::SetTemplateFields,
+                                             &CustomHeader::GetTemplateFields),
+                         MakeStringChecker ());
+  return tid;
+}
+
 CustomHeader::CustomHeader () : m_protocol_number (0)
 {
+  for (const auto &field : m_templateFields)
+    {
+      AddField (field.first, field.second);
+    }
+}
+
+CustomHeader::CustomHeader (const CustomHeader &other)
+    : Header (),
+      m_layer (other.m_layer),
+      m_op (other.m_op),
+      m_protocol_number (other.m_protocol_number),
+      m_fields (other.m_fields) // Use std::vector's copy constructor
+{
+  NS_LOG_DEBUG ("Copy constructor called");
 }
 
 CustomHeader::~CustomHeader ()
 {
+}
+
+CustomHeader &
+CustomHeader::operator= (const CustomHeader &other)
+{
+  if (this == &other)
+    {
+      return *this; // Self-assignment protection
+    }
+
+  // Header::operator= (other);
+
+  // Copy other members
+  m_layer = other.m_layer;
+  m_op = other.m_op;
+  m_protocol_number = other.m_protocol_number;
+  m_fields = other.m_fields; // Use std::vector's copy constructor
+
+  NS_LOG_DEBUG ("Assignment operator called");
+  return *this;
+}
+
+void
+CustomHeader::SetTemplateFields (const std::string &templateFields)
+{
+  m_templateFields.clear ();
+
+  std::istringstream stream (templateFields);
+  std::string field;
+
+  while (std::getline (stream, field, ','))
+    {
+      size_t colonPos = field.find (':');
+      if (colonPos == std::string::npos)
+        {
+          throw std::invalid_argument ("Invalid field format: " + field);
+        }
+
+      std::string fieldName = field.substr (0, colonPos);
+      uint32_t bitWidth = std::stoi (field.substr (colonPos + 1));
+
+      m_templateFields.push_back (std::make_pair (fieldName, bitWidth));
+    }
+}
+
+std::string
+CustomHeader::GetTemplateFields () const
+{
+  std::ostringstream stream;
+
+  for (size_t i = 0; i < m_templateFields.size (); ++i)
+    {
+      stream << m_templateFields[i].first << ":" << m_templateFields[i].second;
+      if (i < m_templateFields.size () - 1)
+        {
+          stream << ",";
+        }
+    }
+
+  return stream.str ();
 }
 
 void
@@ -110,14 +203,6 @@ HeaderLayerOperator
 CustomHeader::GetOperator () const
 {
   return m_op;
-}
-
-TypeId
-CustomHeader::GetTypeId (void)
-{
-  static TypeId tid =
-      TypeId ("ns3::CustomHeader").SetParent<Header> ().AddConstructor<CustomHeader> ();
-  return tid;
 }
 
 TypeId

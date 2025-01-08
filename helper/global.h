@@ -64,8 +64,11 @@ public:
   static std::string g_viewFlowTablePath;
   static std::string g_p4JsonPath;
   static constexpr uint64_t g_p4Protocol = 0x12; // 改成 uint16_t 并使用 constexpr
-  static constexpr uint64_t g_portRangeMin = 11000;
-  static constexpr uint64_t g_portRangeMax = 12000;
+
+  // Here if dst_port of the udp/tcp header in [g_portRangeMin, g_portRangeMax],
+  // the packet will add the custom header.
+  static constexpr uint64_t g_portRangeMin = 10000;
+  static constexpr uint64_t g_portRangeMax = 20000;
 
   // Bottleneck configuration
   static int g_switchBottleNeck;
