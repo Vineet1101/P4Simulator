@@ -81,8 +81,7 @@ main (int argc, char *argv[])
   // FIXED: Assign IPs properly
   Ipv4InterfaceContainer interfaces = ipv4.Assign (devices);
 
-  uint16_t servPort = 9093;
-
+  uint16_t servPort = 12000;
   Ipv4Address serverAddr1 = interfaces.GetAddress (1); // FIXED: Correct interface index
   InetSocketAddress dst1 = InetSocketAddress (serverAddr1, servPort);
   PacketSinkHelper sink1 ("ns3::UdpSocketFactory", dst1);

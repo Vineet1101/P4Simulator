@@ -15,6 +15,13 @@
 #include "ns3/mac48-address.h"
 #include "ns3/p4-p2p-channel.h"
 
+#include "ns3/ethernet-header.h"
+#include <ns3/arp-l3-protocol.h>
+#include <ns3/arp-header.h>
+#include <ns3/ipv4-l3-protocol.h>
+#include <ns3/tcp-header.h>
+#include <ns3/udp-header.h>
+
 namespace ns3 {
 
 template <typename Item>
@@ -158,12 +165,12 @@ public:
   virtual void SetPromiscReceiveCallback (PromiscReceiveCallback cb);
   virtual bool SupportsSendFrom (void) const;
 
-  uint16_t CheckIfEthernetHeader (Ptr<Packet> p);
-  uint8_t CheckIfIpv4Header (Ptr<Packet> p);
-  uint64_t CheckIfArpHeader (Ptr<Packet> p);
+  uint16_t CheckIfEthernetHeader (Ptr<Packet> p, EthernetHeader &eeh_hd);
+  uint8_t CheckIfIpv4Header (Ptr<Packet> p, Ipv4Header &ip_hd);
+  uint64_t CheckIfArpHeader (Ptr<Packet> p, ArpHeader &arp_hd);
   uint64_t CheckIfCustomHeader (Ptr<Packet> p);
-  uint64_t CheckIfUdpHeader (Ptr<Packet> p);
-  uint64_t CheckIfTcpHeader (Ptr<Packet> p);
+  uint64_t CheckIfUdpHeader (Ptr<Packet> p, UdpHeader &udp_hd);
+  uint64_t CheckIfTcpHeader (Ptr<Packet> p, TcpHeader &tcp_hd);
 
 protected:
   /**
@@ -199,15 +206,11 @@ private:
   virtual void DoDispose (void);
 
 private:
-  // void AddCustomHeader (Ptr<Packet> packet, const Address &dest, uint16_t protocol);
-
   /**
    * \returns the address of the remote device connected to this device
    * through the point to point channel.
    */
   Address GetRemote (void) const;
-
-  void AddCustomHeader (Ptr<Packet> p);
 
   /**
    * Adds the necessary headers and trailers to a packet of data in order to
