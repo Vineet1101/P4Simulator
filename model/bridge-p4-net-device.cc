@@ -149,66 +149,7 @@ BridgeP4NetDevice::ReceiveFromDevice (Ptr<NetDevice> incomingPort, Ptr<const Pac
 
   Ptr<ns3::Packet> ns3Packet ((ns3::Packet *) PeekPointer (packet));
 
-  // check if ethernet packet
-  // EthernetHeader eeh_1;
-  // if (ns3Packet->PeekHeader (eeh_1))
-  //   {
-  //     NS_LOG_DEBUG ("Ethernet packet");
-  //     // log the ethernet header information
-  //     Mac48Address src_mac = eeh_1.GetSource ();
-  //     Mac48Address dst_mac = eeh_1.GetDestination ();
-  //     uint16_t protocol_eth = eeh_1.GetLengthType ();
-  //     NS_LOG_DEBUG ("* Ethernet header: Source MAC: " << src_mac << ", Destination MAC: " << dst_mac
-  //                                                     << ", Protocol: " << protocol_eth);
-  //   }
-
-  // // check if ipv4 packet
-  // Ipv4Header ip_hd;
-  // if (ns3Packet->PeekHeader (ip_hd))
-  //   {
-  //     NS_LOG_DEBUG ("IPv4 packet");
-  //     // log the ipv4 header information
-  //     Ipv4Address src_ip = ip_hd.GetSource ();
-  //     Ipv4Address dst_ip = ip_hd.GetDestination ();
-  //     uint8_t protocol_ip = ip_hd.GetProtocol ();
-  //     uint8_t ttl_ip = ip_hd.GetTtl ();
-  //     uint16_t id_ip = ip_hd.GetIdentification ();
-  //     uint16_t len_ip = ip_hd.GetPayloadSize ();
-  //     uint16_t frag_ip = ip_hd.GetFragmentOffset ();
-  //     NS_LOG_DEBUG ("** Ipv4 header: Source IP: "
-  //                   << src_ip << ", Destination IP: " << dst_ip
-  //                   << ", Protocol: " << static_cast<uint32_t> (protocol_ip)
-  //                   << ", TTL: " << static_cast<uint32_t> (ttl_ip) << ", ID: " << id_ip
-  //                   << ", Length: " << len_ip << ", Fragment Offset: " << frag_ip);
-  //     // std::cout << "** Ipv4 header: Source IP: " << src_ip << ", Destination IP: " << dst_ip
-  //     //           << ", Protocol: " << static_cast<uint32_t> (protocol_ip)
-  //     //           << ", TTL: " << static_cast<uint32_t> (ttl_ip) << ", ID: " << id_ip
-  //     //           << ", Length: " << len_ip << ", Fragment Offset: " << frag_ip << std::endl;
-  //   }
-
-  // // check if arp packet
-  // ArpHeader arp_hd;
-  // if (ns3Packet->PeekHeader (arp_hd))
-  //   {
-  //     NS_LOG_DEBUG ("ARP packet");
-  //     // log the arp header information
-  //     Address src_mac = arp_hd.GetSourceHardwareAddress ();
-  //     Address dst_mac = arp_hd.GetDestinationHardwareAddress ();
-  //     Ipv4Address src_ip = arp_hd.GetSourceIpv4Address ();
-  //     Ipv4Address dst_ip = arp_hd.GetDestinationIpv4Address ();
-  //     NS_LOG_DEBUG ("** Arp header: Source MAC: " << src_mac << ", Destination MAC: " << dst_mac
-  //                                                 << ", Source IP: " << src_ip
-  //                                                 << ", Destination IP: " << dst_ip);
-  //     // std::cout << "** Arp header: Source MAC: " << src_mac << ", Destination MAC: " << dst_mac
-  //     //           << ", Source IP: " << src_ip << ", Destination IP: " << dst_ip << std::endl;
-  //   }
-
-  std::cout << "ns3::BridgeP4NetDevice::ReceiveFromDevice" << std::endl;
-  ns3Packet->Print (std::cout);
-  std::cout << " " << std::endl;
-
-  // Add ethernet header for the packet, this is because the csma-net-device for each port will remove the
-  // ethernet header, so we add another ethernet header, avoid modifications to existing mods.
+  // The P4 processing part need the Ethernet header.
   EthernetHeader eeh_1;
   if (ns3Packet->PeekHeader (eeh_1))
     {
@@ -217,16 +158,14 @@ BridgeP4NetDevice::ReceiveFromDevice (Ptr<NetDevice> incomingPort, Ptr<const Pac
     }
   eeh_1.SetDestination (dst48);
   eeh_1.SetSource (src48);
-  // eeh_1.SetLengthType (protocol); // Keep the protocol number
-  std::cout << "* Modified Ethernet header: Source MAC: " << eeh_1.GetSource ()
-            << ", Destination MAC: " << eeh_1.GetDestination ()
-            << ", Protocol: " << eeh_1.GetLengthType () << std::endl;
-  ns3Packet->AddHeader (eeh_1);
+  // Here we don't modify the protocol number
+  // eeh_1.SetLengthType (protocol);
 
-  std::cout << "ns3::BridgeP4NetDevice::ReceiveFromDevice After changing header with MAC address"
-            << std::endl;
-  ns3Packet->Print (std::cout);
-  std::cout << " " << std::endl;
+  NS_LOG_DEBUG ("* Modified Ethernet header: Source MAC: "
+                << eeh_1.GetSource () << ", Destination MAC: " << eeh_1.GetDestination ()
+                << ", Protocol: " << eeh_1.GetLengthType ());
+
+  ns3Packet->AddHeader (eeh_1);
 
   m_p4Switch->ReceivePacket (ns3Packet, inPort, protocol, dst);
 }
@@ -450,11 +389,6 @@ BridgeP4NetDevice::SendNs3Packet (Ptr<Packet> packetOut, int outPort, uint16_t p
   NS_LOG_DEBUG ("Sending ns3 packet to port " << outPort);
   if (packetOut)
     {
-      std::cout << "Bridge send out with packet lenghttttttth " << packetOut->GetSize ()
-                << std::endl;
-      packetOut->Print (std::cout);
-      std::cout << " " << std::endl;
-
       EthernetHeader eeh_1;
       if (packetOut->PeekHeader (eeh_1))
         {
@@ -463,52 +397,13 @@ BridgeP4NetDevice::SendNs3Packet (Ptr<Packet> packetOut, int outPort, uint16_t p
           Mac48Address src_mac = eeh_1.GetSource ();
           Mac48Address dst_mac = eeh_1.GetDestination ();
           uint16_t protocol_eth = eeh_1.GetLengthType ();
-          protocol = protocol_eth;
+          protocol = protocol_eth; // Keep the protocol number of the packet
           NS_LOG_DEBUG ("Source MAC: " << src_mac << ", Destination MAC: " << dst_mac
                                        << ", Protocol: " << protocol_eth);
-          std::cout << "SEND:: <= Ethernet header: Source MAC: " << src_mac
-                    << ", Destination MAC: " << dst_mac << ", Protocol: " << protocol_eth
-                    << std::endl;
         }
 
       EthernetHeader eeh;
       packetOut->RemoveHeader (eeh); // keep the ethernet header
-
-      // packetOut->Print (std::cout);
-      // std::cout << " " << std::endl;
-
-      // Ipv4Header ip_hd;
-      // if (packetOut->PeekHeader (ip_hd))
-      //   {
-      //     NS_LOG_DEBUG ("IPv4 packet");
-      //     // log the ipv4 header information
-      //     Ipv4Address src_ip = ip_hd.GetSource ();
-      //     Ipv4Address dst_ip = ip_hd.GetDestination ();
-      //     uint8_t protocol_ip = ip_hd.GetProtocol ();
-      //     uint8_t ttl_ip = ip_hd.GetTtl ();
-      //     uint16_t id_ip = ip_hd.GetIdentification ();
-      //     uint16_t len_ip = ip_hd.GetPayloadSize ();
-      //     uint16_t frag_ip = ip_hd.GetFragmentOffset ();
-      //     NS_LOG_DEBUG ("Source IP: " << src_ip << ", Destination IP: " << dst_ip
-      //                                 << ", Protocol: " << static_cast<uint32_t> (protocol_ip)
-      //                                 << ", TTL: " << static_cast<uint32_t> (ttl_ip)
-      //                                 << ", ID: " << id_ip << ", Length: " << len_ip
-      //                                 << ", Fragment Offset: " << frag_ip);
-      //   }
-
-      // ArpHeader arp_hd;
-      // if (packetOut->PeekHeader (arp_hd))
-      //   {
-      //     NS_LOG_DEBUG ("ARP packet");
-      //     // log the arp header information
-      //     Address src_mac = arp_hd.GetSourceHardwareAddress ();
-      //     Address dst_mac = arp_hd.GetDestinationHardwareAddress ();
-      //     Ipv4Address src_ip = arp_hd.GetSourceIpv4Address ();
-      //     Ipv4Address dst_ip = arp_hd.GetDestinationIpv4Address ();
-      //     NS_LOG_DEBUG ("Source MAC: " << src_mac << ", Destination MAC: " << dst_mac
-      //                                  << ", Source IP: " << src_ip
-      //                                  << ", Destination IP: " << dst_ip);
-      //   }
 
       if (outPort != 511)
         {

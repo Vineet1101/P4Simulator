@@ -167,7 +167,7 @@
             },
             {
               "type" : "hexstr",
-              "value" : "0x1212",
+              "value" : "0x0012",
               "mask" : null,
               "next_state" : "parse_myTunnel"
             },
@@ -284,7 +284,7 @@
       "id" : 0,
       "source_info" : {
         "filename" : "basic_tunnel.p4",
-        "line" : 249,
+        "line" : 250,
         "column" : 8,
         "source_fragment" : "MyDeparser"
       },
@@ -301,7 +301,7 @@
       "id" : 0,
       "source_info" : {
         "filename" : "basic_tunnel.p4",
-        "line" : 227,
+        "line" : 228,
         "column" : 8,
         "source_fragment" : "update_checksum( ..."
       },
@@ -715,84 +715,8 @@
       "init_table" : "node_2",
       "tables" : [
         {
-          "name" : "MyIngress.ipv4_nhop",
-          "id" : 0,
-          "source_info" : {
-            "filename" : "basic_tunnel.p4",
-            "line" : 149,
-            "column" : 10,
-            "source_fragment" : "ipv4_nhop"
-          },
-          "key" : [
-            {
-              "match_type" : "exact",
-              "name" : "hdr.ipv4.dstAddr",
-              "target" : ["ipv4", "dstAddr"],
-              "mask" : null
-            }
-          ],
-          "match_type" : "exact",
-          "type" : "simple",
-          "max_size" : 1024,
-          "with_counters" : false,
-          "support_timeout" : false,
-          "direct_meters" : null,
-          "action_ids" : [5, 2, 0],
-          "actions" : ["MyIngress.ipv4_forward", "MyIngress.drop", "NoAction"],
-          "base_default_next" : "node_4",
-          "next_tables" : {
-            "MyIngress.ipv4_forward" : "node_4",
-            "MyIngress.drop" : "node_4",
-            "NoAction" : "node_4"
-          },
-          "default_entry" : {
-            "action_id" : 2,
-            "action_const" : false,
-            "action_data" : [],
-            "action_entry_const" : false
-          }
-        },
-        {
-          "name" : "MyIngress.arp_simple",
-          "id" : 1,
-          "source_info" : {
-            "filename" : "basic_tunnel.p4",
-            "line" : 167,
-            "column" : 10,
-            "source_fragment" : "arp_simple"
-          },
-          "key" : [
-            {
-              "match_type" : "exact",
-              "name" : "hdr.arp.dstIp",
-              "target" : ["arp", "dstIp"],
-              "mask" : null
-            }
-          ],
-          "match_type" : "exact",
-          "type" : "simple",
-          "max_size" : 1024,
-          "with_counters" : false,
-          "support_timeout" : false,
-          "direct_meters" : null,
-          "action_ids" : [6, 3, 1],
-          "actions" : ["MyIngress.set_arp_nhop", "MyIngress.drop", "NoAction"],
-          "base_default_next" : "node_6",
-          "next_tables" : {
-            "MyIngress.set_arp_nhop" : "node_6",
-            "MyIngress.drop" : "node_6",
-            "NoAction" : "node_6"
-          },
-          "default_entry" : {
-            "action_id" : 1,
-            "action_const" : false,
-            "action_data" : [],
-            "action_entry_const" : false
-          }
-        },
-        {
           "name" : "MyIngress.myTunnel_exact",
-          "id" : 2,
+          "id" : 0,
           "source_info" : {
             "filename" : "basic_tunnel.p4",
             "line" : 183,
@@ -815,13 +739,89 @@
           "direct_meters" : null,
           "action_ids" : [7, 4],
           "actions" : ["MyIngress.myTunnel_forward", "MyIngress.drop"],
-          "base_default_next" : null,
+          "base_default_next" : "node_6",
           "next_tables" : {
-            "MyIngress.myTunnel_forward" : null,
-            "MyIngress.drop" : null
+            "MyIngress.myTunnel_forward" : "node_6",
+            "MyIngress.drop" : "node_6"
           },
           "default_entry" : {
             "action_id" : 4,
+            "action_const" : false,
+            "action_data" : [],
+            "action_entry_const" : false
+          }
+        },
+        {
+          "name" : "MyIngress.ipv4_nhop",
+          "id" : 1,
+          "source_info" : {
+            "filename" : "basic_tunnel.p4",
+            "line" : 149,
+            "column" : 10,
+            "source_fragment" : "ipv4_nhop"
+          },
+          "key" : [
+            {
+              "match_type" : "exact",
+              "name" : "hdr.ipv4.dstAddr",
+              "target" : ["ipv4", "dstAddr"],
+              "mask" : null
+            }
+          ],
+          "match_type" : "exact",
+          "type" : "simple",
+          "max_size" : 1024,
+          "with_counters" : false,
+          "support_timeout" : false,
+          "direct_meters" : null,
+          "action_ids" : [5, 2, 0],
+          "actions" : ["MyIngress.ipv4_forward", "MyIngress.drop", "NoAction"],
+          "base_default_next" : "node_6",
+          "next_tables" : {
+            "MyIngress.ipv4_forward" : "node_6",
+            "MyIngress.drop" : "node_6",
+            "NoAction" : "node_6"
+          },
+          "default_entry" : {
+            "action_id" : 2,
+            "action_const" : false,
+            "action_data" : [],
+            "action_entry_const" : false
+          }
+        },
+        {
+          "name" : "MyIngress.arp_simple",
+          "id" : 2,
+          "source_info" : {
+            "filename" : "basic_tunnel.p4",
+            "line" : 167,
+            "column" : 10,
+            "source_fragment" : "arp_simple"
+          },
+          "key" : [
+            {
+              "match_type" : "exact",
+              "name" : "hdr.arp.dstIp",
+              "target" : ["arp", "dstIp"],
+              "mask" : null
+            }
+          ],
+          "match_type" : "exact",
+          "type" : "simple",
+          "max_size" : 1024,
+          "with_counters" : false,
+          "support_timeout" : false,
+          "direct_meters" : null,
+          "action_ids" : [6, 3, 1],
+          "actions" : ["MyIngress.set_arp_nhop", "MyIngress.drop", "NoAction"],
+          "base_default_next" : null,
+          "next_tables" : {
+            "MyIngress.set_arp_nhop" : null,
+            "MyIngress.drop" : null,
+            "NoAction" : null
+          },
+          "default_entry" : {
+            "action_id" : 1,
             "action_const" : false,
             "action_data" : [],
             "action_entry_const" : false
@@ -837,6 +837,29 @@
             "filename" : "basic_tunnel.p4",
             "line" : 196,
             "column" : 12,
+            "source_fragment" : "hdr.myTunnel.isValid()"
+          },
+          "expression" : {
+            "type" : "expression",
+            "value" : {
+              "op" : "d2b",
+              "left" : null,
+              "right" : {
+                "type" : "field",
+                "value" : ["myTunnel", "$valid$"]
+              }
+            }
+          },
+          "true_next" : "MyIngress.myTunnel_exact",
+          "false_next" : "node_4"
+        },
+        {
+          "name" : "node_4",
+          "id" : 1,
+          "source_info" : {
+            "filename" : "basic_tunnel.p4",
+            "line" : 200,
+            "column" : 17,
             "source_fragment" : "hdr.ipv4.isValid() && hdr.ipv4.ttl > 8w0"
           },
           "expression" : {
@@ -871,14 +894,14 @@
             }
           },
           "true_next" : "MyIngress.ipv4_nhop",
-          "false_next" : "node_4"
+          "false_next" : "node_6"
         },
         {
-          "name" : "node_4",
-          "id" : 1,
+          "name" : "node_6",
+          "id" : 2,
           "source_info" : {
             "filename" : "basic_tunnel.p4",
-            "line" : 200,
+            "line" : 204,
             "column" : 12,
             "source_fragment" : "hdr.arp.isValid()"
           },
@@ -893,31 +916,8 @@
               }
             }
           },
-          "true_next" : "MyIngress.arp_simple",
-          "false_next" : "node_6"
-        },
-        {
-          "name" : "node_6",
-          "id" : 2,
-          "source_info" : {
-            "filename" : "basic_tunnel.p4",
-            "line" : 204,
-            "column" : 12,
-            "source_fragment" : "hdr.myTunnel.isValid()"
-          },
-          "expression" : {
-            "type" : "expression",
-            "value" : {
-              "op" : "d2b",
-              "left" : null,
-              "right" : {
-                "type" : "field",
-                "value" : ["myTunnel", "$valid$"]
-              }
-            }
-          },
           "false_next" : null,
-          "true_next" : "MyIngress.myTunnel_exact"
+          "true_next" : "MyIngress.arp_simple"
         }
       ]
     },
@@ -926,7 +926,7 @@
       "id" : 1,
       "source_info" : {
         "filename" : "basic_tunnel.p4",
-        "line" : 215,
+        "line" : 216,
         "column" : 8,
         "source_fragment" : "MyEgress"
       },
@@ -942,7 +942,7 @@
       "id" : 0,
       "source_info" : {
         "filename" : "basic_tunnel.p4",
-        "line" : 227,
+        "line" : 228,
         "column" : 8,
         "source_fragment" : "update_checksum( ..."
       },

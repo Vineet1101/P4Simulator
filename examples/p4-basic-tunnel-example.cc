@@ -1,13 +1,14 @@
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
 #include "ns3/applications-module.h"
-#include "ns3/csma-helper.h"
+#include "ns3/p4-p2p-helper.h"
 #include "ns3/internet-module.h"
 #include "ns3/bridge-helper.h"
 #include "ns3/p4-helper.h"
 #include "ns3/global.h"
 
 #include "ns3/custom-header.h"
+#include "ns3/custom-p2p-net-device.h"
 #include "ns3/format-utils.h"
 #include "ns3/p4-topology-reader-helper.h"
 
@@ -74,7 +75,7 @@ main (int argc, char *argv[])
   // ============================ parameters ============================
 
   // Simulation parameters
-  uint16_t pktSize = 512; //in Bytes. 1458 to prevent fragments, default 512
+  uint16_t pktSize = 1000; //in Bytes. 1458 to prevent fragments, default 512
 
   // h1 -> h3 with 2.0Mbps, h2 -> h4 with 1.0Mbps
   std::string appDataRate[] = {"2.0Mbps", "1.0Mbps"};
@@ -127,9 +128,11 @@ main (int argc, char *argv[])
   NS_LOG_INFO ("*** Host number: " << hostNum << ", Switch number: " << switchNum);
 
   // set default network link parameter
-  CsmaHelper csma;
-  csma.SetChannelAttribute ("DataRate", StringValue ("10Mbps")); //@todo
-  csma.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (0.01)));
+  // CsmaHelper csma;
+  // csma.SetChannelAttribute ("DataRate", StringValue ("10Mbps")); //@todo
+  // csma.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (0.01)));
+  P4PointToPointHelper p4p2phelper;
+  p4p2phelper.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (0.01)));
 
   //  ============================  init network link info ============================
   P4TopologyReader::ConstLinksIterator_t iter;
@@ -139,13 +142,13 @@ main (int argc, char *argv[])
   std::string dataRate, delay;
   for (iter = topoReader->LinksBegin (); iter != topoReader->LinksEnd (); iter++)
     {
-      if (iter->GetAttributeFailSafe ("DataRate", dataRate))
-        csma.SetChannelAttribute ("DataRate", StringValue (dataRate));
-      if (iter->GetAttributeFailSafe ("Delay", delay))
-        csma.SetChannelAttribute ("Delay", StringValue (delay));
+      // if (iter->GetAttributeFailSafe ("DataRate", dataRate))
+      //   csma.SetChannelAttribute ("DataRate", StringValue (dataRate));
+      // if (iter->GetAttributeFailSafe ("Delay", delay))
+      //   csma.SetChannelAttribute ("Delay", StringValue (delay));
 
       NetDeviceContainer link =
-          csma.Install (NodeContainer (iter->GetFromNode (), iter->GetToNode ()));
+          p4p2phelper.Install (NodeContainer (iter->GetFromNode (), iter->GetToNode ()));
       fromIndex = iter->GetFromIndex ();
       toIndex = iter->GetToIndex ();
       if (iter->GetFromType () == 's' && iter->GetToType () == 's')
@@ -319,39 +322,35 @@ main (int argc, char *argv[])
         }
     }
 
-  //// Custom defined header for P4 switch (for the p4 code)
-  //
-  // header myTunnel_t
-  // {
-  //   bit<16> proto_id;
-  //   bit<16> dst_id;
-  // }
-  //
-  // struct headers
-  // {
-  //   ethernet_t ethernet;
-  //   arp_t arp;
-  //   myTunnel_t myTunnel;
-  //   ipv4_t ipv4;
-  // }
+  // ============================ add custom header for the p4 switch ============================
 
-  // Step 1: Create an instance of CustomHeader for myTunnel_t
   CustomHeader myTunnelHeader;
-  myTunnelHeader.SetLayer (LAYER_3); // Network Layer
+  myTunnelHeader.SetLayer (HeaderLayer::LAYER_3); // Network Layer
   myTunnelHeader.SetOperator (ADD_BEFORE); // add before the ipv4 header
 
-  // Step 2: Define the fields for myTunnel_t
-  myTunnelHeader.AddField ("proto_id", 16); // Protocol ID: 16 bits
-  myTunnelHeader.AddField ("dst_id", 16); // Destination ID: 16 bits
-
-  // Step 3: Set values for the fields
   myTunnelHeader.SetField ("proto_id", 0x0800); // Example: IPv4 protocol
-  myTunnelHeader.SetField ("dst_id", 42); // Example: Destination ID
+  myTunnelHeader.SetField ("dst_id", 0x22); // Example: Destination ID
 
-  // == First == send link h0 -----> h1
+  // Set for the NetDevice
+  for (unsigned int i = 0; i < hostNum; i++)
+    {
+      Ptr<NetDevice> device = hostNodes[i].hostDevice.Get (0);
+      if (device->GetObject<CustomP2PNetDevice> ())
+        {
+          NS_LOG_DEBUG (
+              "Host " << i << " NetDevice is CustomP2PNetDevice, Setting for the Tunnel Header!");
+          Ptr<CustomP2PNetDevice> customDevice = DynamicCast<CustomP2PNetDevice> (device);
+          customDevice->SetWithCustomHeader (true);
+          customDevice->SetCustomHeader (myTunnelHeader);
+        }
+    }
+
+  // ============================ add application to the hosts ============================
+
+  // TUNNEL stream == First == send link h0 -----> h1
   unsigned int serverI = 1;
   unsigned int clientI = 0;
-  uint16_t servPort = 9093; // setting for port
+  uint16_t servPort = 12000; // setting for port
 
   Ptr<Node> node = terminals.Get (serverI);
   Ptr<Ipv4> ipv4_adder = node->GetObject<Ipv4> ();
@@ -370,14 +369,40 @@ main (int argc, char *argv[])
   onOff1.SetAttribute ("DataRate", StringValue (appDataRate[0]));
   onOff1.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]"));
   onOff1.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0]"));
-  onOff1.SetAttribute ("MaxBytes", UintegerValue (5000));
+  onOff1.SetAttribute ("MaxBytes", UintegerValue (3000));
 
   ApplicationContainer app1 = onOff1.Install (terminals.Get (clientI));
   app1.Start (Seconds (client_start_time));
   app1.Stop (Seconds (client_stop_time));
 
+  // Normal Stream == Second == send link h0 -----> h1
+  servPort = 1200; // change the application port
+
+  // node = terminals.Get (serverI);
+  // ipv4_adder = node->GetObject<Ipv4> ();
+  // serverAddr1 =
+  //     ipv4_adder->GetAddress (1, 0)
+  //         .GetLocal (); // Interface index 1 corresponds to the first assigned IP
+  InetSocketAddress dst2 = InetSocketAddress (serverAddr1, servPort);
+  PacketSinkHelper sink2 = PacketSinkHelper ("ns3::UdpSocketFactory", dst2);
+  ApplicationContainer sinkApp2 = sink2.Install (terminals.Get (serverI));
+
+  sinkApp2.Start (Seconds (sink_start_time));
+  sinkApp2.Stop (Seconds (sink_stop_time));
+
+  OnOffHelper onOff2 ("ns3::UdpSocketFactory", dst2);
+  onOff2.SetAttribute ("PacketSize", UintegerValue (pktSize));
+  onOff2.SetAttribute ("DataRate", StringValue (appDataRate[0]));
+  onOff2.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]"));
+  onOff2.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0]"));
+  onOff2.SetAttribute ("MaxBytes", UintegerValue (5000));
+
+  ApplicationContainer app2 = onOff2.Install (terminals.Get (clientI));
+  app2.Start (Seconds (client_start_time));
+  app2.Stop (Seconds (client_stop_time));
+
   // Enable pcap tracing
-  csma.EnablePcapAll ("p4-basic-tunnel-example");
+  p4p2phelper.EnablePcapAll ("p4-basic-tunnel-example");
 
   // Run simulation
   NS_LOG_INFO ("Running simulation...");

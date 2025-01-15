@@ -14,6 +14,60 @@
 
 #include <iomanip>
 
+/**
+(p4dev-python-venv) p4@p4:~/workdir/ns3.35$ ./waf --run "p4-basic-test-p2p"
+/home/p4/workdir/ns3.35/bindings/python/wscript:321: SyntaxWarning: invalid escape sequence '\d'
+  m = re.match( "^castxml version (\d\.\d)(-)?(\w+)?", castxml_version_line)
+Waf: Entering directory `/home/p4/workdir/ns3.35/build'
+[1975/2937] Compiling contrib/p4sim/model/bridge-p4-net-device.cc
+[2884/2937] Linking build/lib/libns3.35-p4sim-debug.so
+[2885/2937] Linking build/lib/libns3.35-p4sim-test-debug.so
+[2886/2937] Linking build/contrib/p4sim/examples/ns3.35-p4sim-example-debug
+[2887/2937] Linking build/contrib/p4sim/examples/ns3.35-p4-basic-test-debug
+[2888/2937] Linking build/contrib/p4sim/examples/ns3.35-p4-basic-test-p2p-debug
+[2889/2937] Linking build/contrib/p4sim/examples/ns3.35-p4-custom-header-test-debug
+[2890/2937] Linking build/contrib/p4sim/examples/ns3.35-p4-basic-example-debug
+[2891/2937] Linking build/contrib/p4sim/examples/ns3.35-p4-basic-tunnel-example-debug
+[2892/2937] Linking build/contrib/p4sim/examples/ns3.35-p4-p2p-custom-header-test-debug
+[2893/2937] Linking build/contrib/p4sim/examples/ns3.35-p4-custom-test-debug
+[2894/2937] Linking build/scratch/subdir/subdir
+[2895/2937] Linking build/scratch/simple-on-off
+[2896/2937] Linking build/scratch/scratch-simulator
+[2897/2937] Linking build/utils/ns3.35-test-runner-debug
+Waf: Leaving directory `/home/p4/workdir/ns3.35/build'
+Build commands will be stored in build/compile_commands.json
+'build' finished successfully (10.030s)
+*** Reading topology from file: /home/p4/workdir/ns3.35/contrib/p4sim/test/custom_header/topo.txt with format: P2PTopo
+*** Host number: 2, Switch number: 2
+*** Link from host 2 to  switch0 with data rate  and delay 
+*** Link from  switch 0 to  switch 1 with data rate  and delay 
+*** Link from host 3 to  switch1 with data rate  and delay 
+host 0: connect with switch 0 port 0
+host 1: connect with switch 1 port 1
+switch 0 connect with: h0 s1_0 
+switch 1 connect with: s0_1 h1 
+Node IP and MAC addresses:
+Node 0: IP = 10.1.1.1, MAC = 00:00:00:00:00:01
+Node 0: IP = 0x0a010101, MAC = 0x000000000001
+Node 1: IP = 10.1.1.2, MAC = 00:00:00:00:00:05
+Node 1: IP = 0x0a010102, MAC = 0x000000000005
+Host 0 NetDevice is CustomP2PNetDevice, Setting for the Tunnel Header!
+Host 1 NetDevice is CustomP2PNetDevice, Setting for the Tunnel Header!
+*** P4Simulator mode
+*** Installing P4 bridge [ 0 ] device with configuration: 
+P4JsonPath = /home/p4/workdir/ns3.35/contrib/p4sim/test/custom_header/custom_header.json, 
+FlowTablePath = /home/p4/workdir/ns3.35/contrib/p4sim/test/custom_header/flowtable_0.txt, 
+ViewFlowTablePath = /home/p4/workdir/ns3.35/contrib/p4sim/test/custom_header/flowtable_0.txt
+*** Installing P4 bridge [ 1 ] device with configuration: 
+P4JsonPath = /home/p4/workdir/ns3.35/contrib/p4sim/test/custom_header/custom_header.json, 
+FlowTablePath = /home/p4/workdir/ns3.35/contrib/p4sim/test/custom_header/flowtable_1.txt, 
+ViewFlowTablePath = /home/p4/workdir/ns3.35/contrib/p4sim/test/custom_header/flowtable_1.txt
+Running simulation...
+Simulate Running time: 99ms
+Total Running time: 10299ms
+Run successfully!
+ */
+
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("P4BasicTestP2P");
@@ -73,11 +127,11 @@ main (int argc, char *argv[])
 
   // ============================ parameters ============================
 
-  ns3::PacketMetadata::Enable (); // 开启数据包元数据追踪
+  // ns3::PacketMetadata::Enable (); // 开启数据包元数据追踪
 
   LogComponentEnable ("P4BasicTestP2P", LOG_LEVEL_INFO);
-  LogComponentEnable ("CustomP2PNetDevice", LOG_LEVEL_DEBUG);
-  LogComponentEnable ("BridgeP4NetDevice", LOG_LEVEL_DEBUG);
+  // LogComponentEnable ("CustomP2PNetDevice", LOG_LEVEL_DEBUG);
+  // LogComponentEnable ("BridgeP4NetDevice", LOG_LEVEL_DEBUG);
 
   // ============================ parameters ============================
 

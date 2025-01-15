@@ -75,7 +75,7 @@ main (int argc, char *argv[])
 
   // ============================ parameters ============================
 
-  ns3::PacketMetadata::Enable (); // 开启数据包元数据追踪
+  // ns3::PacketMetadata::Enable (); // 开启数据包元数据追踪
 
   // Simulation parameters
   uint16_t pktSize = 1000; //in Bytes. 1458 to prevent fragments, default 512

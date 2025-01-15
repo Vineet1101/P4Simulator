@@ -8,7 +8,7 @@
 
 const bit<16> TYPE_ARP = 0x806;
 const bit<16> TYPE_IPV4 = 0x800;
-const bit<16> TYPE_MYTUNNEL = 0x1212;
+const bit<16> TYPE_MYTUNNEL = 0x12;  // Same with: static constexpr uint64_t g_p4Protocol = 0x12;
 
 /*************************************************************************
 *********************** H E A D E R S  ***********************************
@@ -193,7 +193,11 @@ control MyIngress(inout headers hdr,
     }
 
     apply {
-        if (hdr.ipv4.isValid() && hdr.ipv4.ttl > 8w0 ) {
+        if (hdr.myTunnel.isValid()) {
+            // process tunneled packets
+            myTunnel_exact.apply();
+        }
+        else if (hdr.ipv4.isValid() && hdr.ipv4.ttl > 8w0 ) {
             ipv4_nhop.apply();
         } 
 
@@ -201,10 +205,7 @@ control MyIngress(inout headers hdr,
             arp_simple.apply();
         }
 
-        if (hdr.myTunnel.isValid()) {
-            // process tunneled packets
-            myTunnel_exact.apply();
-        }
+        
     }
 }
 
