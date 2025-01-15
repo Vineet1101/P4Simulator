@@ -45,9 +45,7 @@ public:
   // Assignment operator
   CustomHeader &operator= (const CustomHeader &other);
 
-  void SetTemplateFields (const std::string &templateFields);
-
-  std::string GetTemplateFields () const;
+  void InitFields ();
 
   // Add a field definition [Deprecated]
   void AddField (const std::string &name, uint32_t bitWidth);
@@ -86,8 +84,6 @@ private:
   HeaderLayerOperator m_op; // Operator for this header
   uint64_t m_protocol_number; // Protocol number
   std::vector<Field> m_fields; // Dynamic list of fields
-
-  static std::vector<std::pair<std::string, uint32_t>> m_templateFields;
 };
 
 } // namespace ns3

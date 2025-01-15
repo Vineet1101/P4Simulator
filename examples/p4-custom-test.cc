@@ -348,8 +348,8 @@ main (int argc, char *argv[])
   myTunnelHeader.SetOperator (ADD_BEFORE); // add before the ipv4 header
 
   // Step 2: Define the fields for myTunnel_t
-  myTunnelHeader.AddField ("proto_id", 16); // Protocol ID: 16 bits
-  myTunnelHeader.AddField ("dst_id", 16); // Destination ID: 16 bits
+  // myTunnelHeader.AddField ("proto_id", 16); // Protocol ID: 16 bits
+  // myTunnelHeader.AddField ("dst_id", 16); // Destination ID: 16 bits
 
   // Step 3: Set values for the fields
   myTunnelHeader.SetField ("proto_id", 0x0800); // Example: IPv4 protocol

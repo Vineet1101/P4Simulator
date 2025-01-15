@@ -70,6 +70,10 @@ public:
   static constexpr uint64_t g_portRangeMin = 10000;
   static constexpr uint64_t g_portRangeMax = 20000;
 
+  // Custom header fields
+  static constexpr std::array<std::pair<const char *, uint32_t>, 2> g_templateHeaderFields = {
+      {{"proto_id", 16}, {"dst_id", 16}}};
+
   // Bottleneck configuration
   static int g_switchBottleNeck;
 
