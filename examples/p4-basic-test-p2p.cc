@@ -1,12 +1,14 @@
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
 #include "ns3/applications-module.h"
-#include "ns3/point-to-point-helper.h"
+#include "ns3/p4-p2p-helper.h"
 #include "ns3/internet-module.h"
 #include "ns3/bridge-helper.h"
 #include "ns3/p4-helper.h"
 #include "ns3/global.h"
 
+#include "ns3/custom-header.h"
+#include "ns3/custom-p2p-net-device.h"
 #include "ns3/format-utils.h"
 #include "ns3/p4-topology-reader-helper.h"
 
@@ -68,12 +70,19 @@ struct HostNodeC_t
 int
 main (int argc, char *argv[])
 {
+
+  // ============================ parameters ============================
+
+  ns3::PacketMetadata::Enable (); // 开启数据包元数据追踪
+
   LogComponentEnable ("P4BasicTestP2P", LOG_LEVEL_INFO);
+  LogComponentEnable ("CustomP2PNetDevice", LOG_LEVEL_DEBUG);
+  LogComponentEnable ("BridgeP4NetDevice", LOG_LEVEL_DEBUG);
 
   // ============================ parameters ============================
 
   // Simulation parameters
-  uint16_t pktSize = 512; //in Bytes. 1458 to prevent fragments, default 512
+  uint16_t pktSize = 1000; //in Bytes. 1458 to prevent fragments, default 512
 
   // h1 -> h2 with 2.0Mbps
   std::string appDataRate[] = {"2.0Mbps"};
@@ -102,7 +111,7 @@ main (int argc, char *argv[])
   // ============================ topo -> network ============================
 
   // loading from topo file --> gene topo(linking the nodes)
-  std::string topoInput = P4GlobalVar::PathConfig::NfDir + "test_simple/topo.txt";
+  std::string topoInput = P4GlobalVar::PathConfig::NfDir + "custom_header/topo.txt";
   std::string topoFormat ("P2PTopo");
 
   P4TopologyReaderHelper p4TopoHelp;
@@ -129,8 +138,10 @@ main (int argc, char *argv[])
   // CsmaHelper csma;
   // csma.SetChannelAttribute ("DataRate", StringValue ("10Mbps")); //@todo
   // csma.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (0.01)));
-  PointToPointHelper p2p;
-  p2p.SetDeviceAttribute ("DataRate", StringValue ("10Mbps"));
+  // PointToPointHelper p2p;
+  // p2p.SetDeviceAttribute ("DataRate", StringValue ("10Mbps"));
+  P4PointToPointHelper p4p2phelper;
+  p4p2phelper.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (0.01)));
 
   //  ============================  init network link info ============================
   P4TopologyReader::ConstLinksIterator_t iter;
@@ -143,11 +154,11 @@ main (int argc, char *argv[])
       // Here the dataRate is in point-to-point-net-device, not in channel
       // if (iter->GetAttributeFailSafe ("DataRate", dataRate))
       //   p2p.SetChannelAttribute ("DataRate", StringValue (dataRate));
-      if (iter->GetAttributeFailSafe ("Delay", delay))
-        p2p.SetChannelAttribute ("Delay", StringValue (delay));
+      // if (iter->GetAttributeFailSafe ("Delay", delay))
+      //   p4p2phelper.SetChannelAttribute ("Delay", StringValue (delay));
 
       NetDeviceContainer link =
-          p2p.Install (NodeContainer (iter->GetFromNode (), iter->GetToNode ()));
+          p4p2phelper.Install (NodeContainer (iter->GetFromNode (), iter->GetToNode ()));
       fromIndex = iter->GetFromIndex ();
       toIndex = iter->GetToIndex ();
       if (iter->GetFromType () == 's' && iter->GetToType () == 's')
@@ -279,22 +290,50 @@ main (int argc, char *argv[])
       NS_LOG_INFO ("Node " << i << ": IP = " << ipHex << ", MAC = " << macHex);
     }
 
+  // ============================ add custom header for the p4 switch ============================
+
+  CustomHeader myTunnelHeader;
+  myTunnelHeader.SetLayer (HeaderLayer::LAYER_3); // Network Layer
+  myTunnelHeader.SetOperator (ADD_BEFORE); // add before the ipv4 header
+
+  myTunnelHeader.SetField ("proto_id", 0x0800); // Example: IPv4 protocol
+  myTunnelHeader.SetField ("dst_id", 0x1); // Example: Destination ID
+
+  // Set for the NetDevice
+  for (unsigned int i = 0; i < hostNum; i++)
+    {
+      Ptr<NetDevice> device = hostNodes[i].hostDevice.Get (0);
+      if (device->GetObject<CustomP2PNetDevice> ())
+        {
+          NS_LOG_DEBUG (
+              "Host " << i << " NetDevice is CustomP2PNetDevice, Setting for the Tunnel Header!");
+          Ptr<CustomP2PNetDevice> customDevice = DynamicCast<CustomP2PNetDevice> (device);
+          customDevice->SetWithCustomHeader (true);
+          customDevice->SetCustomHeader (myTunnelHeader);
+        }
+    }
+
+  // ============================ add application to the hosts ============================
+
   // Bridge or P4 switch configuration
   if (P4GlobalVar::g_nsType == P4Simulator)
     {
       NS_LOG_INFO ("*** P4Simulator mode");
+
       P4GlobalVar::g_populateFlowTableWay = NS3PIFOTM; //LOCAL_CALL RUNTIME_CLI NS3PIFOTM
       P4GlobalVar::g_networkFunc = P4ModuleType::BASIC;
       P4GlobalVar::SetP4MatchTypeJsonPath ();
+      P4GlobalVar::g_p4JsonPath =
+          P4GlobalVar::PathConfig::NfDir + "custom_header/custom_header.json";
 
       P4Helper p4Bridge;
       for (unsigned int i = 0; i < switchNum; i++)
         {
-          P4GlobalVar::g_flowTablePath = P4GlobalVar::PathConfig::NfDir + "test_simple/flowtable_" +
-                                         std::to_string (i) + ".txt";
+          P4GlobalVar::g_flowTablePath = P4GlobalVar::PathConfig::NfDir +
+                                         "custom_header/flowtable_" + std::to_string (i) + ".txt";
           P4GlobalVar::g_viewFlowTablePath = P4GlobalVar::g_flowTablePath;
           NS_LOG_INFO ("*** Installing P4 bridge [ "
-                       << i << " ]device with configuration: " << std::endl
+                       << i << " ] device with configuration: " << std::endl
                        << "P4JsonPath = " << P4GlobalVar::g_p4JsonPath << ", " << std::endl
                        << "FlowTablePath = " << P4GlobalVar::g_flowTablePath << ", " << std::endl
                        << "ViewFlowTablePath = " << P4GlobalVar::g_viewFlowTablePath);
@@ -314,7 +353,7 @@ main (int argc, char *argv[])
   // == First == send link h0 -----> h1
   unsigned int serverI = 1;
   unsigned int clientI = 0;
-  uint16_t servPort = 9093; // setting for port
+  uint16_t servPort = 12000; // setting for port
 
   Ptr<Node> node = terminals.Get (serverI);
   Ptr<Ipv4> ipv4_adder = node->GetObject<Ipv4> ();
@@ -333,14 +372,14 @@ main (int argc, char *argv[])
   onOff1.SetAttribute ("DataRate", StringValue (appDataRate[0]));
   onOff1.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]"));
   onOff1.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0]"));
-  onOff1.SetAttribute ("MaxBytes", UintegerValue (2000));
+  onOff1.SetAttribute ("MaxBytes", UintegerValue (1000));
 
   ApplicationContainer app1 = onOff1.Install (terminals.Get (clientI));
   app1.Start (Seconds (client_start_time));
   app1.Stop (Seconds (client_stop_time));
 
   // Enable pcap tracing
-  p2p.EnablePcapAll ("p4-basic-test-p2p");
+  p4p2phelper.EnablePcapAll ("p4-basic-test-p2p");
 
   // Run simulation
   NS_LOG_INFO ("Running simulation...");

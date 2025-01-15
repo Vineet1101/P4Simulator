@@ -1,0 +1,3 @@
+table_set_default my_header_exact drop
+table_add my_header_exact myheader_forward 0x1 => 0x1
+table_add my_header_exact myheader_forward 0x0 => 0x0

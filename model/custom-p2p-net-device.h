@@ -222,6 +222,9 @@ private:
 
   void AddHeader (Ptr<Packet> p, Mac48Address source, Mac48Address dest, uint16_t protocolNumber);
 
+  void AddEthernetHeader (Ptr<Packet> p, Mac48Address source, Mac48Address dest,
+                          uint16_t protocolNumber);
+
   void PrintPacketHeaders (Ptr<Packet> p);
   /**
    * Removes, from a packet of data, all headers and trailers that
@@ -422,7 +425,7 @@ private:
   Ptr<Node> m_node; //!< Node owning this NetDevice
   Mac48Address m_address; //!< Mac48Address of this NetDevice
 
-  bool m_withCustomHeader; //!< Identify if the device has custom header
+  bool m_NeedProcessHeader; //!< Identify if the device should take care of custom header
   CustomHeader m_header; //!< Custom header
   uint16_t m_protocol; //!< Custom header
 

@@ -63,7 +63,7 @@ public:
   static std::string g_flowTablePath;
   static std::string g_viewFlowTablePath;
   static std::string g_p4JsonPath;
-  static constexpr uint64_t g_p4Protocol = 0x12; // 改成 uint16_t 并使用 constexpr
+  static constexpr uint64_t g_p4Protocol = 0x12;
 
   // Here if dst_port of the udp/tcp header in [g_portRangeMin, g_portRangeMax],
   // the packet will add the custom header.

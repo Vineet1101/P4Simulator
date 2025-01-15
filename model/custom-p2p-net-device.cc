@@ -138,7 +138,12 @@ CustomP2PNetDevice::GetTypeId (void)
 }
 
 CustomP2PNetDevice::CustomP2PNetDevice ()
-    : m_txMachineState (READY), m_channel (0), m_protocol (0x1), m_linkUp (false), m_currentPkt (0)
+    : m_txMachineState (READY),
+      m_channel (0),
+      m_NeedProcessHeader (false),
+      m_protocol (0x1),
+      m_linkUp (false),
+      m_currentPkt (0)
 {
   NS_LOG_FUNCTION (this);
   // m_protocol = 0x1; // Ethernet protocol number (start parser with Ethernet)
@@ -152,8 +157,25 @@ CustomP2PNetDevice::~CustomP2PNetDevice ()
 void
 CustomP2PNetDevice::SetCustomHeader (CustomHeader customHeader)
 {
+  NS_LOG_FUNCTION (this);
   m_header = customHeader;
-  m_withCustomHeader = true;
+  m_NeedProcessHeader = true;
+}
+
+void
+CustomP2PNetDevice::AddEthernetHeader (Ptr<Packet> p, Mac48Address source, Mac48Address dest,
+                                       uint16_t protocolNumber)
+{
+  NS_LOG_FUNCTION (p << source << dest << protocolNumber);
+  EthernetHeader eeh_header (false);
+  eeh_header.SetSource (source);
+  eeh_header.SetDestination (dest);
+
+  NS_LOG_DEBUG ("Add Ethernet with protocolNumber: " << std::hex << "0x" << protocolNumber
+                                                     << std::dec);
+  eeh_header.SetLengthType (protocolNumber);
+
+  p->AddHeader (eeh_header);
 }
 
 void
@@ -190,12 +212,13 @@ CustomP2PNetDevice::AddHeader (Ptr<Packet> p, Mac48Address source, Mac48Address 
   eeh_header.SetSource (source);
   eeh_header.SetDestination (dest);
 
-  NS_LOG_DEBUG ("Ethernet protocolNumber: " << std::hex << "0x" << protocolNumber << std::dec);
+  NS_LOG_DEBUG ("Sending: Ethernet protocolNumber: " << std::hex << "0x" << protocolNumber
+                                                     << std::dec);
   eeh_header.SetLengthType (protocolNumber);
   // uint16_t ttt = eeh_header.GetLengthType ();
   // NS_LOG_DEBUG ("*** Ethernet protocolNumber: " << std::hex << "0x" << ttt << std::dec);
 
-  NS_LOG_DEBUG ("*** Sending: before adding the ethernet header and custom header");
+  NS_LOG_DEBUG ("Sending: before adding the ethernet header and custom header");
   p->Print (std::cout);
   std::cout << " " << std::endl;
 
@@ -240,7 +263,7 @@ CustomP2PNetDevice::AddHeader (Ptr<Packet> p, Mac48Address source, Mac48Address 
       (dst_port > P4GlobalVar::g_portRangeMax))
     {
 
-      NS_LOG_DEBUG ("*** Sending: after adding the header (not add custom header)");
+      NS_LOG_DEBUG ("Sending: after adding the ethernet header (not add custom header)");
       p->EnablePrinting ();
       p->Print (std::cout);
       std::cout << " " << std::endl;
@@ -442,10 +465,11 @@ CustomP2PNetDevice::AddHeader (Ptr<Packet> p, Mac48Address source, Mac48Address 
       NS_LOG_WARN ("Unknown layer for the custom header");
     }
 
-  NS_LOG_DEBUG ("*** Sending: after adding the custom header");
+  NS_LOG_DEBUG ("Sending: after adding the custom header");
   p->EnablePrinting ();
   p->Print (std::cout);
   std::cout << " " << std::endl;
+  NS_LOG_DEBUG ("==== finish Adding header, Packet Length " << p->GetSize ());
 }
 
 bool
@@ -453,9 +477,10 @@ CustomP2PNetDevice::ProcessHeader (Ptr<Packet> p, uint16_t &param)
 {
   NS_LOG_FUNCTION (this << p << param);
 
-  if (m_withCustomHeader)
+  if (m_NeedProcessHeader)
     {
       // accelerate, if not, no need for checking that.
+      NS_LOG_DEBUG ("*** Custom header detected, start processing the custom header");
       RestoreOriginalHeaders (p);
     }
   return true;
@@ -467,6 +492,10 @@ CustomP2PNetDevice::RestoreOriginalHeaders (Ptr<Packet> p)
   NS_LOG_FUNCTION (this << p);
   // Restore the original headers
   // for the switch port net-device, no need to processing the header.
+
+  NS_LOG_DEBUG ("*** Custom header detected, start parsering the custom header");
+  p->Print (std::cout);
+  std::cout << " " << std::endl;
 
   EthernetHeader eeh_hd;
   Ipv4Header ip_hd;
@@ -842,6 +871,8 @@ CustomP2PNetDevice::Receive (Ptr<Packet> packet)
 
   NS_LOG_LOGIC ("Receiver SIDE Start: ");
   // PrintPacketHeaders (packet);
+  packet->Print (std::cout);
+  std::cout << " " << std::endl;
 
   if (m_receiveErrorModel && m_receiveErrorModel->IsCorrupt (packet))
     {
@@ -1062,7 +1093,18 @@ CustomP2PNetDevice::SendFrom (Ptr<Packet> packet, const Address &source, const A
   Mac48Address mac_source = Mac48Address::ConvertFrom (source);
   NS_LOG_LOGIC ("source=" << mac_source << ", dest=" << mac_destination);
 
-  AddHeader (packet, mac_source, mac_destination, protocolNumber);
+  if (m_NeedProcessHeader)
+    {
+      AddHeader (packet, mac_source, mac_destination, protocolNumber);
+    }
+  else
+    {
+      NS_LOG_DEBUG ("### Packet length total before adding the ethernet header"
+                    << packet->GetSize ());
+      AddEthernetHeader (packet, mac_source, mac_destination, protocolNumber);
+    }
+
+  NS_LOG_DEBUG ("### Packet length total " << packet->GetSize ());
 
   m_macTxTrace (packet);
 
@@ -1182,13 +1224,13 @@ CustomP2PNetDevice::GetMtu (void) const
 void
 CustomP2PNetDevice::SetWithCustomHeader (bool withHeader)
 {
-  m_withCustomHeader = withHeader;
+  m_NeedProcessHeader = withHeader;
 }
 
 bool
 CustomP2PNetDevice::IsWithCustomHeader (void) const
 {
-  return m_withCustomHeader;
+  return m_NeedProcessHeader;
 }
 
 uint16_t
@@ -1348,7 +1390,7 @@ CustomP2PNetDevice::CheckIfTcpHeader (Ptr<Packet> p, TcpHeader &tcp_hd)
 //   copy->Print (std::cout);
 //   std::cout << " " << std::endl;
 
-//   if (!m_withCustomHeader)
+//   if (!m_NeedProcessHeader)
 //     {
 //       uint16_t eth_protocol = CheckIfEthernetHeader (copy);
 //       if (eth_protocol == 0x0800) // IPv4
