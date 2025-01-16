@@ -149,23 +149,42 @@ BridgeP4NetDevice::ReceiveFromDevice (Ptr<NetDevice> incomingPort, Ptr<const Pac
 
   Ptr<ns3::Packet> ns3Packet ((ns3::Packet *) PeekPointer (packet));
 
-  // The P4 processing part need the Ethernet header.
-  EthernetHeader eeh_1;
-  if (ns3Packet->PeekHeader (eeh_1))
+  if (P4GlobalVar::g_channelType == P4ChannelType::CSMA)
     {
-      NS_LOG_DEBUG ("Ethernet packet");
-      ns3Packet->RemoveHeader (eeh_1);
+      EthernetHeader eeh;
+      eeh.SetDestination (dst48);
+      eeh.SetSource (src48);
+      eeh.SetLengthType (protocol);
+
+      ns3Packet->AddHeader (eeh);
     }
-  eeh_1.SetDestination (dst48);
-  eeh_1.SetSource (src48);
-  // Here we don't modify the protocol number
-  // eeh_1.SetLengthType (protocol);
+  else if (P4GlobalVar::g_channelType == P4ChannelType::P2P)
+    {
+      // The P4 processing part need the Ethernet header.
+      EthernetHeader eeh_1;
+      if (ns3Packet->PeekHeader (eeh_1))
+        {
+          NS_LOG_DEBUG ("Ethernet packet");
+          ns3Packet->RemoveHeader (eeh_1);
+        }
+      else
+        {
+          eeh_1.SetLengthType (protocol);
+        }
+      eeh_1.SetDestination (dst48);
+      eeh_1.SetSource (src48);
+      // Here we don't modify the protocol number
+      // eeh_1.SetLengthType (protocol);
 
-  NS_LOG_DEBUG ("* Modified Ethernet header: Source MAC: "
-                << eeh_1.GetSource () << ", Destination MAC: " << eeh_1.GetDestination ()
-                << ", Protocol: " << eeh_1.GetLengthType ());
+      NS_LOG_DEBUG ("* Modified Ethernet header: Source MAC: "
+                    << eeh_1.GetSource () << ", Destination MAC: " << eeh_1.GetDestination ()
+                    << ", Protocol: " << eeh_1.GetLengthType ());
 
-  ns3Packet->AddHeader (eeh_1);
+      ns3Packet->AddHeader (eeh_1);
+
+      // ns3Packet->Print (std::cout);
+      // std::cout << std::endl;
+    }
 
   m_p4Switch->ReceivePacket (ns3Packet, inPort, protocol, dst);
 }
@@ -387,6 +406,10 @@ BridgeP4NetDevice::SendNs3Packet (Ptr<Packet> packetOut, int outPort, uint16_t p
                                   const Address &destination)
 {
   NS_LOG_DEBUG ("Sending ns3 packet to port " << outPort);
+
+  // packetOut->Print (std::cout);
+  // std::cout << std::endl;
+
   if (packetOut)
     {
       EthernetHeader eeh_1;
@@ -404,6 +427,9 @@ BridgeP4NetDevice::SendNs3Packet (Ptr<Packet> packetOut, int outPort, uint16_t p
 
       EthernetHeader eeh;
       packetOut->RemoveHeader (eeh); // keep the ethernet header
+
+      // packetOut->Print (std::cout);
+      // std::cout << std::endl;
 
       if (outPort != 511)
         {

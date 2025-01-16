@@ -166,12 +166,12 @@ private:
   std::map<int64_t, DelayJitterEstimationTimestampTag> tag_map;
 
   // time event for processing
-  EventId m_ingressTimerEvent; //!< The timer event ID [Ingress]
-  Time m_ingressTimeReference; //!< Desired time between timer event triggers
+  // EventId m_ingressTimerEvent; //!< The timer event ID [Ingress]
+  // Time m_ingressTimeReference; //!< Desired time between timer event triggers
   EventId m_egressTimerEvent; //!< The timer event ID [Egress]
   Time m_egressTimeReference; //!< Desired time between timer event triggers
-  EventId m_transmitTimerEvent; //!< The timer event ID [Transfer]
-  Time m_transmitTimeReference; //!< Desired time between timer event triggers
+  // EventId m_transmitTimerEvent; //!< The timer event ID [Transfer]
+  // Time m_transmitTimeReference; //!< Desired time between timer event triggers
 
   static constexpr size_t nb_egress_threads =
       1u; // 4u default in bmv2, but in ns-3 remove the multi-thread

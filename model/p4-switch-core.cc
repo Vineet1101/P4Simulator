@@ -200,17 +200,18 @@ P4Switch::P4Switch (BridgeP4NetDevice *netDevice, bool enable_swap, port_t drop_
 
   // init the scheduler with [pps] packets per second
   worker_id = 0;
-  m_ingressTimerEvent = EventId (); // default initial value
+
+  // m_ingressTimerEvent = EventId (); // default initial value
   m_egressTimerEvent = EventId (); // default initial value
-  m_transmitTimerEvent = EventId (); // default initial value
+  // m_transmitTimerEvent = EventId (); // default initial value
 
   std::string time_ref_fast = std::to_string (P4GlobalVar::g_switchBottleNeck / 2) + "us";
   std::string time_ref_bottle_neck = std::to_string (P4GlobalVar::g_switchBottleNeck) + "us";
   NS_LOG_INFO ("Time reference for ingress: " << time_ref_fast
                                               << ", for egress: " << time_ref_bottle_neck);
-  m_ingressTimeReference = Time (time_ref_fast);
+  // m_ingressTimeReference = Time (time_ref_fast);
   m_egressTimeReference = Time (time_ref_bottle_neck);
-  m_transmitTimeReference = Time (time_ref_fast);
+  // m_transmitTimeReference = Time (time_ref_fast);
 
   // Now init the switch queue with 0 port, later the bridge will add the ports
   uint32_t nPorts = netDevice->GetNBridgePorts ();
@@ -269,7 +270,7 @@ P4Switch::run_cli (std::string commandsFile)
   bm_runtime::start_server (this, port);
   // start_and_return ();
 
-  std::this_thread::sleep_for (std::chrono::seconds (5));
+  std::this_thread::sleep_for (std::chrono::seconds (3));
 
   // Run the CLI commands to populate table entries
   std::string cmd = "run_bmv2_CLI --thrift_port " + std::to_string (port) + " " + commandsFile;
@@ -289,13 +290,13 @@ P4Switch::start_and_return_ ()
   NS_LOG_FUNCTION ("p4_switch has been start");
   check_queueing_metadata ();
 
-  if (!m_ingressTimeReference.IsZero ())
-    {
-      NS_LOG_INFO ("Scheduling initial timer event using m_ingressTimeReference = "
-                   << m_ingressTimeReference.GetNanoSeconds () << " ns");
-      m_ingressTimerEvent =
-          Simulator::Schedule (m_ingressTimeReference, &P4Switch::RunIngressTimerEvent, this);
-    }
+  // if (!m_ingressTimeReference.IsZero ())
+  //   {
+  //     NS_LOG_INFO ("Scheduling initial timer event using m_ingressTimeReference = "
+  //                  << m_ingressTimeReference.GetNanoSeconds () << " ns");
+  //     // m_ingressTimerEvent =
+  //     //     Simulator::Schedule (m_ingressTimeReference, &P4Switch::RunIngressTimerEvent, this);
+  //   }
 
   if (!m_egressTimeReference.IsZero ())
     {
@@ -310,18 +311,18 @@ void
 P4Switch::RunIngressTimerEvent ()
 {
   NS_LOG_FUNCTION ("p4_switch has been triggered by the ingress timer event");
-  m_ingressTimerEvent =
-      Simulator::Schedule (m_ingressTimeReference, &P4Switch::RunIngressTimerEvent, this);
-  parser_ingress_processing ();
+  // parser_ingress_processing ();
+  // m_ingressTimerEvent =
+  //     Simulator::Schedule (m_ingressTimeReference, &P4Switch::RunIngressTimerEvent, this);
 }
 
 void
 P4Switch::RunEgressTimerEvent ()
 {
   NS_LOG_FUNCTION ("p4_switch has been triggered by the egress timer event");
+  egress_deparser_processing (worker_id);
   m_egressTimerEvent =
       Simulator::Schedule (m_egressTimeReference, &P4Switch::RunEgressTimerEvent, this);
-  egress_deparser_processing (worker_id);
 }
 
 void
@@ -410,6 +411,7 @@ P4Switch::ReceivePacket (Ptr<Packet> packetIn, int inPort, uint16_t protocol,
 
   input_buffer->push_front (InputBuffer::PacketType::NORMAL, std::move (bm_packet));
 
+  parser_ingress_processing ();
   return 0;
 }
 

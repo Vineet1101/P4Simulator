@@ -29,6 +29,8 @@ enum class P4ModuleType {
   SIMPLE_SWITCH
 };
 
+enum class P4ChannelType { CSMA, P2P };
+
 // Get current time (ms)
 uint64_t getTickCount ();
 
@@ -45,6 +47,7 @@ public:
   // Network function configuration
   static P4ModuleType g_networkFunc;
   static unsigned int g_populateFlowTableWay;
+  static P4ChannelType g_channelType;
 
   // Path configuration
   struct PathConfig

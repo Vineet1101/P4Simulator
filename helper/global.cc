@@ -12,6 +12,7 @@ P4Controller P4GlobalVar::g_p4Controller;
 // Network function configuration
 P4ModuleType P4GlobalVar::g_networkFunc = P4ModuleType::BASIC;
 unsigned int P4GlobalVar::g_populateFlowTableWay = RUNTIME_CLI;
+P4ChannelType P4GlobalVar::g_channelType = P4ChannelType::CSMA;
 
 // File paths
 std::string P4GlobalVar::g_p4MatchTypePath = "";

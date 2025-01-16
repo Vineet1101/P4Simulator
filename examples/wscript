@@ -24,3 +24,9 @@ def build(bld):
     
     obj = bld.create_ns3_program('p4-custom-test', ['p4sim', 'internet', 'applications', 'network'])
     obj.source = 'p4-custom-test.cc'
+    
+    ## ================================== Evaluation of the P4 program
+    
+    # 1. basic ipv4 forwarding test with 2 hosts 1 switch
+    obj = bld.create_ns3_program('p4-ipv4-forwarding-test', ['p4sim', 'internet', 'applications', 'network'])
+    obj.source = 'p4-ipv4-forwarding-test.cc'
