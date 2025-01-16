@@ -79,7 +79,7 @@ main (int argc, char *argv[])
 
   // Simulation parameters
   uint16_t pktSize = 1000; //in Bytes. 1458 to prevent fragments, default 512
-
+  P4GlobalVar::g_channelType = P4ChannelType::P2P;
   // h1 -> h3 with 2.0Mbps, h2 -> h4 with 1.0Mbps
   std::string appDataRate[] = {"2.0Mbps", "1.0Mbps"};
 
