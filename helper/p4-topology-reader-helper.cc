@@ -31,55 +31,53 @@ namespace ns3 {
 NS_LOG_COMPONENT_DEFINE ("P4TopologyReaderHelper");
 
 P4TopologyReaderHelper::P4TopologyReaderHelper ()
-  : m_inputModel(nullptr),
-    m_fileName(""),
-    m_fileType("")
+    : m_inputModel (nullptr), m_fileName (""), m_fileType ("")
 {
-  NS_LOG_FUNCTION(this);
+  NS_LOG_FUNCTION (this);
 }
 
 void
 P4TopologyReaderHelper::SetFileName (const std::string fileName)
 {
-  NS_LOG_FUNCTION(this << fileName);
+  NS_LOG_FUNCTION (this << fileName);
   m_fileName = fileName;
 }
 
 void
 P4TopologyReaderHelper::SetFileType (const std::string fileType)
 {
-  NS_LOG_FUNCTION(this << fileType);
+  NS_LOG_FUNCTION (this << fileType);
   m_fileType = fileType;
 }
 
 Ptr<P4TopologyReader>
 P4TopologyReaderHelper::GetTopologyReader ()
 {
-  NS_LOG_FUNCTION(this);
+  NS_LOG_FUNCTION (this);
 
   if (!m_inputModel)
     {
-      if (m_fileType.empty())
+      if (m_fileType.empty ())
         {
-          NS_LOG_ERROR("File type is not set. Use SetFileType to specify a valid topology type.");
+          NS_LOG_ERROR ("File type is not set. Use SetFileType to specify a valid topology type.");
           return nullptr;
         }
 
-      if (m_fileName.empty())
+      if (m_fileName.empty ())
         {
-          NS_LOG_ERROR("File name is not set. Use SetFileName to specify the input file.");
+          NS_LOG_ERROR ("File name is not set. Use SetFileName to specify the input file.");
           return nullptr;
         }
 
-      NS_LOG_INFO("Creating a P2P formatted topology reader.");
-      m_inputModel = CreateObject<P4TopologyReader>();
+      NS_LOG_INFO ("Creating a P2P formatted topology reader.");
+      m_inputModel = CreateObject<P4TopologyReader> ();
 
-      NS_LOG_INFO("Setting file name to " << m_fileName);
-      m_inputModel->SetFileName(m_fileName);
+      NS_LOG_INFO ("Setting file name to " << m_fileName);
+      m_inputModel->SetFileName (m_fileName);
 
-      if (!m_inputModel->Read())
+      if (!m_inputModel->Read ())
         {
-          NS_LOG_ERROR("Failed to read the topology file.");
+          NS_LOG_ERROR ("Failed to read the topology file.");
           return nullptr;
         }
     }

@@ -1,7 +1,6 @@
 #include "p4sim.h"
 
-namespace ns3
-{
+namespace ns3 {
 
 /* ... */
 

@@ -17,7 +17,8 @@
  *
  * Author: Tommaso Pecorella (tommaso.pecorella@unifi.it)
  * Author: Valerio Sartini (valesar@gmail.com)
- * Author: PengKuang <kphf1995cm@outlook.com>
+ * 
+ * Modified by: PengKuang <kphf1995cm@outlook.com>
  * Modified by: Mingyu Ma (mingyu.ma@tu-dresden.de)
  */
 
@@ -29,343 +30,337 @@
 #include <sstream>
 #include <vector>
 
-namespace ns3
-{
+namespace ns3 {
 
-NS_LOG_COMPONENT_DEFINE("P4TopologyReader");
+NS_LOG_COMPONENT_DEFINE ("P4TopologyReader");
 
-NS_OBJECT_ENSURE_REGISTERED(P4TopologyReader);
+NS_OBJECT_ENSURE_REGISTERED (P4TopologyReader);
 
 TypeId
-P4TopologyReader::GetTypeId(void)
+P4TopologyReader::GetTypeId (void)
 {
-    static TypeId tid =
-        TypeId("ns3::P4TopologyReader").SetParent<Object>().SetGroupName("P4TopologyReader");
-    return tid;
+  static TypeId tid =
+      TypeId ("ns3::P4TopologyReader").SetParent<Object> ().SetGroupName ("P4TopologyReader");
+  return tid;
 }
 
-P4TopologyReader::P4TopologyReader()
+P4TopologyReader::P4TopologyReader ()
 {
-    NS_LOG_FUNCTION(this);
+  NS_LOG_FUNCTION (this);
 }
 
-P4TopologyReader::~P4TopologyReader()
+P4TopologyReader::~P4TopologyReader ()
 {
-    NS_LOG_FUNCTION(this);
+  NS_LOG_FUNCTION (this);
 }
 
 void
-P4TopologyReader::SetFileName(const std::string& fileName)
+P4TopologyReader::SetFileName (const std::string &fileName)
 {
-    m_fileName = fileName;
+  m_fileName = fileName;
 }
 
 std::string
-P4TopologyReader::GetFileName() const
+P4TopologyReader::GetFileName () const
 {
-    return m_fileName;
+  return m_fileName;
 }
 
 /* Manipulating the address block */
 
 P4TopologyReader::ConstLinksIterator_t
-P4TopologyReader::LinksBegin(void) const
+P4TopologyReader::LinksBegin (void) const
 {
-    return m_linksList.begin();
+  return m_linksList.begin ();
 }
 
 P4TopologyReader::ConstLinksIterator_t
-P4TopologyReader::LinksEnd(void) const
+P4TopologyReader::LinksEnd (void) const
 {
-    return m_linksList.end();
+  return m_linksList.end ();
 }
 
 int
-P4TopologyReader::LinksSize(void) const
+P4TopologyReader::LinksSize (void) const
 {
-    return m_linksList.size();
+  return m_linksList.size ();
 }
 
 bool
-P4TopologyReader::LinksEmpty(void) const
+P4TopologyReader::LinksEmpty (void) const
 {
-    return m_linksList.empty();
+  return m_linksList.empty ();
 }
 
 void
-P4TopologyReader::AddLink(Link link)
+P4TopologyReader::AddLink (Link link)
 {
-    m_linksList.push_back(link);
-    return;
+  m_linksList.push_back (link);
+  return;
 }
 
-P4TopologyReader::Link::Link(Ptr<Node> fromPtr,
-                             unsigned int fromIndex,
-                             char fromType,
-                             Ptr<Node> toPtr,
-                             unsigned int toIndex,
-                             char toType)
+P4TopologyReader::Link::Link (Ptr<Node> fromPtr, unsigned int fromIndex, char fromType,
+                              Ptr<Node> toPtr, unsigned int toIndex, char toType)
 {
-    m_fromPtr = fromPtr;
-    m_fromType = fromType;
-    m_fromIndex = fromIndex;
-    m_toPtr = toPtr;
-    m_toType = toType;
-    m_toIndex = toIndex;
+  m_fromPtr = fromPtr;
+  m_fromType = fromType;
+  m_fromIndex = fromIndex;
+  m_toPtr = toPtr;
+  m_toType = toType;
+  m_toIndex = toIndex;
 }
 
-P4TopologyReader::Link::Link()
+P4TopologyReader::Link::Link ()
 {
 }
 
 Ptr<Node>
-P4TopologyReader::Link::GetFromNode(void) const
+P4TopologyReader::Link::GetFromNode (void) const
 {
-    return m_fromPtr;
+  return m_fromPtr;
 }
 
 Ptr<Node>
-P4TopologyReader::Link::GetToNode(void) const
+P4TopologyReader::Link::GetToNode (void) const
 {
-    return m_toPtr;
+  return m_toPtr;
 }
 
 char
-P4TopologyReader::Link::GetFromType(void) const
+P4TopologyReader::Link::GetFromType (void) const
 {
-    return m_fromType;
+  return m_fromType;
 }
 
 char
-P4TopologyReader::Link::GetToType(void) const
+P4TopologyReader::Link::GetToType (void) const
 {
-    return m_toType;
+  return m_toType;
 }
 
 unsigned int
-P4TopologyReader::Link::GetFromIndex(void) const
+P4TopologyReader::Link::GetFromIndex (void) const
 {
-    return m_fromIndex;
+  return m_fromIndex;
 }
 
 unsigned int
-P4TopologyReader::Link::GetToIndex(void) const
+P4TopologyReader::Link::GetToIndex (void) const
 {
-    return m_toIndex;
+  return m_toIndex;
 }
 
 std::string
-P4TopologyReader::Link::GetAttribute(const std::string& name) const
+P4TopologyReader::Link::GetAttribute (const std::string &name) const
 {
-    NS_ASSERT_MSG(m_linkAttr.find(name) != m_linkAttr.end(),
-                  "Requested topology link attribute not found");
-    return m_linkAttr.find(name)->second;
+  NS_ASSERT_MSG (m_linkAttr.find (name) != m_linkAttr.end (),
+                 "Requested topology link attribute not found");
+  return m_linkAttr.find (name)->second;
 }
 
 bool
-P4TopologyReader::Link::GetAttributeFailSafe(const std::string& name, std::string& value) const
+P4TopologyReader::Link::GetAttributeFailSafe (const std::string &name, std::string &value) const
 {
-    if (m_linkAttr.find(name) == m_linkAttr.end())
+  if (m_linkAttr.find (name) == m_linkAttr.end ())
     {
-        return false;
+      return false;
     }
-    value = m_linkAttr.find(name)->second;
-    return true;
+  value = m_linkAttr.find (name)->second;
+  return true;
 }
 
 void
-P4TopologyReader::Link::SetAttribute(const std::string& name, const std::string& value)
+P4TopologyReader::Link::SetAttribute (const std::string &name, const std::string &value)
 {
-    m_linkAttr[name] = value;
+  m_linkAttr[name] = value;
 }
 
 P4TopologyReader::Link::ConstAttributesIterator_t
-P4TopologyReader::Link::AttributesBegin(void) const
+P4TopologyReader::Link::AttributesBegin (void) const
 {
-    return m_linkAttr.begin();
+  return m_linkAttr.begin ();
 }
 
 P4TopologyReader::Link::ConstAttributesIterator_t
-P4TopologyReader::Link::AttributesEnd(void) const
+P4TopologyReader::Link::AttributesEnd (void) const
 {
-    return m_linkAttr.end();
+  return m_linkAttr.end ();
 }
 
 bool
-P4TopologyReader::Read()
+P4TopologyReader::Read ()
 {
-    std::ifstream fileStream(GetFileName().c_str());
+  std::ifstream fileStream (GetFileName ().c_str ());
 
-    if (!fileStream.is_open())
+  if (!fileStream.is_open ())
     {
-        NS_LOG_WARN("Topology file cannot be opened. Check the filename and permissions.");
-        PrintHelp();
-		return false;
+      NS_LOG_WARN ("Topology file cannot be opened. Check the filename and permissions.");
+      PrintHelp ();
+      return false;
     }
 
-    // Variables to store topology data
-    std::vector<Ptr<Node>> nodes;
-    unsigned int fromIndex, toIndex;
-    char fromType, toType;
-    std::string dataRate, delay;
+  // Variables to store topology data
+  std::vector<Ptr<Node>> nodes;
+  unsigned int fromIndex, toIndex;
+  char fromType, toType;
+  std::string dataRate, delay;
 
-    int createdNodeNum = 0;
-    int nodeNum = 0, switchNum = 0, hostNum = 0, linkNum = 0;
+  int createdNodeNum = 0;
+  int nodeNum = 0, switchNum = 0, hostNum = 0, linkNum = 0;
 
-    std::string line;
-    std::istringstream lineStream;
+  std::string line;
+  std::istringstream lineStream;
 
-    // Read the first line: total number of switches, hosts, and links
-    if (!getline(fileStream, line))
+  // Read the first line: total number of switches, hosts, and links
+  if (!getline (fileStream, line))
     {
-        NS_LOG_ERROR("Topology file is empty or invalid format.");
-		PrintHelp();
-        return false;
+      NS_LOG_ERROR ("Topology file is empty or invalid format.");
+      PrintHelp ();
+      return false;
     }
 
-    lineStream.str(line);
-    if (!(lineStream >> switchNum >> hostNum >> linkNum))
+  lineStream.str (line);
+  if (!(lineStream >> switchNum >> hostNum >> linkNum))
     {
-        NS_LOG_ERROR("Invalid format in the first line of the topology file.");
-		PrintHelp();
-        return false;
+      NS_LOG_ERROR ("Invalid format in the first line of the topology file.");
+      PrintHelp ();
+      return false;
     }
 
-    NS_LOG_INFO("P4 topology with " << switchNum << " switches, " << hostNum
-                                     << " hosts, and " << linkNum << " links.");
+  NS_LOG_INFO ("P4 topology with " << switchNum << " switches, " << hostNum << " hosts, and "
+                                   << linkNum << " links.");
 
-    // Initialize nodes
-    nodeNum = switchNum + hostNum;
-    nodes.resize(nodeNum, nullptr);
+  // Initialize nodes
+  nodeNum = switchNum + hostNum;
+  nodes.resize (nodeNum, nullptr);
 
-    // Read link information
-    for (int i = 0; i < linkNum && !fileStream.eof(); ++i)
+  // Read link information
+  for (int i = 0; i < linkNum && !fileStream.eof (); ++i)
     {
-        if (!getline(fileStream, line))
+      if (!getline (fileStream, line))
         {
-            NS_LOG_WARN("Unexpected end of file while reading links.");
-            break;
+          NS_LOG_WARN ("Unexpected end of file while reading links.");
+          break;
         }
 
-        lineStream.clear();
-        lineStream.str(line);
+      lineStream.clear ();
+      lineStream.str (line);
 
-        if (!(lineStream >> fromIndex >> fromType >> toIndex >> toType >> dataRate >> delay))
+      if (!(lineStream >> fromIndex >> fromType >> toIndex >> toType >> dataRate >> delay))
         {
-            NS_LOG_ERROR("Invalid link format at line " << i + 2 << ": " << line);
-            continue;
+          NS_LOG_ERROR ("Invalid link format at line " << i + 2 << ": " << line);
+          continue;
         }
 
-        NS_LOG_INFO("Link " << i << ": from " << fromType << fromIndex << " to " << toType
-                            << toIndex << " with DataRate " << dataRate << " and Delay " << delay);
+      NS_LOG_INFO ("Link " << i << ": from " << fromType << fromIndex << " to " << toType << toIndex
+                           << " with DataRate " << dataRate << " and Delay " << delay);
 
-        // Create nodes if they do not exist
-        CreateNodeIfNeeded(nodes, fromIndex, createdNodeNum);
-        CreateNodeIfNeeded(nodes, toIndex, createdNodeNum);
+      // Create nodes if they do not exist
+      CreateNodeIfNeeded (nodes, fromIndex, createdNodeNum);
+      CreateNodeIfNeeded (nodes, toIndex, createdNodeNum);
 
-        // Add the link
-        AddLinkBetweenNodes(nodes, fromIndex, fromType, toIndex, toType, dataRate, delay);
+      // Add the link
+      AddLinkBetweenNodes (nodes, fromIndex, fromType, toIndex, toType, dataRate, delay);
     }
 
-    // Read switch network function information
-    if (!ReadSwitchNetworkFunctions(fileStream, switchNum))
+  // Read switch network function information
+  if (!ReadSwitchNetworkFunctions (fileStream, switchNum))
     {
-        NS_LOG_ERROR("Failed to read switch network functions.");
-		PrintHelp();
-        return false;
+      NS_LOG_ERROR ("Failed to read switch network functions.");
+      PrintHelp ();
+      return false;
     }
 
-    // Populate m_switches and m_hosts containers
-    AddNodesToContainers(nodes, switchNum, hostNum);
+  // Populate m_switches and m_hosts containers
+  AddNodesToContainers (nodes, switchNum, hostNum);
 
-    fileStream.close();
-    NS_LOG_INFO("P4 topology successfully read with " << createdNodeNum << " nodes created.");
-    return true;
+  fileStream.close ();
+  NS_LOG_INFO ("P4 topology successfully read with " << createdNodeNum << " nodes created.");
+  return true;
 }
-
 
 // Helper: Add a link between two nodes
 void
-P4TopologyReader::AddLinkBetweenNodes(const std::vector<Ptr<Node>> &nodes, int fromIndex, char fromType,
-                                      int toIndex, char toType, const std::string &dataRate,
-                                      const std::string &delay)
+P4TopologyReader::AddLinkBetweenNodes (const std::vector<Ptr<Node>> &nodes, int fromIndex,
+                                       char fromType, int toIndex, char toType,
+                                       const std::string &dataRate, const std::string &delay)
 {
-    Link link(nodes[fromIndex], fromIndex, fromType, nodes[toIndex], toIndex, toType);
-    link.SetAttribute("DataRate", dataRate);
-    link.SetAttribute("Delay", delay);
-    AddLink(link);
+  Link link (nodes[fromIndex], fromIndex, fromType, nodes[toIndex], toIndex, toType);
+  link.SetAttribute ("DataRate", dataRate);
+  link.SetAttribute ("Delay", delay);
+  AddLink (link);
 
-    NS_LOG_INFO("Added link between Node " << fromType << fromIndex << " and Node "
-                                           << toType << toIndex);
+  NS_LOG_INFO ("Added link between Node " << fromType << fromIndex << " and Node " << toType
+                                          << toIndex);
 }
 
 // Helper: Create a node if it doesn't already exist
 void
-P4TopologyReader::CreateNodeIfNeeded(std::vector<Ptr<Node>> &nodes, int index, int &createdNodeNum)
+P4TopologyReader::CreateNodeIfNeeded (std::vector<Ptr<Node>> &nodes, int index, int &createdNodeNum)
 {
-    if (nodes[index] == nullptr)
+  if (nodes[index] == nullptr)
     {
-        nodes[index] = CreateObject<Node>();
-        NS_LOG_INFO("Created Node " << index);
-        ++createdNodeNum;
+      nodes[index] = CreateObject<Node> ();
+      NS_LOG_INFO ("Created Node " << index);
+      ++createdNodeNum;
     }
 }
 
 // Helper: Read switch network function information
 bool
-P4TopologyReader::ReadSwitchNetworkFunctions(std::ifstream &fileStream, int switchNum)
+P4TopologyReader::ReadSwitchNetworkFunctions (std::ifstream &fileStream, int switchNum)
 {
-    m_switchNetFunc.resize(switchNum);
-    std::string line;
-    std::istringstream lineStream;
+  m_switchNetFunc.resize (switchNum);
+  std::string line;
+  std::istringstream lineStream;
 
-    for (int i = 0; i < switchNum && !fileStream.eof(); ++i)
+  for (int i = 0; i < switchNum && !fileStream.eof (); ++i)
     {
-        if (!getline(fileStream, line))
+      if (!getline (fileStream, line))
         {
-            NS_LOG_WARN("Unexpected end of file while reading switch network functions.");
-            return false;
+          NS_LOG_WARN ("Unexpected end of file while reading switch network functions.");
+          return false;
         }
 
-        lineStream.clear();
-        lineStream.str(line);
+      lineStream.clear ();
+      lineStream.str (line);
 
-        int switchIndex;
-        std::string networkFunction;
+      int switchIndex;
+      std::string networkFunction;
 
-        if (!(lineStream >> switchIndex >> networkFunction))
+      if (!(lineStream >> switchIndex >> networkFunction))
         {
-            NS_LOG_ERROR("Invalid format in switch network function line: " << line);
-            return false;
+          NS_LOG_ERROR ("Invalid format in switch network function line: " << line);
+          return false;
         }
 
-        m_switchNetFunc[switchIndex] = networkFunction;
-        NS_LOG_INFO("Switch " << switchIndex << " assigned function " << networkFunction);
+      m_switchNetFunc[switchIndex] = networkFunction;
+      NS_LOG_INFO ("Switch " << switchIndex << " assigned function " << networkFunction);
     }
-    return true;
+  return true;
 }
 
 // Helper: Add nodes to m_switches and m_hosts containers
 void
-P4TopologyReader::AddNodesToContainers(const std::vector<Ptr<Node>> &nodes, int switchNum, int hostNum)
+P4TopologyReader::AddNodesToContainers (const std::vector<Ptr<Node>> &nodes, int switchNum,
+                                        int hostNum)
 {
-    for (int i = 0; i < switchNum; ++i)
+  for (int i = 0; i < switchNum; ++i)
     {
-        m_switches.Add(nodes[i]);
+      m_switches.Add (nodes[i]);
     }
-    for (int i = 0; i < hostNum; ++i)
+  for (int i = 0; i < hostNum; ++i)
     {
-        m_hosts.Add(nodes[switchNum + i]);
+      m_hosts.Add (nodes[switchNum + i]);
     }
 
-    NS_LOG_INFO("Switches and hosts added to their respective containers.");
+  NS_LOG_INFO ("Switches and hosts added to their respective containers.");
 }
 
-
 void
-P4TopologyReader::PrintHelp() const
-{	
-/* 
+P4TopologyReader::PrintHelp () const
+{
+  /* 
 =====================================================
 P4TopologyReader Help
 =====================================================
@@ -414,54 +409,56 @@ Common Issues:
 =====================================================
 */
 
-    std::cout << "=====================================================\n";
-    std::cout << "P4TopologyReader Help\n";
-    std::cout << "=====================================================\n";
-    std::cout << "The topology file must follow the specified format:\n";
-    std::cout << "1. First line specifies the number of switches, hosts, and links.\n";
-    std::cout << "   Format: <switch_count> <host_count> <link_count>\n";
-    std::cout << "   Example: 2 6 7 (2 switches, 6 hosts, 7 links)\n\n";
+  std::cout << "=====================================================\n";
+  std::cout << "P4TopologyReader Help\n";
+  std::cout << "=====================================================\n";
+  std::cout << "The topology file must follow the specified format:\n";
+  std::cout << "1. First line specifies the number of switches, hosts, and links.\n";
+  std::cout << "   Format: <switch_count> <host_count> <link_count>\n";
+  std::cout << "   Example: 2 6 7 (2 switches, 6 hosts, 7 links)\n\n";
 
-    std::cout << "2. Following lines define each link:\n";
-    std::cout << "   Format: <from_index> <from_type> <to_index> <to_type> <data_rate> <delay>\n";
-    std::cout << "   - <from_index>, <to_index>: Node indices.\n";
-    std::cout << "   - <from_type>, <to_type>: Node types ('s' for switch, 'h' for host).\n";
-    std::cout << "   - <data_rate>: Link bandwidth (e.g., 1000Mbps).\n";
-    std::cout << "   - <delay>: Link delay (e.g., 0.1ms).\n";
-    std::cout << "   Example:\n";
-    std::cout << "   2 h 0 s 1000Mbps 0.1ms\n";
-    std::cout << "   3 h 0 s 1000Mbps 0.1ms\n\n";
+  std::cout << "2. Following lines define each link:\n";
+  std::cout << "   Format: <from_index> <from_type> <to_index> <to_type> <data_rate> <delay>\n";
+  std::cout << "   - <from_index>, <to_index>: Node indices.\n";
+  std::cout << "   - <from_type>, <to_type>: Node types ('s' for switch, 'h' for host).\n";
+  std::cout << "   - <data_rate>: Link bandwidth (e.g., 1000Mbps).\n";
+  std::cout << "   - <delay>: Link delay (e.g., 0.1ms).\n";
+  std::cout << "   Example:\n";
+  std::cout << "   2 h 0 s 1000Mbps 0.1ms\n";
+  std::cout << "   3 h 0 s 1000Mbps 0.1ms\n\n";
 
-    std::cout << "3. Switch network functions (optional):\n";
-    std::cout << "   Format: <switch_index> <network_function>\n";
-    std::cout << "   - <switch_index>: Index of the switch.\n";
-    std::cout << "   - <network_function>: The function assigned to the switch.\n";
-    std::cout << "   Example:\n";
-    std::cout << "   0 SIMPLE_ROUTER\n";
-    std::cout << "   1 SIMPLE_ROUTER\n\n";
+  std::cout << "3. Switch network functions (optional):\n";
+  std::cout << "   Format: <switch_index> <network_function>\n";
+  std::cout << "   - <switch_index>: Index of the switch.\n";
+  std::cout << "   - <network_function>: The function assigned to the switch.\n";
+  std::cout << "   Example:\n";
+  std::cout << "   0 SIMPLE_ROUTER\n";
+  std::cout << "   1 SIMPLE_ROUTER\n\n";
 
-    std::cout << "Full Example Topology File:\n";
-    std::cout << "=====================================================\n";
-    std::cout << "2 6 7\n";
-    std::cout << "2 h 0 s 1000Mbps 0.1ms\n";
-    std::cout << "3 h 0 s 1000Mbps 0.1ms\n";
-    std::cout << "4 h 0 s 1000Mbps 0.1ms\n";
-    std::cout << "0 s 1 s 50Mbps 0.1ms\n";
-    std::cout << "1 s 5 h 1000Mbps 0.1ms\n";
-    std::cout << "1 s 6 h 1000Mbps 0.1ms\n";
-    std::cout << "1 s 7 h 1000Mbps 0.1ms\n";
-    std::cout << "0 SIMPLE_ROUTER\n";
-    std::cout << "1 SIMPLE_ROUTER\n";
-    std::cout << "=====================================================\n";
-    std::cout << "\n";
+  std::cout << "Full Example Topology File:\n";
+  std::cout << "=====================================================\n";
+  std::cout << "2 6 7\n";
+  std::cout << "2 h 0 s 1000Mbps 0.1ms\n";
+  std::cout << "3 h 0 s 1000Mbps 0.1ms\n";
+  std::cout << "4 h 0 s 1000Mbps 0.1ms\n";
+  std::cout << "0 s 1 s 50Mbps 0.1ms\n";
+  std::cout << "1 s 5 h 1000Mbps 0.1ms\n";
+  std::cout << "1 s 6 h 1000Mbps 0.1ms\n";
+  std::cout << "1 s 7 h 1000Mbps 0.1ms\n";
+  std::cout << "0 SIMPLE_ROUTER\n";
+  std::cout << "1 SIMPLE_ROUTER\n";
+  std::cout << "=====================================================\n";
+  std::cout << "\n";
 
-    std::cout << "Common Issues:\n";
-    std::cout << "1. Ensure the first line correctly specifies the number of switches, hosts, and links.\n";
-    std::cout << "2. Verify each link line follows the correct format and values are valid.\n";
-    std::cout << "3. Ensure all switches and hosts mentioned in the link definitions are accounted for.\n";
-    std::cout << "4. Make sure the file is not missing switch network functions if they are required.\n";
-    std::cout << "=====================================================\n";
+  std::cout << "Common Issues:\n";
+  std::cout
+      << "1. Ensure the first line correctly specifies the number of switches, hosts, and links.\n";
+  std::cout << "2. Verify each link line follows the correct format and values are valid.\n";
+  std::cout
+      << "3. Ensure all switches and hosts mentioned in the link definitions are accounted for.\n";
+  std::cout
+      << "4. Make sure the file is not missing switch network functions if they are required.\n";
+  std::cout << "=====================================================\n";
 }
-
 
 } /* namespace ns3 */

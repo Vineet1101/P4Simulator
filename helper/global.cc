@@ -1,175 +1,105 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
-
 #include "ns3/global.h"
 #include "ns3/log.h"
 
-#if defined(WIN32)
-#include <windows.h>
-#elif defined(OS_VXWORKS)
-#include <vxWorks.h>
-#include <sysLib.h>
-#elif defined(__unix__) || defined(__APPLE__)
-#include <sys/time.h>
-#endif
-
 namespace ns3 {
 
-NS_LOG_COMPONENT_DEFINE("P4GlobalVar");
-NS_OBJECT_ENSURE_REGISTERED(P4GlobalVar);
+NS_LOG_COMPONENT_DEFINE ("P4GlobalVar");
+NS_OBJECT_ENSURE_REGISTERED (P4GlobalVar);
 
 // P4 controller instance
 P4Controller P4GlobalVar::g_p4Controller;
 
-/*******************************
- * P4 switch configuration info
- *******************************/
+// Network function configuration
+P4ModuleType P4GlobalVar::g_networkFunc = P4ModuleType::BASIC;
+unsigned int P4GlobalVar::g_populateFlowTableWay = RUNTIME_CLI;
+P4ChannelType P4GlobalVar::g_channelType = P4ChannelType::CSMA;
 
-// Global configuration variables for P4 switch
-unsigned int P4GlobalVar::g_networkFunc = SIMPLESWITCH;
+// File paths
+std::string P4GlobalVar::g_p4MatchTypePath = "";
 std::string P4GlobalVar::g_flowTablePath = "";
 std::string P4GlobalVar::g_viewFlowTablePath = "";
-std::string P4GlobalVar::g_p4MatchTypePath = "";
-unsigned int P4GlobalVar::g_populateFlowTableWay = RUNTIME_CLI; // LOCAL_CALL or RUNTIME_CLI
 std::string P4GlobalVar::g_p4JsonPath = "";
+
+// Bottleneck configuration
 int P4GlobalVar::g_switchBottleNeck = 10000;
 
-// Directories for P4 simulation resources
-std::string P4GlobalVar::g_homePath = "/home/p4/";
-std::string P4GlobalVar::g_ns3RootName = "/";
-std::string P4GlobalVar::g_ns3SrcName = "ns-3-dev-git/";
-
-std::string P4GlobalVar::g_nfDir =
-    P4GlobalVar::g_homePath + P4GlobalVar::g_ns3RootName +
-    P4GlobalVar::g_ns3SrcName + "src/p4simulator/examples/p4src/";
-std::string P4GlobalVar::g_topoDir =
-    P4GlobalVar::g_homePath + P4GlobalVar::g_ns3RootName +
-    P4GlobalVar::g_ns3SrcName + "src/p4simulator/examples/topo/";
-std::string P4GlobalVar::g_flowTableDir =
-    P4GlobalVar::g_homePath + P4GlobalVar::g_ns3RootName +
-    P4GlobalVar::g_ns3SrcName + "scratch-p4-file/flowtable/";
-std::string P4GlobalVar::g_exampleP4SrcDir =
-    P4GlobalVar::g_homePath + P4GlobalVar::g_ns3RootName +
-    P4GlobalVar::g_ns3SrcName + "src/p4simulator/examples/p4src/";
-
-// Simulation type
+// Simulation type and mapping
 unsigned int P4GlobalVar::g_nsType = P4Simulator;
 std::map<std::string, unsigned int> P4GlobalVar::g_nfStrUintMap;
 
-/*******************************
- * Get current system time in milliseconds
- *******************************/
-uint64_t getTickCount() {
-    uint64_t currentTime = 0;
+// PathConfig definition
+std::string P4GlobalVar::PathConfig::HomePath = "/home/p4/";
+std::string P4GlobalVar::PathConfig::Ns3RootName = "workdir/";
+std::string P4GlobalVar::PathConfig::Ns3SrcName = "ns3.35/";
+std::string P4GlobalVar::PathConfig::NfDir =
+    P4GlobalVar::PathConfig::HomePath + P4GlobalVar::PathConfig::Ns3RootName +
+    P4GlobalVar::PathConfig::Ns3SrcName + "contrib/p4sim/examples/test/";
+std::string P4GlobalVar::PathConfig::TopoDir =
+    P4GlobalVar::PathConfig::HomePath + P4GlobalVar::PathConfig::Ns3RootName +
+    P4GlobalVar::PathConfig::Ns3SrcName + "contrib/p4sim/examples/topo/";
+std::string P4GlobalVar::PathConfig::FlowTableDir =
+    P4GlobalVar::PathConfig::HomePath + P4GlobalVar::PathConfig::Ns3RootName +
+    P4GlobalVar::PathConfig::Ns3SrcName + "scratch-p4-file/flowtable/";
+std::string P4GlobalVar::PathConfig::ExampleP4SrcDir =
+    P4GlobalVar::PathConfig::HomePath + P4GlobalVar::PathConfig::Ns3RootName +
+    P4GlobalVar::PathConfig::Ns3SrcName + "contrib/p4sim/examples/p4src/";
 
-#if __cplusplus >= 201103L // C++11 or later
-    // Use std::chrono for cross-platform time acquisition
-    auto now = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch());
-    currentTime = duration.count();
-#elif defined(WIN32)
-    // Windows platform
-    currentTime = GetTickCount();
-#elif defined(OS_VXWORKS)
-    // VXWorks platform
-    ULONGA timeSecond = tickGet() / sysClkRateGet();
-    ULONGA timeMilsec = tickGet() % sysClkRateGet() * 1000 / sysClkRateGet();
-    currentTime = static_cast<uint64_t>(timeSecond) * 1000 + timeMilsec;
-#else
-    // Unix/Linux platform
-    struct timeval current;
-    gettimeofday(&current, NULL);
-    currentTime = static_cast<uint64_t>(current.tv_sec) * 1000 + current.tv_usec / 1000;
-#endif
-
-    return currentTime;
+TypeId
+P4GlobalVar::GetTypeId (void)
+{
+  static TypeId tid = TypeId ("ns3::P4GlobalVar").SetParent<Object> ().SetGroupName ("P4GlobalVar");
+  return tid;
 }
 
-/*******************************
- * Set P4 Match Type and JSON paths
- *******************************/
-void P4GlobalVar::SetP4MatchTypeJsonPath() {
-    switch (P4GlobalVar::g_networkFunc) {
-        case FIREWALL:
-            g_p4JsonPath = g_nfDir + "firewall/firewall.json";
-            g_p4MatchTypePath = g_nfDir + "firewall/mtype.txt";
-            break;
-        case SILKROAD:
-            g_p4JsonPath = g_nfDir + "silkroad/silkroad.json";
-            g_p4MatchTypePath = g_nfDir + "silkroad/mtype.txt";
-            break;
-        case ROUTER:
-            g_p4JsonPath = g_nfDir + "router/router.json";
-            g_p4MatchTypePath = g_nfDir + "router/mtype.txt";
-            break;
-        case SIMPLE_ROUTER:
-            g_p4JsonPath = g_nfDir + "simple_router/simple_router.json";
-            g_p4MatchTypePath = g_nfDir + "simple_router/mtype.txt";
-            break;
-        case COUNTER:
-            g_p4JsonPath = g_nfDir + "counter/counter.json";
-            g_p4MatchTypePath = g_nfDir + "counter/mtype.txt";
-            break;
-        case METER:
-            g_p4JsonPath = g_nfDir + "meter/meter.json";
-            g_p4MatchTypePath = g_nfDir + "meter/mtype.txt";
-            break;
-        case REGISTER:
-            g_p4JsonPath = g_nfDir + "register/register.json";
-            g_p4MatchTypePath = g_nfDir + "register/mtype.txt";
-            break;
-        case SIMPLESWITCH:
-            g_p4JsonPath = g_nfDir + "simple_switch/simple_switch.json";
-            g_flowTableDir = g_nfDir + "simple_switch/flowtable/";
-            break;
-        case PRIORITYQUEUE:
-            g_p4JsonPath = g_nfDir + "priority_queuing/priority_queuing.json";
-            g_flowTableDir = g_nfDir + "priority_queuing/flowtable/";
-            break;
-        case SIMPLECODEL:
-            g_p4JsonPath = g_nfDir + "simple_codel/simple_codel.json";
-            g_flowTableDir = g_nfDir + "simple_codel/flowtable/";
-            break;
-        case CODELPP:
-            g_p4JsonPath = g_nfDir + "codelpp/codel1.json";
-            g_flowTableDir = g_nfDir + "codelpp/flowtable/";
-            break;
-        default:
-            std::cerr << "NETWORK_FUNCTION_NO_EXIST!!!" << std::endl;
-            break;
+void
+P4GlobalVar::SetP4MatchTypeJsonPath ()
+{
+  NS_LOG_INFO ("Setting P4 match type JSON path");
+
+  static const std::map<P4ModuleType, std::string> moduleDirMap = {
+      {P4ModuleType::FIREWALL, "firewall"}, {P4ModuleType::SILKROAD, "silkroad"},
+      {P4ModuleType::BASIC, "basic"},       {P4ModuleType::SIMPLE_ROUTER, "simple_router"},
+      {P4ModuleType::COUNTER, "counter"},   {P4ModuleType::METER, "meter"},
+      {P4ModuleType::REGISTER, "register"}, {P4ModuleType::SIMPLE_SWITCH, "simple_switch"}};
+
+  auto it = moduleDirMap.find (g_networkFunc);
+  if (it != moduleDirMap.end ())
+    {
+      std::string moduleDir = it->second;
+      g_p4JsonPath = PathConfig::NfDir + moduleDir + "/" + moduleDir + ".json";
+      g_p4MatchTypePath = PathConfig::NfDir + moduleDir + "/mtype.txt"; // remove
+
+      // if (g_networkFunc == P4ModuleType::SIMPLE_SWITCH)
+      //   {
+      //     g_flowTablePath = PathConfig::NfDir + moduleDir + "/flowtable/";
+      //   }
+      g_flowTablePath = PathConfig::NfDir + moduleDir + "/flowtable.txt";
+    }
+  else
+    {
+      NS_LOG_ERROR ("Invalid P4ModuleType");
     }
 }
 
-/*******************************
- * Initialize network function string-to-ID map
- *******************************/
-void P4GlobalVar::InitNfStrUintMap() {
-    g_nfStrUintMap["ROUTER"] = ROUTER;
-    g_nfStrUintMap["SIMPLE_ROUTER"] = SIMPLE_ROUTER;
-    g_nfStrUintMap["FIREWALL"] = FIREWALL;
-    g_nfStrUintMap["SILKROAD"] = SILKROAD;
-    g_nfStrUintMap["COUNTER"] = COUNTER;
-    g_nfStrUintMap["METER"] = METER;
-    g_nfStrUintMap["REGISTER"] = REGISTER;
-    g_nfStrUintMap["SIMPLESWITCH"] = SIMPLESWITCH;
-    g_nfStrUintMap["PRIORITYQUEUE"] = PRIORITYQUEUE;
-    g_nfStrUintMap["SIMPLECODEL"] = SIMPLECODEL;
-    g_nfStrUintMap["CODELPP"] = CODELPP;
+void
+P4GlobalVar::InitNfStrUintMap ()
+{
+  g_nfStrUintMap["BASIC"] = static_cast<unsigned int> (P4ModuleType::BASIC);
+  g_nfStrUintMap["FIREWALL"] = static_cast<unsigned int> (P4ModuleType::FIREWALL);
+  g_nfStrUintMap["SILKROAD"] = static_cast<unsigned int> (P4ModuleType::SILKROAD);
+  g_nfStrUintMap["SIMPLE_ROUTER"] = static_cast<unsigned int> (P4ModuleType::SIMPLE_ROUTER);
+  g_nfStrUintMap["COUNTER"] = static_cast<unsigned int> (P4ModuleType::COUNTER);
+  g_nfStrUintMap["METER"] = static_cast<unsigned int> (P4ModuleType::METER);
+  g_nfStrUintMap["REGISTER"] = static_cast<unsigned int> (P4ModuleType::REGISTER);
+  g_nfStrUintMap["SIMPLE_SWITCH"] = static_cast<unsigned int> (P4ModuleType::SIMPLE_SWITCH);
 }
 
-/*******************************
- * NS-3 Object TypeId system
- *******************************/
-TypeId P4GlobalVar::GetTypeId(void) {
-    static TypeId tid = TypeId("ns3::P4GlobalVar")
-                            .SetParent<Object>()
-                            .SetGroupName("P4GlobalVar");
-    return tid;
+uint64_t
+getTickCount ()
+{
+  return std::chrono::duration_cast<std::chrono::milliseconds> (
+             std::chrono::steady_clock::now ().time_since_epoch ())
+      .count ();
 }
-
-// Constructor
-P4GlobalVar::P4GlobalVar() { NS_LOG_FUNCTION(this); }
-
-// Destructor
-P4GlobalVar::~P4GlobalVar() { NS_LOG_FUNCTION(this); }
 
 } // namespace ns3
