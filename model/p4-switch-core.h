@@ -162,8 +162,6 @@ private:
   int p4_switch_ID; //!< ID of the switch
 
   size_t worker_id; //!< worker_id = threads_id, here only one
-  mutable std::mutex m_tag_queue_mutex;
-  std::map<int64_t, DelayJitterEstimationTimestampTag> tag_map;
 
   // time event for processing
   // EventId m_ingressTimerEvent; //!< The timer event ID [Ingress]

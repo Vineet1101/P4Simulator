@@ -81,17 +81,17 @@ main (int argc, char *argv[])
   uint16_t pktSize = 1000; //in Bytes. 1458 to prevent fragments, default 512
 
   // h1 -> h2 with 2.0Mbps
-  std::string appDataRate = "1Mbps"; // Default application data rate
+  std::string appDataRate = "500Mbps"; // Default application data rate
 
   // P4GlobalVar::g_switchBottleNeck = 2430; // 1 / 445 = 2247 2450
   // Here we need calculated the congestion, how many packets we want to pass the queue
-  uint64_t congestion_bottleneck = 2; // Mbps
+  uint64_t congestion_bottleneck = 400; // Mbps
 
   bool enableTracePcap = false;
   double global_start_time = 1.0;
   double sink_start_time = global_start_time + 1.0;
   double client_start_time = sink_start_time + 1.0;
-  double client_stop_time = client_start_time + 30; // sending time 30s
+  double client_stop_time = client_start_time + 5; // sending time 30s
   double sink_stop_time = client_stop_time + 10;
   double global_stop_time = sink_stop_time + 10;
 

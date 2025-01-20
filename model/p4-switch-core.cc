@@ -205,6 +205,9 @@ P4Switch::P4Switch (BridgeP4NetDevice *netDevice, bool enable_swap, port_t drop_
   m_egressTimerEvent = EventId (); // default initial value
   // m_transmitTimerEvent = EventId (); // default initial value
 
+  egress_buffers.set_rate_for_all (1000000 / P4GlobalVar::g_switchBottleNeck);
+  NS_LOG_DEBUG ("Queue rate set to " << 1000000 / P4GlobalVar::g_switchBottleNeck << " pps");
+
   std::string time_ref_fast = std::to_string (P4GlobalVar::g_switchBottleNeck / 2) + "us";
   std::string time_ref_bottle_neck = std::to_string (P4GlobalVar::g_switchBottleNeck) + "us";
   NS_LOG_INFO ("Time reference for ingress: " << time_ref_fast
@@ -290,14 +293,6 @@ P4Switch::start_and_return_ ()
   NS_LOG_FUNCTION ("p4_switch has been start");
   check_queueing_metadata ();
 
-  // if (!m_ingressTimeReference.IsZero ())
-  //   {
-  //     NS_LOG_INFO ("Scheduling initial timer event using m_ingressTimeReference = "
-  //                  << m_ingressTimeReference.GetNanoSeconds () << " ns");
-  //     // m_ingressTimerEvent =
-  //     //     Simulator::Schedule (m_ingressTimeReference, &P4Switch::RunIngressTimerEvent, this);
-  //   }
-
   if (!m_egressTimeReference.IsZero ())
     {
       NS_LOG_INFO ("Scheduling initial timer event using m_egressTimeReference = "
@@ -311,9 +306,6 @@ void
 P4Switch::RunIngressTimerEvent ()
 {
   NS_LOG_FUNCTION ("p4_switch has been triggered by the ingress timer event");
-  // parser_ingress_processing ();
-  // m_ingressTimerEvent =
-  //     Simulator::Schedule (m_ingressTimeReference, &P4Switch::RunIngressTimerEvent, this);
 }
 
 void
