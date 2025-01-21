@@ -104,7 +104,8 @@ P4PointToPointHelper::EnablePcapInternal (std::string prefix, Ptr<NetDevice> nd,
       filename = pcapHelper.GetFilenameFromDevice (prefix, device);
     }
 
-  Ptr<PcapFileWrapper> file = pcapHelper.CreateFile (filename, std::ios::out, PcapHelper::DLT_PPP);
+  Ptr<PcapFileWrapper> file =
+      pcapHelper.CreateFile (filename, std::ios::out, PcapHelper::DLT_EN10MB);
   pcapHelper.HookDefaultSink<CustomP2PNetDevice> (device, "PromiscSniffer", file);
 }
 

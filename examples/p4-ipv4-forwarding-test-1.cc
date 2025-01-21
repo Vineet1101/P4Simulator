@@ -1,7 +1,8 @@
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
 #include "ns3/applications-module.h"
-#include "ns3/csma-helper.h"
+// #include "ns3/csma-helper.h"
+#include "ns3/p4-p2p-helper.h"
 #include "ns3/internet-module.h"
 #include "ns3/bridge-helper.h"
 #include "ns3/p4-helper.h"
@@ -13,7 +14,7 @@
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE ("P4Ipv4ForwardingTest");
+NS_LOG_COMPONENT_DEFINE ("P4Ipv4ForwardingTest1");
 
 unsigned long start = getTickCount ();
 
@@ -67,7 +68,7 @@ struct HostNodeC_t
 int
 main (int argc, char *argv[])
 {
-  LogComponentEnable ("P4Ipv4ForwardingTest", LOG_LEVEL_INFO);
+  LogComponentEnable ("P4Ipv4ForwardingTest1", LOG_LEVEL_INFO);
 
   // ============================ parameters ============================
 
@@ -104,7 +105,7 @@ main (int argc, char *argv[])
                                    P4GlobalVar::PathConfig::Ns3SrcName + "contrib/p4sim/test/";
   P4GlobalVar::InitNfStrUintMap ();
 
-  P4GlobalVar::g_channelType = P4ChannelType::CSMA;
+  P4GlobalVar::g_channelType = P4ChannelType::P2P;
 
   // ============================  command line ============================
   CommandLine cmd;
@@ -153,9 +154,11 @@ main (int argc, char *argv[])
   NS_LOG_INFO ("*** Host number: " << hostNum << ", Switch number: " << switchNum);
 
   // set default network link parameter
-  CsmaHelper csma;
-  csma.SetChannelAttribute ("DataRate", StringValue ("10Mbps")); //@todo
-  csma.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (0.01)));
+  //   CsmaHelper csma;
+  //   csma.SetChannelAttribute ("DataRate", StringValue ("10Mbps")); //@todo
+  //   csma.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (0.01)));
+  P4PointToPointHelper p4p2phelper;
+  p4p2phelper.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (0.01)));
 
   //  ============================  init network link info ============================
   P4TopologyReader::ConstLinksIterator_t iter;
@@ -165,13 +168,13 @@ main (int argc, char *argv[])
   std::string dataRate, delay;
   for (iter = topoReader->LinksBegin (); iter != topoReader->LinksEnd (); iter++)
     {
-      if (iter->GetAttributeFailSafe ("DataRate", dataRate))
-        csma.SetChannelAttribute ("DataRate", StringValue (dataRate));
-      if (iter->GetAttributeFailSafe ("Delay", delay))
-        csma.SetChannelAttribute ("Delay", StringValue (delay));
+      //   if (iter->GetAttributeFailSafe ("DataRate", dataRate))
+      //     csma.SetChannelAttribute ("DataRate", StringValue (dataRate));
+      //   if (iter->GetAttributeFailSafe ("Delay", delay))
+      //     csma.SetChannelAttribute ("Delay", StringValue (delay));
 
       NetDeviceContainer link =
-          csma.Install (NodeContainer (iter->GetFromNode (), iter->GetToNode ()));
+          p4p2phelper.Install (NodeContainer (iter->GetFromNode (), iter->GetToNode ()));
       fromIndex = iter->GetFromIndex ();
       toIndex = iter->GetToIndex ();
       if (iter->GetFromType () == 's' && iter->GetToType () == 's')
@@ -374,7 +377,7 @@ main (int argc, char *argv[])
       std::filesystem::create_directories (runDir); // Ensure the directory exists
 
       std::string pcapPrefix = runDir + "/p4-ipv4-forwarding-test";
-      csma.EnablePcapAll (pcapPrefix);
+      p4p2phelper.EnablePcapAll (pcapPrefix);
       // csma.EnablePcapAll ("p4-ipv4-forwarding-test");
     }
 

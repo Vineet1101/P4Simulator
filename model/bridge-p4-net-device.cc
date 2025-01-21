@@ -182,8 +182,9 @@ BridgeP4NetDevice::ReceiveFromDevice (Ptr<NetDevice> incomingPort, Ptr<const Pac
 
       ns3Packet->AddHeader (eeh_1);
 
-      // ns3Packet->Print (std::cout);
-      // std::cout << std::endl;
+      std::cout << "* Switch Port *** Receive from Device: " << std::endl;
+      ns3Packet->Print (std::cout);
+      std::cout << std::endl;
     }
 
   m_p4Switch->ReceivePacket (ns3Packet, inPort, protocol, dst);
@@ -428,8 +429,9 @@ BridgeP4NetDevice::SendNs3Packet (Ptr<Packet> packetOut, int outPort, uint16_t p
       EthernetHeader eeh;
       packetOut->RemoveHeader (eeh); // keep the ethernet header
 
-      // packetOut->Print (std::cout);
-      // std::cout << std::endl;
+      std::cout << "* Switch Port *** Send from Device: " << std::endl;
+      packetOut->Print (std::cout);
+      std::cout << std::endl;
 
       if (outPort != 511)
         {

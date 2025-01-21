@@ -467,9 +467,9 @@ P4Switch::parser_ingress_processing ()
 
   uint32_t ingress_port = bm_packet->get_ingress_port ();
 
-  NS_LOG_DEBUG ("Processing packet from port "
-                << ingress_port << ", Packet ID: " << bm_packet->get_packet_id ()
-                << ", Size: " << bm_packet->get_data_size () << " bytes");
+  NS_LOG_INFO ("Processing packet from port "
+               << ingress_port << ", Packet ID: " << bm_packet->get_packet_id ()
+               << ", Size: " << bm_packet->get_data_size () << " bytes");
 
   auto ingress_packet_size = bm_packet->get_register (RegisterAccess::PACKET_LENGTH_REG_IDX);
 
@@ -518,9 +518,9 @@ P4Switch::parser_ingress_processing ()
   // INGRESS CLONING
   if (clone_mirror_session_id)
     {
-      NS_LOG_DEBUG ("Cloning packet at ingress, Packet ID: "
-                    << bm_packet->get_packet_id () << ", Size: " << bm_packet->get_data_size ()
-                    << " bytes");
+      NS_LOG_INFO ("Cloning packet at ingress, Packet ID: "
+                   << bm_packet->get_packet_id () << ", Size: " << bm_packet->get_data_size ()
+                   << " bytes");
 
       RegisterAccess::set_clone_mirror_session_id (bm_packet.get (), 0);
       RegisterAccess::set_clone_field_list (bm_packet.get (), 0);
