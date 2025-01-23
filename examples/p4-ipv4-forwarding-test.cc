@@ -91,7 +91,7 @@ main (int argc, char *argv[])
   double global_start_time = 1.0;
   double sink_start_time = global_start_time + 1.0;
   double client_start_time = sink_start_time + 1.0;
-  double client_stop_time = client_start_time + 5; // sending time 30s
+  double client_stop_time = client_start_time + 10; // sending time 30s
   double sink_stop_time = client_stop_time + 10;
   double global_stop_time = sink_stop_time + 10;
 
@@ -154,8 +154,8 @@ main (int argc, char *argv[])
 
   // set default network link parameter
   CsmaHelper csma;
-  csma.SetChannelAttribute ("DataRate", StringValue ("10Mbps")); //@todo
-  csma.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (0.01)));
+  csma.SetChannelAttribute ("DataRate", StringValue ("1000Mbps")); //@todo
+  // csma.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (0.01)));
 
   //  ============================  init network link info ============================
   P4TopologyReader::ConstLinksIterator_t iter;
@@ -165,10 +165,10 @@ main (int argc, char *argv[])
   std::string dataRate, delay;
   for (iter = topoReader->LinksBegin (); iter != topoReader->LinksEnd (); iter++)
     {
-      if (iter->GetAttributeFailSafe ("DataRate", dataRate))
-        csma.SetChannelAttribute ("DataRate", StringValue (dataRate));
-      if (iter->GetAttributeFailSafe ("Delay", delay))
-        csma.SetChannelAttribute ("Delay", StringValue (delay));
+      // if (iter->GetAttributeFailSafe ("DataRate", dataRate))
+      //   csma.SetChannelAttribute ("DataRate", StringValue (dataRate));
+      // if (iter->GetAttributeFailSafe ("Delay", delay))
+      //   csma.SetChannelAttribute ("Delay", StringValue (delay));
 
       NetDeviceContainer link =
           csma.Install (NodeContainer (iter->GetFromNode (), iter->GetToNode ()));
@@ -357,7 +357,7 @@ main (int argc, char *argv[])
   onOff1.SetAttribute ("DataRate", StringValue (appDataRate));
   onOff1.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]"));
   onOff1.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0]"));
-  // onOff1.SetAttribute ("MaxBytes", UintegerValue (2000));
+  // onOff1.SetAttribute ("MaxBytes", UintegerValue (200000));
 
   ApplicationContainer app1 = onOff1.Install (terminals.Get (clientI));
   app1.Start (Seconds (client_start_time));

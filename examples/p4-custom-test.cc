@@ -373,7 +373,7 @@ main (int argc, char *argv[])
 
   unsigned int serverI = 1;
   unsigned int clientI = 0;
-  uint16_t servPort = 2000;
+  uint16_t servPort = 12000;
 
   Ptr<Node> node = terminals.Get (serverI);
   Ptr<Ipv4> ipv4_adder = node->GetObject<Ipv4> ();

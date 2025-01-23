@@ -79,10 +79,19 @@ public:
   static TypeId GetTypeId (void);
   virtual TypeId GetInstanceTypeId (void) const override;
 
+  uint16_t
+  GetOffset () const
+  {
+    return m_offset_bytes;
+  }
+
   virtual void Serialize (Buffer::Iterator start) const override;
   virtual uint32_t Deserialize (Buffer::Iterator start) override;
   virtual uint32_t GetSerializedSize (void) const override;
   virtual void Print (std::ostream &os) const override;
+
+  // static void InsertCustomHeader (Ptr<Packet> packet, const CustomHeader &header);
+  // static void RemoveHeaderAtOffset (Ptr<Packet> packet, CustomHeader &header);
 
 private:
   HeaderLayer m_layer; // OSI Layer for this header

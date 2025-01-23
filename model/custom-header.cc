@@ -3,6 +3,7 @@
 #include "ns3/log.h"
 #include "ns3/string.h" // For StringValue
 #include "ns3/attribute.h" // For MakeStringAccessor and MakeStringChecker
+#include "ns3/assert.h"
 
 namespace ns3 {
 
@@ -63,6 +64,7 @@ CustomHeader::operator= (const CustomHeader &other)
   m_op = other.m_op;
   m_protocol_number = other.m_protocol_number;
   m_fields = other.m_fields; // Use std::vector's copy constructor
+  m_offset_bytes = other.m_offset_bytes;
 
   NS_LOG_DEBUG ("Assignment operator called");
   return *this;
@@ -145,6 +147,42 @@ CustomHeader::CalculateHeaderInsertOffset (HeaderLayer layer, HeaderLayerOperato
 //   m_offset_bytes = CalculateHeaderInsertOffset (layer, operation);
 // }
 
+// void
+// CustomHeader::InsertCustomHeader (Ptr<Packet> packet, const CustomHeader &header)
+// {
+//   uint32_t headerSize = header.GetSerializedSize ();
+//   NS_ASSERT_MSG (header.GetOffset () <= packet->GetSize (), "Offset is out of bounds!");
+
+//   // Insertion position: Start from the packet buffer and move to the specified offset
+//   Buffer::Iterator insertPosition = packet->GetBuffer ()->Begin ();
+//   insertPosition.Next (header.GetOffset ());
+
+//   // Expand the buffer for the new header
+//   packet->GetBuffer ()->AddAt (insertPosition, headerSize);
+
+//   // Serialize the Header to the specified location
+//   header.Serialize (insertPosition);
+// }
+
+// void
+// CustomHeader::RemoveHeaderAtOffset (Ptr<Packet> packet, CustomHeader &header)
+// {
+//   uint16_t offset = header.GetOffset ();
+//   NS_ASSERT_MSG (offset <= packet->GetSize (), "Offset is out of bounds!");
+
+//   // 定位到 Header 的位置
+//   Buffer::Iterator start = packet->GetBuffer ()->Begin ();
+//   start.Next (offset);
+
+//   // 获取 Header 的大小并反序列化
+//   Buffer::Iterator end = start;
+//   end.Next (header.GetSerializedSize ());
+//   uint32_t deserializedSize = header.Deserialize (start, end);
+
+//   // 从缓冲区中移除 Header
+//   packet->GetBuffer ()->RemoveAt (offset, deserializedSize);
+// }
+
 void
 CustomHeader::AddField (const std::string &name, uint32_t bitWidth)
 {
@@ -190,7 +228,7 @@ CustomHeader::GetField (const std::string &name) const
 void
 CustomHeader::SetProtocolFieldNumber (uint64_t id)
 {
-  if (m_fields.empty ()) // 判断是否已经赋值
+  if (m_fields.empty ())
     {
       NS_LOG_WARN ("m_fields is empty! Set protocol number.");
     }

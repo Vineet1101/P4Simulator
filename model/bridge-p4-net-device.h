@@ -74,6 +74,7 @@ public:
   static TypeId GetTypeId ();
 
   BridgeP4NetDevice ();
+  BridgeP4NetDevice (int num_ports);
   ~BridgeP4NetDevice () override;
 
   // Delete copy constructor and assignment operator to avoid misuse

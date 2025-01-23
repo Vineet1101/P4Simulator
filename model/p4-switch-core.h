@@ -28,6 +28,7 @@
 
 #include <map>
 #include <vector>
+// #include <thread>
 
 #include <bm/bm_sim/packet.h>
 #include <bm/bm_sim/switch.h>
@@ -127,7 +128,9 @@ public:
 
   void enqueue (port_t egress_port, std::unique_ptr<bm::Packet> &&packet);
 
-  void egress_deparser_processing (size_t worker_id);
+  bool egress_deparser_processing (size_t worker_id);
+
+  void transmit_event ();
 
   void multicast (bm::Packet *packet, unsigned int mgid);
 
@@ -140,8 +143,9 @@ public:
   int set_egress_queue_rate (size_t port, const uint64_t rate_pps);
   int set_all_egress_queue_rates (const uint64_t rate_pps);
 
-  void RunIngressTimerEvent ();
+  // void RunIngressTimerEvent ();
   void RunEgressTimerEvent ();
+  // void RunTransmitTimerEvent ();
 
   Ptr<Packet> get_ns3_packet (std::unique_ptr<bm::Packet> &&bm_packet);
 
@@ -161,8 +165,6 @@ private:
 
   int p4_switch_ID; //!< ID of the switch
 
-  size_t worker_id; //!< worker_id = threads_id, here only one
-
   // time event for processing
   // EventId m_ingressTimerEvent; //!< The timer event ID [Ingress]
   // Time m_ingressTimeReference; //!< Desired time between timer event triggers
@@ -170,9 +172,9 @@ private:
   Time m_egressTimeReference; //!< Desired time between timer event triggers
   // EventId m_transmitTimerEvent; //!< The timer event ID [Transfer]
   // Time m_transmitTimeReference; //!< Desired time between timer event triggers
+  // std::mutex m_transmit_mutex; //!< Mutex for the switch
 
-  static constexpr size_t nb_egress_threads =
-      1u; // 4u default in bmv2, but in ns-3 remove the multi-thread
+  static constexpr size_t nb_egress_threads = 1u; // 4u default in bmv2
   static uint64_t packet_id;
   BridgeP4NetDevice *m_pNetDevice;
 
@@ -201,6 +203,7 @@ private:
   port_t drop_port; //!< Port to drop packets
   std::unique_ptr<InputBuffer> input_buffer;
   size_t nb_queues_per_port;
+  // std::vector<std::thread> threads_;
   NSQueueingLogicPriRL<std::unique_ptr<bm::Packet>, EgressThreadMapper> egress_buffers;
   bm::Queue<std::unique_ptr<bm::Packet>> output_buffer;
   TransmitFn my_transmit_fn;
