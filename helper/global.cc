@@ -20,8 +20,8 @@ std::string P4GlobalVar::g_flowTablePath = "";
 std::string P4GlobalVar::g_viewFlowTablePath = "";
 std::string P4GlobalVar::g_p4JsonPath = "";
 
-// Bottleneck configuration
-int P4GlobalVar::g_switchBottleNeck = 10000;
+// Bottleneck configuration, packet per second [pps]
+uint64_t P4GlobalVar::g_switchBottleNeck = 10000;
 
 // Simulation type and mapping
 unsigned int P4GlobalVar::g_nsType = P4Simulator;

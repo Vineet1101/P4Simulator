@@ -201,14 +201,12 @@ P4Switch::P4Switch (BridgeP4NetDevice *netDevice, bool enable_swap, port_t drop_
   m_egressTimerEvent = EventId (); // default initial value
   // m_transmitTimerEvent = EventId (); // default initial value
 
-  uint64_t bottleneck_us = P4GlobalVar::g_switchBottleNeck; //Packet sending interval (unit: us)
-  double packet_rate_pps =
-      1e6 / static_cast<double> (bottleneck_us); //Packet sending frequency (unit: pps)
-
+  double packet_rate_pps = P4GlobalVar::g_switchBottleNeck; //Packet sending frequency (unit: pps)
+  uint64_t bottleneck_ns = 1e9 / packet_rate_pps;
   egress_buffers.set_rate_for_all (packet_rate_pps);
-  m_egressTimeReference = Time::FromDouble (bottleneck_us, Time::US);
+  m_egressTimeReference = Time::FromDouble (bottleneck_ns, Time::NS);
   NS_LOG_DEBUG ("Egress time reference set to "
-                << bottleneck_us << " us (" << m_egressTimeReference.GetSeconds () << " seconds)");
+                << bottleneck_ns << " ns (" << m_egressTimeReference.GetNanoSeconds () << " [ns])");
 
   // Now init the switch queue with 0 port, later the bridge will add the ports
   uint32_t nPorts = netDevice->GetNBridgePorts ();
@@ -300,7 +298,7 @@ P4Switch::start_and_return_ ()
   if (!m_egressTimeReference.IsZero ())
     {
       NS_LOG_INFO ("Scheduling initial timer event using m_egressTimeReference = "
-                   << m_egressTimeReference.GetMicroSeconds () << " ns");
+                   << m_egressTimeReference.GetNanoSeconds () << " ns");
       m_egressTimerEvent =
           Simulator::Schedule (m_egressTimeReference, &P4Switch::RunEgressTimerEvent, this);
     }
@@ -308,7 +306,7 @@ P4Switch::start_and_return_ ()
   // if (!m_transmitTimeReference.IsZero ())
   //   {
   //     NS_LOG_INFO ("Scheduling initial timer event using m_transmitTimeReference = "
-  //                  << m_transmitTimeReference.GetMicroSeconds () << " us");
+  //                  << m_transmitTimeReference.GetNanoSeconds () << " us");
   //     m_transmitTimerEvent =
   //         Simulator::Schedule (m_transmitTimeReference, &P4Switch::RunTransmitTimerEvent, this);
   //   }
@@ -335,7 +333,7 @@ P4Switch::RunEgressTimerEvent ()
   if (m_firstRun && !checkflag)
     {
       NS_LOG_INFO ("Egress timer event needs additional scheduling due to !checkflag.");
-      Simulator::Schedule (Time (MicroSeconds (1)), &P4Switch::egress_deparser_processing, this, 0);
+      Simulator::Schedule (Time (NanoSeconds (10)), &P4Switch::egress_deparser_processing, this, 0);
     }
 }
 
@@ -427,7 +425,7 @@ P4Switch::ReceivePacket (Ptr<Packet> packetIn, int inPort, uint16_t protocol,
   if (phv->has_field ("intrinsic_metadata.ingress_global_timestamp"))
     {
       phv->get_field ("intrinsic_metadata.ingress_global_timestamp")
-          .set (Simulator::Now ().GetMicroSeconds ());
+          .set (Simulator::Now ().GetNanoSeconds ());
     }
 
   input_buffer->push_front (InputBuffer::PacketType::NORMAL, std::move (bm_packet));
@@ -446,7 +444,7 @@ P4Switch::enqueue (port_t egress_port, std::unique_ptr<bm::Packet> &&packet)
 
   if (with_queueing_metadata)
     {
-      uint64_t enq_time_stamp = Simulator::Now ().GetMicroSeconds ();
+      uint64_t enq_time_stamp = Simulator::Now ().GetNanoSeconds ();
       phv->get_field ("queueing_metadata.enq_timestamp").set (enq_time_stamp);
       phv->get_field ("queueing_metadata.enq_qdepth").set (egress_buffers.size (egress_port));
     }
@@ -700,14 +698,14 @@ P4Switch::parser_ingress_processing ()
 //       if (phv->has_field ("intrinsic_metadata.egress_global_timestamp"))
 //         {
 //           phv->get_field ("intrinsic_metadata.egress_global_timestamp")
-//               .set (Simulator::Now ().GetMicroSeconds ());
+//               .set (Simulator::Now ().GetNanoSeconds ());
 //         }
 
 //       if (with_queueing_metadata)
 //         {
 //           uint64_t enq_timestamp =
 //               phv->get_field ("queueing_metadata.enq_timestamp").get<uint64_t> ();
-//           uint64_t now = Simulator::Now ().GetMicroSeconds ();
+//           uint64_t now = Simulator::Now ().GetNanoSeconds ();
 //           phv->get_field ("queueing_metadata.deq_timedelta").set (now - enq_timestamp);
 
 //           size_t priority = phv->has_field (SSWITCH_PRIORITY_QUEUEING_SRC)
@@ -879,13 +877,13 @@ P4Switch::egress_deparser_processing (size_t worker_id)
   if (phv->has_field ("intrinsic_metadata.egress_global_timestamp"))
     {
       phv->get_field ("intrinsic_metadata.egress_global_timestamp")
-          .set (Simulator::Now ().GetMicroSeconds ());
+          .set (Simulator::Now ().GetNanoSeconds ());
     }
 
   if (with_queueing_metadata)
     {
       uint64_t enq_timestamp = phv->get_field ("queueing_metadata.enq_timestamp").get<uint64_t> ();
-      uint64_t now = Simulator::Now ().GetMicroSeconds ();
+      uint64_t now = Simulator::Now ().GetNanoSeconds ();
       phv->get_field ("queueing_metadata.deq_timedelta").set (now - enq_timestamp);
 
       size_t priority = phv->has_field (SSWITCH_PRIORITY_QUEUEING_SRC)

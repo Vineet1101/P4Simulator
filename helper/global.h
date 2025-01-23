@@ -84,7 +84,7 @@ public:
       {{"proto_id", 16}, {"dst_id", 16}}};
 
   // Bottleneck configuration
-  static int g_switchBottleNeck;
+  static uint64_t g_switchBottleNeck;
 
   // Simulation type and mapping
   static unsigned int g_nsType;

@@ -81,17 +81,17 @@ main (int argc, char *argv[])
   uint16_t pktSize = 1000; //in Bytes. 1458 to prevent fragments, default 512
 
   // h1 -> h2 with 2.0Mbps
-  std::string appDataRate = "100Mbps"; // Default application data rate
+  std::string appDataRate = "1000Mbps"; // Default application data rate
 
   // P4GlobalVar::g_switchBottleNeck = 2430; // 1 / 445 = 2247 2450
   // Here we need calculated the congestion, how many packets we want to pass the queue
-  uint64_t congestion_bottleneck = 100; // Mbps
+  uint64_t congestion_bottleneck = 1000; // Mbps
 
   bool enableTracePcap = false;
   double global_start_time = 1.0;
   double sink_start_time = global_start_time + 1.0;
   double client_start_time = sink_start_time + 1.0;
-  double client_stop_time = client_start_time + 10; // sending time 30s
+  double client_stop_time = client_start_time + 3; // sending time 30s
   double sink_stop_time = client_stop_time + 10;
   double global_stop_time = sink_stop_time + 10;
 
@@ -120,11 +120,14 @@ main (int argc, char *argv[])
   // ===== Here the packets size is 1000 bytes (This is sending rate in Application layer, when add
   // header underlayer will be 1000 + 46 bytes (Check the PCAP file) =====`
 
-  uint64_t rate_pps = (uint64_t) (congestion_bottleneck * 1000 * 1000 / ((pktSize + 46) * 8));
-  P4GlobalVar::g_switchBottleNeck = (uint64_t) (1000000 / rate_pps); // pps/us
+  // pps
+  P4GlobalVar::g_switchBottleNeck =
+      (uint64_t) (congestion_bottleneck * 1000 * 1000 / ((pktSize + 46) * 8));
   NS_LOG_INFO ("*** Congestion bottleneck: "
-               << congestion_bottleneck << " Mbps, rate_pps: " << rate_pps
-               << " pps, switch bottleneck: " << P4GlobalVar::g_switchBottleNeck << " us");
+               << congestion_bottleneck << " Mbps, packet size: " << pktSize
+               << " pps, switch bottleneck: " << P4GlobalVar::g_switchBottleNeck << " ns");
+
+  // with Gbps
 
   // ============================ topo -> network ============================
 
