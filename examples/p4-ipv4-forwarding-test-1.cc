@@ -32,6 +32,15 @@ ConvertIpToHex (Ipv4Address ipAddr)
   return hexStream.str ();
 }
 
+// 在仿真结束时打印总吞吐量
+void
+CalculateThroughput (Ptr<PacketSink> sink, double simulationTime)
+{
+  uint64_t totalRx = sink->GetTotalRx (); // 获取总接收字节数
+  double throughput = (totalRx * 8.0) / (simulationTime * 1e6); // 转换为 Mbps
+  std::cout << "Total Throughput: " << throughput << " Mbps" << std::endl;
+}
+
 // Convert MAC address to hexadecimal format
 std::string
 ConvertMacToHex (Address macAddr)
@@ -84,9 +93,8 @@ main (int argc, char *argv[])
   // h1 -> h2 with 2.0Mbps
   std::string appDataRate = "100Mbps"; // Default application data rate
 
-  // P4GlobalVar::g_switchBottleNeck = 2430; // 1 / 445 = 2247 2450
   // Here we need calculated the congestion, how many packets we want to pass the queue
-  uint64_t congestion_bottleneck = 100; // Mbps
+  uint64_t congestion_bottleneck = 10000; // Mbps
 
   bool enableTracePcap = false;
   double global_start_time = 1.0;
@@ -121,17 +129,17 @@ main (int argc, char *argv[])
   // ===== Here the packets size is 1000 bytes (This is sending rate in Application layer, when add
   // header underlayer will be 1000 + 46 bytes (Check the PCAP file) =====`
 
-  uint64_t rate_pps = (uint64_t) (congestion_bottleneck * 1000 * 1000 / ((pktSize + 46) * 8));
-  P4GlobalVar::g_switchBottleNeck = (uint64_t) (1000000 / rate_pps); // pps/us
+  P4GlobalVar::g_switchBottleNeck =
+      (uint64_t) (congestion_bottleneck * 1000 * 1000 / ((pktSize + 46) * 8));
   NS_LOG_INFO ("*** Congestion bottleneck: "
-               << congestion_bottleneck << " Mbps, rate_pps: " << rate_pps
-               << " pps, switch bottleneck: " << P4GlobalVar::g_switchBottleNeck << " us");
+               << congestion_bottleneck << " Mbps, packet size: " << pktSize
+               << " pps, switch bottleneck: " << P4GlobalVar::g_switchBottleNeck << " ns");
 
   // ============================ topo -> network ============================
 
   // loading from topo file --> gene topo(linking the nodes)
   std::string topoInput = P4GlobalVar::PathConfig::NfDir + "test_simple/topo.txt";
-  std::string topoFormat ("CsmaTopo");
+  std::string topoFormat ("P2PTopo");
 
   P4TopologyReaderHelper p4TopoHelp;
   p4TopoHelp.SetFileName (topoInput);
@@ -158,7 +166,7 @@ main (int argc, char *argv[])
   //   csma.SetChannelAttribute ("DataRate", StringValue ("10Mbps")); //@todo
   //   csma.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (0.01)));
   P4PointToPointHelper p4p2phelper;
-  p4p2phelper.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (0.01)));
+  // p4p2phelper.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (0.01)));
 
   //  ============================  init network link info ============================
   P4TopologyReader::ConstLinksIterator_t iter;
@@ -360,11 +368,21 @@ main (int argc, char *argv[])
   onOff1.SetAttribute ("DataRate", StringValue (appDataRate));
   onOff1.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]"));
   onOff1.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0]"));
-  // onOff1.SetAttribute ("MaxBytes", UintegerValue (2000));
+  onOff1.SetAttribute ("MaxBytes", UintegerValue (200000));
 
   ApplicationContainer app1 = onOff1.Install (terminals.Get (clientI));
   app1.Start (Seconds (client_start_time));
   app1.Stop (Seconds (client_stop_time));
+
+  sinkApp1.Get (0)->GetObject<PacketSink> (); // 获取 PacketSink 应用程序
+  Ptr<PacketSink> sink = DynamicCast<PacketSink> (sinkApp1.Get (0));
+  if (sink == nullptr)
+    {
+      std::cerr << "Error: DynamicCast to PacketSink failed!" << std::endl;
+      return 0;
+    }
+  double sink_simulationTime = sink_stop_time - sink_start_time; // 仿真时间
+  Simulator::Schedule (Seconds (sink_stop_time), &CalculateThroughput, sink, sink_simulationTime);
 
   // Enable pcap tracing
   if (enableTracePcap)

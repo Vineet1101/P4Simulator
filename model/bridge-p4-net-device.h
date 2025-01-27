@@ -50,18 +50,6 @@ class P4Switch;
  * BridgeP4NetDevice is a subclass of NetDevice in the ns-3 domain and serves as
  * the network layer of a P4 target. It is compatible with other net devices
  * in ns-3.
- *
- * \attention The Spanning Tree Protocol part of 802.1D is not
- * implemented.  Therefore, you have to be careful not to create
- * bridging loops, or else the network will collapse.
- *
- * \TODO Create a new channel class supporting arbitrary underlying channel.
- */
-
-/**
- * \ingroup bridge
- * \brief A Bridge Net Device with Programmable Data Plane, based on that,
- * it also can be a p4 switch in network.
  */
 class BridgeP4NetDevice : public NetDevice
 {
@@ -74,7 +62,6 @@ public:
   static TypeId GetTypeId ();
 
   BridgeP4NetDevice ();
-  BridgeP4NetDevice (int num_ports);
   ~BridgeP4NetDevice () override;
 
   // Delete copy constructor and assignment operator to avoid misuse

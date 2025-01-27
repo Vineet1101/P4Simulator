@@ -37,12 +37,6 @@
 #include <ns3/tcp-l4-protocol.h>
 #include <ns3/udp-l4-protocol.h>
 
-/**
- * \file
- * \ingroup bridge
- * ns3::BridgeP4NetDevice implementation.
- */
-
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("BridgeP4NetDevice");
@@ -65,47 +59,6 @@ BridgeP4NetDevice::GetTypeId ()
 }
 
 BridgeP4NetDevice::BridgeP4NetDevice () : m_node (nullptr), m_ifIndex (0)
-{
-  NS_LOG_FUNCTION_NOARGS ();
-  m_channel = CreateObject<P4BridgeChannel> ();
-
-  m_p4Switch = new P4Switch (this);
-
-  P4SwitchInterface *p4SwitchInterface = P4GlobalVar::g_p4Controller.AddP4Switch ();
-  p4SwitchInterface->SetP4NetDeviceCore (m_p4Switch); //!< Pointer to the P4 core model.
-  p4SwitchInterface->SetJsonPath (
-      P4GlobalVar::g_p4JsonPath); //!< Path to the P4 JSON configuration file.
-  p4SwitchInterface->SetP4InfoPath (P4GlobalVar::g_p4MatchTypePath); //!< Path to the P4 info file.
-  p4SwitchInterface->SetFlowTablePath (
-      P4GlobalVar::g_flowTablePath); //!< Path to the flow table file.
-  p4SwitchInterface->SetViewFlowTablePath (
-      P4GlobalVar::g_viewFlowTablePath); //!< Path to the view flow table file.
-  p4SwitchInterface->SetNetworkFunc (
-      static_cast<unsigned int> (P4GlobalVar::g_networkFunc)); //!< Network function ID.
-  p4SwitchInterface->SetPopulateFlowTableWay (
-      P4GlobalVar::g_populateFlowTableWay); //!< Method to populate the flow table.
-
-  // std::string jsonPath = P4GlobalVar::g_p4JsonPath;
-  // std::vector<char*> args;
-  // args.push_back(nullptr);
-  // args.push_back(jsonPath.data());
-  // m_p4Switch->init(static_cast<int>(args.size()), args.data());
-
-  p4SwitchInterface->Init (); // init the switch with p4 configure files (*.json)
-
-  m_p4Switch->start_and_return_ ();
-
-  // // Init P4Model Flow Table
-  // if (P4GlobalVar::g_populateFlowTableWay == LOCAL_CALL)
-  //     p4SwitchInterface->Init();
-
-  // Clear the local pointer to avoid accidental use; the object is managed by P4Controller
-  p4SwitchInterface = nullptr;
-
-  NS_LOG_LOGIC ("A P4 Netdevice was initialized.");
-}
-
-BridgeP4NetDevice::BridgeP4NetDevice (int num_ports)
 {
   NS_LOG_FUNCTION_NOARGS ();
   m_channel = CreateObject<P4BridgeChannel> ();
@@ -455,18 +408,19 @@ BridgeP4NetDevice::SendNs3Packet (Ptr<Packet> packetOut, int outPort, uint16_t p
 
   if (packetOut)
     {
-      EthernetHeader eeh_1;
-      if (packetOut->PeekHeader (eeh_1))
-        {
-          NS_LOG_DEBUG ("Ethernet packet");
-          // log the ethernet header information
-          Mac48Address src_mac = eeh_1.GetSource ();
-          Mac48Address dst_mac = eeh_1.GetDestination ();
-          uint16_t protocol_eth = eeh_1.GetLengthType ();
-          protocol = protocol_eth; // Keep the protocol number of the packet
-          NS_LOG_DEBUG ("Source MAC: " << src_mac << ", Destination MAC: " << dst_mac
-                                       << ", Protocol: " << protocol_eth);
-        }
+      // Print the packet's header
+      // EthernetHeader eeh_1;
+      // if (packetOut->PeekHeader (eeh_1))
+      //   {
+      //     NS_LOG_DEBUG ("Ethernet packet");
+      //     // log the ethernet header information
+      //     Mac48Address src_mac = eeh_1.GetSource ();
+      //     Mac48Address dst_mac = eeh_1.GetDestination ();
+      //     uint16_t protocol_eth = eeh_1.GetLengthType ();
+      //     protocol = protocol_eth; // Keep the protocol number of the packet
+      //     NS_LOG_DEBUG ("Source MAC: " << src_mac << ", Destination MAC: " << dst_mac
+      //                                  << ", Protocol: " << protocol_eth);
+      //   }
 
       EthernetHeader eeh;
       packetOut->RemoveHeader (eeh); // keep the ethernet header
@@ -480,7 +434,7 @@ BridgeP4NetDevice::SendNs3Packet (Ptr<Packet> packetOut, int outPort, uint16_t p
         {
           NS_LOG_DEBUG ("EgressPortNum: " << outPort);
           Ptr<NetDevice> outNetDevice = GetBridgePort (outPort);
-          outNetDevice->Send (packetOut->Copy (), destination, protocol);
+          outNetDevice->Send (packetOut, destination, protocol);
         }
     }
   else

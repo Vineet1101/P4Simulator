@@ -182,9 +182,9 @@ CustomP2PNetDevice::AddHeader (Ptr<Packet> p, Mac48Address source, Mac48Address 
 {
   NS_LOG_FUNCTION (p << source << dest << protocolNumber);
 
-  std::cout << "***Netdevice: Sending: before adding the custom header " << std::endl;
-  p->Print (std::cout);
-  std::cout << " " << std::endl;
+  // std::cout << "***Netdevice: Sending: before adding the custom header " << std::endl;
+  // p->Print (std::cout);
+  // std::cout << " " << std::endl;
 
   // ADD the Ethernet header with "new" MAC address
   EthernetHeader eeh_header (false);
@@ -444,9 +444,9 @@ CustomP2PNetDevice::AddHeader (Ptr<Packet> p, Mac48Address source, Mac48Address 
       NS_LOG_WARN ("Unknown layer for the custom header");
     }
 
-  std::cout << "***Netdevice: Sending: after adding the custom header " << std::endl;
-  p->Print (std::cout);
-  std::cout << " " << std::endl;
+  // std::cout << "***Netdevice: Sending: after adding the custom header " << std::endl;
+  // p->Print (std::cout);
+  // std::cout << " " << std::endl;
 
   NS_LOG_DEBUG ("==== finish Adding header, Packet Length " << p->GetSize ());
 }
@@ -726,9 +726,9 @@ CustomP2PNetDevice::Receive (Ptr<Packet> packet)
       //
       Ptr<Packet> originalPacket = packet->Copy ();
 
-      std::cout << "***Netdevice: Receive: before remove the custom header " << std::endl;
-      originalPacket->Print (std::cout);
-      std::cout << " " << std::endl;
+      // std::cout << "***Netdevice: Receive: before remove the custom header " << std::endl;
+      // originalPacket->Print (std::cout);
+      // std::cout << " " << std::endl;
 
       //
       // Strip off the point-to-point protocol header and forward this packet
@@ -740,9 +740,9 @@ CustomP2PNetDevice::Receive (Ptr<Packet> packet)
 
       // PrintPacketHeaders (packet); // @TEST
 
-      std::cout << "***Netdevice: Receive: after remove the custom header " << std::endl;
-      packet->Print (std::cout);
-      std::cout << " " << std::endl;
+      // std::cout << "***Netdevice: Receive: after remove the custom header " << std::endl;
+      // packet->Print (std::cout);
+      // std::cout << " " << std::endl;
 
       if (!m_promiscCallback.IsNull ())
         {

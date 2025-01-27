@@ -33,7 +33,6 @@ def build(bld):
     ]
     module = bld.create_ns3_module('p4sim', req_ns3_modules)
     module.source = [
-        'model/p4sim.cc',
         'model/p4-queue.cc',
         'model/p4-bridge-channel.cc',
         'model/p4-p2p-channel.cc',
@@ -75,7 +74,6 @@ def build(bld):
     headers = bld(features='ns3header')
     headers.module = 'p4sim'
     headers.source = [
-        'model/p4sim.h',
         'model/p4-queue.h',
         'model/p4-bridge-channel.h',
         'model/p4-p2p-channel.h',

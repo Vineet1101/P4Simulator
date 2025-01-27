@@ -114,7 +114,6 @@ HexCharToInt (char c)
   if (c >= 'A' && c <= 'F')
     return c - 'A' + 10;
 
-  // 如果字符不是有效的十六进制字符，抛出异常
   throw std::invalid_argument ("Invalid hex character");
 }
 
@@ -124,18 +123,18 @@ HexStrToBytes (const std::string &str)
   NS_LOG_FUNCTION (str);
   try
     {
-      // 检查并去掉前缀 "0x"（如果存在）
+      // Check and remove the prefix "0x" if it exists
       std::string hexStr = (str.find ("0x") == 0) ? str.substr (2) : str;
       NS_LOG_INFO ("Processed hex string: " << hexStr);
 
-      // 验证长度必须为偶数
+      // Verify that the length must be an even number
       if (hexStr.size () % 2 != 0)
         {
           NS_LOG_ERROR ("Hex string length must be even.");
           throw std::invalid_argument ("Hex string length must be even");
         }
 
-      // 验证输入字符串是否只包含有效的十六进制字符
+      // Verify that the input string contains only valid hexadecimal characters
       for (char c : hexStr)
         {
           if (!std::isxdigit (c))
