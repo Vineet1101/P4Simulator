@@ -24,6 +24,23 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE ("P4Ipv4ForwardingTest");
 
 unsigned long start = getTickCount ();
+double global_start_time = 1.0;
+double sink_start_time = global_start_time + 1.0;
+double client_start_time = sink_start_time + 1.0;
+double client_stop_time = client_start_time + 3; // sending time 30s
+double sink_stop_time = client_stop_time + 5;
+double global_stop_time = sink_stop_time + 5;
+
+bool first_tx = true;
+bool first_rx = true;
+int counter_sender_10 = 10;
+int counter_receiver_10 = 10;
+double first_packet_send_time_tx = 0.0;
+double last_packet_send_time_tx = 0.0;
+double first_packet_received_time_rx = 0.0;
+double last_packet_received_time_rx = 0.0;
+uint64_t totalTxBytes = 0;
+uint64_t totalRxBytes = 0;
 
 // Convert IP address to hexadecimal format
 std::string
@@ -56,6 +73,62 @@ ConvertMacToHex (Address macAddr)
   return hexStream.str ();
 }
 
+void
+TxCallback (Ptr<const Packet> packet)
+{
+  if (first_tx)
+    {
+      first_packet_send_time_tx = Simulator::Now ().GetSeconds ();
+      counter_sender_10--;
+      if (counter_sender_10 == 0)
+        {
+          first_tx = false;
+        }
+    }
+  totalTxBytes += packet->GetSize ();
+  last_packet_send_time_tx = Simulator::Now ().GetSeconds ();
+}
+
+void
+RxCallback (Ptr<const Packet> packet, const Address &addr)
+{
+  if (first_rx)
+    {
+      first_packet_received_time_rx = Simulator::Now ().GetSeconds ();
+      counter_receiver_10--;
+      if (counter_receiver_10 == 0)
+        {
+          first_rx = false;
+        }
+    }
+  totalRxBytes += packet->GetSize ();
+  last_packet_received_time_rx = Simulator::Now ().GetSeconds ();
+}
+
+void
+PrintFinalThroughput ()
+{
+  double send_time = last_packet_send_time_tx - first_packet_send_time_tx;
+  double elapsed_time = last_packet_received_time_rx - first_packet_received_time_rx;
+
+  double finalTxThroughput = (totalTxBytes * 8.0) / (send_time * 1e6);
+  double finalRxThroughput = (totalRxBytes * 8.0) / (elapsed_time * 1e6);
+  std::cout << "client_start_time: " << first_packet_send_time_tx
+            << "client_stop_time: " << last_packet_send_time_tx
+            << "sink_start_time: " << first_packet_received_time_rx
+            << "sink_stop_time: " << last_packet_received_time_rx << std::endl;
+
+  std::cout << "======================================" << std::endl;
+  std::cout << "Final Simulation Results:" << std::endl;
+  std::cout << "Total Transmitted Bytes: " << totalTxBytes << " bytes in time " << send_time
+            << std::endl;
+  std::cout << "Total Received Bytes: " << totalRxBytes << " bytes in time " << elapsed_time
+            << std::endl;
+  std::cout << "Final Transmitted Throughput: " << finalTxThroughput << " Mbps" << std::endl;
+  std::cout << "Final Received Throughput: " << finalRxThroughput << " Mbps" << std::endl;
+  std::cout << "======================================" << std::endl;
+}
+
 // ============================ data struct ============================
 struct SwitchNodeC_t
 {
@@ -83,26 +156,14 @@ main (int argc, char *argv[])
 
   // ============================ parameters ============================
 
-  // Simulation parameters
-
   int running_number = 0;
   uint16_t pktSize = 1000; //in Bytes. 1458 to prevent fragments, default 512
 
-  // h1 -> h2 with 2.0Mbps
   std::string appDataRate = "1Mbps"; // Default application data rate
-
-  // P4GlobalVar::g_switchBottleNeck = 2430; // 1 / 445 = 2247 2450
-  // Here we need calculated the congestion, how many packets we want to pass the queue
   uint64_t congestion_bottleneck = 1000; // Mbps
-
+  std::string ns3_link_rate = "1000Mbps";
   bool enableTracePcap = false;
-  double global_start_time = 1.0;
-  double sink_start_time = global_start_time + 1.0;
-  double client_start_time = sink_start_time + 1.0;
-  double client_stop_time = client_start_time + 10; // sending time 30s
-  double sink_stop_time = client_stop_time + 10;
-  double global_stop_time = sink_stop_time + 10;
-
+  P4GlobalVar::g_nsType = P4Simulator;
   // P4 simulation paths
   // P4GlobalVar::HomePath = "/home/p4/workdir/";
   // P4GlobalVar::g_ns3RootName = "";
@@ -116,12 +177,14 @@ main (int argc, char *argv[])
 
   // ============================  command line ============================
   CommandLine cmd;
+  cmd.AddValue ("simType", "simulation with ns3 (1) or P4sim (0)", P4GlobalVar::g_nsType);
   cmd.AddValue ("runnum", "running number in loops", running_number);
   cmd.AddValue ("model", "Select P4Simulator[0] or NS3[1]", P4GlobalVar::g_nsType);
   cmd.AddValue ("pktSize", "Packet size in bytes (default 1000)", pktSize);
   cmd.AddValue ("appDataRate", "Application data rate in bps (default 1Mbps)", appDataRate);
   cmd.AddValue ("congestion_bottleneck", "Congestion bottleneck in Mbps (default 5)",
                 congestion_bottleneck);
+  cmd.AddValue ("ns3_link_rate", "Congestion bottleneck in link for ns3 simulation", ns3_link_rate);
   cmd.AddValue ("pcap", "Trace packet pacp [true] or not[false]", enableTracePcap);
   cmd.Parse (argc, argv);
 
@@ -129,11 +192,13 @@ main (int argc, char *argv[])
   // header underlayer will be 1000 + 46 bytes (Check the PCAP file) =====`
 
   // pps
+  // P4GlobalVar::g_switchBottleNeck =
+  //     (uint64_t) (congestion_bottleneck * 1000 * 1000 / ((pktSize + 46) * 8));
   P4GlobalVar::g_switchBottleNeck =
-      (uint64_t) (congestion_bottleneck * 1000 * 1000 / ((pktSize + 46) * 8));
+      (uint64_t) (congestion_bottleneck * 1000 * 1000 / (pktSize * 8));
   NS_LOG_INFO ("*** Congestion bottleneck: "
                << congestion_bottleneck << " Mbps, packet size: " << pktSize
-               << " pps, switch bottleneck: " << P4GlobalVar::g_switchBottleNeck << " ns");
+               << " Bytes, switch bottleneck: " << P4GlobalVar::g_switchBottleNeck << " pps");
 
   // with Gbps
 
@@ -165,7 +230,7 @@ main (int argc, char *argv[])
 
   // set default network link parameter
   CsmaHelper csma;
-  csma.SetChannelAttribute ("DataRate", StringValue ("1000Mbps")); //@todo
+  csma.SetChannelAttribute ("DataRate", StringValue (ns3_link_rate)); //@todo
   // csma.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (0.01)));
 
   //  ============================  init network link info ============================
@@ -388,6 +453,10 @@ main (int argc, char *argv[])
       csma.EnablePcapAll (pcapPrefix);
       // csma.EnablePcapAll ("p4-ipv4-forwarding-test");
     }
+  Ptr<OnOffApplication> ptr_app1 =
+      DynamicCast<OnOffApplication> (terminals.Get (0)->GetApplication (0));
+  ptr_app1->TraceConnectWithoutContext ("Tx", MakeCallback (&TxCallback));
+  sinkApp1.Get (0)->TraceConnectWithoutContext ("Rx", MakeCallback (&RxCallback));
 
   // Run simulation
   NS_LOG_INFO ("Running simulation...");
@@ -401,6 +470,8 @@ main (int argc, char *argv[])
                                          << "Total Running time: " << end - start << "ms"
                                          << std::endl
                                          << "Run successfully!");
+
+  PrintFinalThroughput ();
 
   return 0;
 }

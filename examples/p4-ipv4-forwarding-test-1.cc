@@ -91,7 +91,7 @@ main (int argc, char *argv[])
   uint16_t pktSize = 1000; //in Bytes. 1458 to prevent fragments, default 512
 
   // h1 -> h2 with 2.0Mbps
-  std::string appDataRate = "100Mbps"; // Default application data rate
+  std::string appDataRate = "1Mbps"; // Default application data rate
 
   // Here we need calculated the congestion, how many packets we want to pass the queue
   uint64_t congestion_bottleneck = 10000; // Mbps
@@ -166,7 +166,7 @@ main (int argc, char *argv[])
   //   csma.SetChannelAttribute ("DataRate", StringValue ("10Mbps")); //@todo
   //   csma.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (0.01)));
   P4PointToPointHelper p4p2phelper;
-  // p4p2phelper.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (0.01)));
+  p4p2phelper.SetChannelAttribute ("Delay", TimeValue (NanoSeconds (10)));
 
   //  ============================  init network link info ============================
   P4TopologyReader::ConstLinksIterator_t iter;
@@ -368,7 +368,7 @@ main (int argc, char *argv[])
   onOff1.SetAttribute ("DataRate", StringValue (appDataRate));
   onOff1.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]"));
   onOff1.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0]"));
-  onOff1.SetAttribute ("MaxBytes", UintegerValue (200000));
+  // onOff1.SetAttribute ("MaxBytes", UintegerValue (20000));
 
   ApplicationContainer app1 = onOff1.Install (terminals.Get (clientI));
   app1.Start (Seconds (client_start_time));
@@ -394,7 +394,7 @@ main (int argc, char *argv[])
       std::string runDir = baseDir + "/run_" + std::to_string (running_number);
       std::filesystem::create_directories (runDir); // Ensure the directory exists
 
-      std::string pcapPrefix = runDir + "/p4-ipv4-forwarding-test";
+      std::string pcapPrefix = runDir + "/p4-ipv4-forwarding-test-1";
       p4p2phelper.EnablePcapAll (pcapPrefix);
       // csma.EnablePcapAll ("p4-ipv4-forwarding-test");
     }

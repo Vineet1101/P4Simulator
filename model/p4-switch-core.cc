@@ -17,13 +17,10 @@
  *
  * Authors: Stephen Ibanez <sibanez@stanford.edu>
  *          Mingyu Ma <mingyu.ma@tu-dresden.de>
- *
- *
  */
 
 #include "ns3/global.h"
 #include "ns3/register_access.h"
-
 #include "ns3/ethernet-header.h"
 #include "ns3/log.h"
 #include "ns3/simulator.h"

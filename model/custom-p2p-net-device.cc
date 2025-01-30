@@ -152,6 +152,239 @@ CustomP2PNetDevice::~CustomP2PNetDevice ()
   NS_LOG_FUNCTION (this);
 }
 
+uint16_t
+CustomP2PNetDevice::GetDstPort (Ptr<Packet> p)
+{
+  NS_LOG_FUNCTION (this);
+  Ipv4Header ip_hd;
+  uint16_t dst_port = 0;
+  CustomHeader cus_hd = m_header;
+
+  bool hasIpv4 = p->RemoveHeader (ip_hd); // Remove IPv4 header
+  if (hasIpv4)
+    {
+      // Set the ipv4'protocol number to the custom header
+      uint16_t protocol_temp = ip_hd.GetProtocol ();
+      cus_hd.SetProtocolFieldNumber (0);
+
+      if (protocol_temp == 0x11)
+        {
+          NS_LOG_DEBUG ("UDP protocol, return the dst port number");
+          UdpHeader udp_hd;
+          p->PeekHeader (udp_hd);
+          dst_port = udp_hd.GetDestinationPort ();
+        }
+      else if (protocol_temp == 0x06)
+        {
+          NS_LOG_DEBUG ("TCP protocol, return the dst port number");
+          TcpHeader tcp_hd;
+          p->PeekHeader (tcp_hd);
+          dst_port = tcp_hd.GetDestinationPort ();
+        }
+      else
+        {
+          NS_LOG_WARN ("Unknown protocol number, unable to get the dst port number");
+        }
+
+      // Add back the IPv4 header
+      p->AddHeader (ip_hd);
+    }
+  else
+    {
+      NS_LOG_WARN ("No IPv4 header found in the packet, no des port information");
+    }
+  return dst_port;
+}
+
+bool
+CustomP2PNetDevice::HandleTransportLayerHeader (Ptr<Packet> p, CustomHeader &cus_hd,
+                                                uint16_t protocol, bool removeHeader)
+{
+  if (protocol == 0x11) // UDP
+    {
+      NS_LOG_DEBUG ("Processing UDP protocol");
+      UdpHeader udp_hd;
+      if (removeHeader)
+        {
+          p->RemoveHeader (udp_hd); // Remove UDP header
+        }
+      p->AddHeader (cus_hd); // Insert custom header
+      if (!removeHeader)
+        {
+          p->AddHeader (udp_hd);
+        }
+    }
+  else if (protocol == 0x06) // TCP
+    {
+      NS_LOG_DEBUG ("Processing TCP protocol");
+      TcpHeader tcp_hd;
+      if (removeHeader)
+        {
+          p->RemoveHeader (tcp_hd); // Remove TCP header
+        }
+      p->AddHeader (cus_hd); // Insert custom header
+      if (!removeHeader)
+        {
+          p->AddHeader (tcp_hd);
+        }
+    }
+  else
+    {
+      NS_LOG_WARN ("Unknown transport protocol, skipping custom header addition.");
+      return false;
+    }
+
+  return true;
+}
+
+void
+CustomP2PNetDevice::HandleLayer2 (Ptr<Packet> p, CustomHeader &cus_hd, EthernetHeader &eeh_header)
+{
+  NS_LOG_FUNCTION (this);
+  switch (cus_hd.GetOperator ())
+    {
+    case HeaderLayerOperator::ADD_BEFORE:
+      // In this case, we set m_protocol (parser start number)
+      // Layer 2: [custom] [ethernet] layer 3: [ipv4] layer 4: [udp/tcp]
+      m_protocol = P4GlobalVar::g_p4Protocol;
+      cus_hd.SetProtocolFieldNumber (0x1); // ethernet
+
+      p->AddHeader (eeh_header);
+      p->AddHeader (cus_hd);
+      break;
+    case HeaderLayerOperator::ADD_AFTER:
+      // Layer 2: [ethernet] [custom] layer 3: [ipv4] layer 4: [udp/tcp]
+      eeh_header.SetLengthType (P4GlobalVar::g_p4Protocol);
+      cus_hd.SetProtocolFieldNumber (0x0800); //ipv4
+
+      p->AddHeader (cus_hd);
+      p->AddHeader (eeh_header);
+      break;
+    case HeaderLayerOperator::REPLACE:
+      // In this case, we set m_protocol (parser start number)
+      // Layer 2: [custom] layer 3: [ipv4] layer 4: [udp/tcp]
+      m_protocol = P4GlobalVar::g_p4Protocol;
+      cus_hd.SetProtocolFieldNumber (0x0800); //ipv4
+
+      p->AddHeader (cus_hd);
+      break;
+    default:
+      NS_LOG_WARN ("Unknown operator for this header layer");
+      break;
+    }
+}
+
+void
+CustomP2PNetDevice::HandleLayer3 (Ptr<Packet> p, CustomHeader &cus_hd, EthernetHeader &eeh_header)
+{
+  NS_LOG_FUNCTION (this);
+  Ipv4Header ip_hd;
+  uint16_t protocol_temp = 0;
+  bool hasIpv4 = false;
+
+  switch (cus_hd.GetOperator ())
+    {
+    case HeaderLayerOperator::ADD_BEFORE:
+      // Layer 2: [ethernet] layer 3: [custom] [ipv4] layer 4: [udp/tcp]
+      eeh_header.SetLengthType (P4GlobalVar::g_p4Protocol);
+      cus_hd.SetProtocolFieldNumber (0x0800); //ipv4
+
+      p->AddHeader (cus_hd);
+      p->AddHeader (eeh_header);
+      break;
+    case HeaderLayerOperator::ADD_AFTER:
+      // Layer 2: [ethernet] layer 3: [ipv4] [custom] layer 4: [udp/tcp]
+      hasIpv4 = p->RemoveHeader (ip_hd); // Remove IPv4 header
+      if (hasIpv4)
+        {
+          ip_hd.SetProtocol (P4GlobalVar::g_p4Protocol);
+          protocol_temp = ip_hd.GetProtocol ();
+          cus_hd.SetProtocolFieldNumber (protocol_temp);
+
+          p->AddHeader (cus_hd);
+          p->AddHeader (ip_hd);
+          p->AddHeader (eeh_header);
+        }
+      else
+        {
+          NS_LOG_WARN ("No IPv4 header found in the packet");
+        }
+      break;
+    case HeaderLayerOperator::REPLACE:
+      // Layer 2: [ethernet] layer 3: [custom] layer 4: [udp/tcp]
+      eeh_header.SetLengthType (P4GlobalVar::g_p4Protocol);
+
+      hasIpv4 = p->RemoveHeader (ip_hd); // Remove IPv4 header
+      if (hasIpv4)
+        {
+          protocol_temp = ip_hd.GetProtocol ();
+          cus_hd.SetProtocolFieldNumber (protocol_temp);
+
+          p->AddHeader (cus_hd);
+          p->AddHeader (eeh_header);
+        }
+      else
+        {
+          NS_LOG_WARN ("No IPv4 header found in the packet");
+        }
+      break;
+    default:
+      NS_LOG_WARN ("Unknown operator for this header layer");
+      break;
+    }
+}
+
+void
+CustomP2PNetDevice::HandleLayer4 (Ptr<Packet> p, CustomHeader &cus_hd, EthernetHeader &eeh_header)
+{
+  NS_LOG_FUNCTION (this);
+
+  Ipv4Header ip_hd;
+  bool hasIpv4 = p->RemoveHeader (ip_hd); // Remove IPv4 header
+  if (!hasIpv4)
+    {
+      NS_LOG_WARN ("No IPv4 header found in the packet");
+      return;
+    }
+
+  uint16_t protocol_temp = ip_hd.GetProtocol ();
+  cus_hd.SetProtocolFieldNumber (0);
+
+  switch (cus_hd.GetOperator ())
+    {
+    case HeaderLayerOperator::ADD_BEFORE:
+      ip_hd.SetProtocol (P4GlobalVar::g_p4Protocol);
+      cus_hd.SetProtocolFieldNumber (protocol_temp);
+
+      p->AddHeader (cus_hd);
+      break;
+
+    case HeaderLayerOperator::ADD_AFTER:
+      if (HandleTransportLayerHeader (p, cus_hd, protocol_temp)) // Processing TCP/UDP headers
+        {
+          NS_LOG_DEBUG ("Custom header added after transport layer");
+        }
+      break;
+
+    case HeaderLayerOperator::REPLACE:
+      if (HandleTransportLayerHeader (p, cus_hd, protocol_temp,
+                                      true)) // Process TCP/UDP header and remove
+        {
+          NS_LOG_DEBUG ("Custom header replaced transport layer");
+        }
+      break;
+
+    default:
+      NS_LOG_WARN ("Unknown operator for this header layer");
+      break;
+    }
+
+  p->AddHeader (ip_hd);
+  p->AddHeader (eeh_header);
+
+  NS_LOG_DEBUG ("Final packet size after HandleLayer4: " << p->GetSize ());
+}
+
 void
 CustomP2PNetDevice::SetCustomHeader (CustomHeader customHeader)
 {
@@ -201,45 +434,9 @@ CustomP2PNetDevice::AddHeader (Ptr<Packet> p, Mac48Address source, Mac48Address 
   // p->Print (std::cout);
   // std::cout << " " << std::endl;
 
-  // Check if should add the custom header
-  Ipv4Header ip_hd;
-  uint16_t dst_port = 0;
-  CustomHeader cus_hd = m_header;
+  uint16_t dst_port = GetDstPort (p);
 
-  bool hasIpv4 = p->RemoveHeader (ip_hd); // Remove IPv4 header
-  if (hasIpv4)
-    {
-      // Set the ipv4'protocol number to the custom header
-      uint16_t protocol_temp = ip_hd.GetProtocol ();
-      cus_hd.SetProtocolFieldNumber (0);
-
-      if (protocol_temp == 0x11)
-        {
-          NS_LOG_DEBUG ("UDP protocol, get the port number");
-          UdpHeader udp_hd;
-          p->PeekHeader (udp_hd);
-          dst_port = udp_hd.GetDestinationPort ();
-        }
-      else if (protocol_temp == 0x06)
-        {
-          NS_LOG_DEBUG ("TCP protocol, get the port number");
-          TcpHeader tcp_hd;
-          p->PeekHeader (tcp_hd);
-          dst_port = tcp_hd.GetDestinationPort ();
-        }
-      else
-        {
-          NS_LOG_WARN ("Unknown protocol number, unable to get the port number");
-        }
-      p->AddHeader (ip_hd);
-    }
-  else
-    {
-      NS_LOG_WARN ("No IPv4 header found in the packet, so we can't add the custom header");
-    }
-
-  if (!dst_port || (dst_port < P4GlobalVar::g_portRangeMin) ||
-      (dst_port > P4GlobalVar::g_portRangeMax))
+  if ((dst_port < P4GlobalVar::g_portRangeMin) || (dst_port > P4GlobalVar::g_portRangeMax))
     {
 
       // NS_LOG_DEBUG ("Sending: after adding the ethernet header (not add custom header)");
@@ -254,190 +451,20 @@ CustomP2PNetDevice::AddHeader (Ptr<Packet> p, Mac48Address source, Mac48Address 
       return;
     }
 
+  CustomHeader cus_hd = m_header;
+  cus_hd.SetProtocolFieldNumber (0);
+
   if (cus_hd.GetLayer () == HeaderLayer::LAYER_2)
     {
-      if (cus_hd.GetOperator () == HeaderLayerOperator::ADD_BEFORE)
-        {
-          // In this case, we set m_protocol (parser start number)
-          // Layer 2: [custom] [ethernet] layer 3: [ipv4] layer 4: [udp/tcp]
-          m_protocol = P4GlobalVar::g_p4Protocol;
-          cus_hd.SetProtocolFieldNumber (0x1); // ethernet
-
-          p->AddHeader (eeh_header);
-          p->AddHeader (cus_hd);
-        }
-      else if (cus_hd.GetOperator () == HeaderLayerOperator::REPLACE)
-        {
-          // In this case, we set m_protocol (parser start number)
-          // Layer 2: [custom] layer 3: [ipv4] layer 4: [udp/tcp]
-          m_protocol = P4GlobalVar::g_p4Protocol;
-          cus_hd.SetProtocolFieldNumber (0x0800); //ipv4
-
-          p->AddHeader (cus_hd);
-        }
-      else if (cus_hd.GetOperator () == HeaderLayerOperator::ADD_AFTER)
-        {
-          // Layer 2: [ethernet] [custom] layer 3: [ipv4] layer 4: [udp/tcp]
-          eeh_header.SetLengthType (P4GlobalVar::g_p4Protocol);
-          cus_hd.SetProtocolFieldNumber (0x0800); //ipv4
-
-          p->AddHeader (cus_hd);
-          p->AddHeader (eeh_header);
-        }
-      else
-        {
-          NS_LOG_WARN ("Unknown operator for LAYER_2");
-        }
+      HandleLayer2 (p, cus_hd, eeh_header);
     }
   else if (cus_hd.GetLayer () == HeaderLayer::LAYER_3)
     {
-      if (cus_hd.GetOperator () == HeaderLayerOperator::ADD_BEFORE)
-        {
-          // Layer 2: [ethernet] layer 3: [custom] [ipv4] layer 4: [udp/tcp]
-          eeh_header.SetLengthType (P4GlobalVar::g_p4Protocol);
-          cus_hd.SetProtocolFieldNumber (0x0800); //ipv4
-
-          p->AddHeader (cus_hd);
-          p->AddHeader (eeh_header);
-        }
-      else if (cus_hd.GetOperator () == HeaderLayerOperator::REPLACE)
-        {
-          // Layer 2: [ethernet] layer 3: [custom] layer 4: [udp/tcp]
-          eeh_header.SetLengthType (P4GlobalVar::g_p4Protocol);
-
-          Ipv4Header ip_hd;
-          bool hasIpv4 = p->RemoveHeader (ip_hd); // Remove IPv4 header
-          if (hasIpv4)
-            {
-              uint16_t protocol_temp = ip_hd.GetProtocol ();
-              cus_hd.SetProtocolFieldNumber (protocol_temp);
-
-              p->AddHeader (cus_hd);
-              p->AddHeader (eeh_header);
-            }
-          else
-            {
-              NS_LOG_WARN ("No IPv4 header found in the packet");
-            }
-        }
-      else if (cus_hd.GetOperator () == HeaderLayerOperator::ADD_AFTER)
-        {
-          // Layer 2: [ethernet] layer 3: [ipv4] [custom] layer 4: [udp/tcp]
-          Ipv4Header ip_hd;
-          bool hasIpv4 = p->RemoveHeader (ip_hd); // Remove IPv4 header
-          if (hasIpv4)
-            {
-              ip_hd.SetProtocol (P4GlobalVar::g_p4Protocol);
-              uint16_t protocol_temp = ip_hd.GetProtocol ();
-              cus_hd.SetProtocolFieldNumber (protocol_temp);
-
-              p->AddHeader (cus_hd);
-              p->AddHeader (ip_hd);
-              p->AddHeader (eeh_header);
-            }
-          else
-            {
-              NS_LOG_WARN ("No IPv4 header found in the packet");
-            }
-        }
+      HandleLayer3 (p, cus_hd, eeh_header);
     }
   else if (cus_hd.GetLayer () == HeaderLayer::LAYER_4)
     {
-      if (cus_hd.GetOperator () == HeaderLayerOperator::ADD_BEFORE)
-        {
-          // Layer 2: [ethernet] layer 3: [ipv4] [custom] layer 4: [udp/tcp]
-          Ipv4Header ip_hd;
-          bool hasIpv4 = p->RemoveHeader (ip_hd); // Remove IPv4 header
-          if (hasIpv4)
-            {
-              ip_hd.SetProtocol (P4GlobalVar::g_p4Protocol);
-              uint16_t protocol_temp = ip_hd.GetProtocol ();
-              cus_hd.SetProtocolFieldNumber (protocol_temp);
-
-              p->AddHeader (cus_hd);
-              p->AddHeader (ip_hd);
-              p->AddHeader (eeh_header);
-            }
-          else
-            {
-              NS_LOG_WARN ("No IPv4 header found in the packet");
-            }
-        }
-      else if (cus_hd.GetOperator () == HeaderLayerOperator::REPLACE)
-        {
-          // Layer 2: [ethernet] layer 3: [ipv4] layer 4: [custom]
-          Ipv4Header ip_hd;
-          bool hasIpv4 = p->RemoveHeader (ip_hd); // Remove IPv4 header
-          if (hasIpv4)
-            {
-              // Set the ipv4'protocol number to the custom header
-              uint16_t protocol_temp = ip_hd.GetProtocol ();
-              if (protocol_temp == 0x11)
-                {
-                  NS_LOG_DEBUG ("Custom header replace UDP protocol");
-                  UdpHeader udp_hd;
-                  p->RemoveHeader (udp_hd); // Remove UDP header
-                }
-              else if (protocol_temp == 0x06)
-                {
-                  NS_LOG_DEBUG ("Custom header replace TCP protocol");
-                  TcpHeader tcp_hd;
-                  p->RemoveHeader (tcp_hd); // Remove TCP header
-                }
-              else
-                {
-                  NS_LOG_INFO ("No Layer 4 protocol found in the packet");
-                }
-
-              // Set the ipv4'protocol number to the custom header
-              ip_hd.SetProtocol (P4GlobalVar::g_p4Protocol);
-              cus_hd.SetProtocolFieldNumber (0);
-              p->AddHeader (cus_hd);
-              p->AddHeader (ip_hd);
-              p->AddHeader (eeh_header);
-            }
-          else
-            {
-              NS_LOG_WARN ("LAYER 4 REPLACE: No IPv4 header found in the packet");
-            }
-        }
-      else if (cus_hd.GetOperator () == HeaderLayerOperator::ADD_AFTER)
-        {
-          // Layer 2: [ethernet] layer 3: [ipv4] layer 4: [udp/tcp] [custom]
-          Ipv4Header ip_hd;
-          bool hasIpv4 = p->RemoveHeader (ip_hd); // Remove IPv4 header
-          if (hasIpv4)
-            {
-              // Set the ipv4'protocol number to the custom header
-              uint16_t protocol_temp = ip_hd.GetProtocol ();
-              cus_hd.SetProtocolFieldNumber (0);
-
-              if (protocol_temp == 0x11)
-                {
-                  NS_LOG_DEBUG ("Custom header replace UDP protocol");
-                  UdpHeader udp_hd;
-                  p->RemoveHeader (udp_hd); // Remove UDP header
-                  p->AddHeader (cus_hd);
-                  p->AddHeader (udp_hd);
-                }
-              else if (protocol_temp == 0x06)
-                {
-                  NS_LOG_DEBUG ("Custom header replace TCP protocol");
-                  TcpHeader tcp_hd;
-                  p->RemoveHeader (tcp_hd); // Remove TCP header
-                  p->AddHeader (cus_hd);
-                  p->AddHeader (tcp_hd);
-                }
-              else
-                {
-                  NS_LOG_WARN ("LAYER 4 ADD_AFTER: Unknown protocol number");
-                }
-              p->AddHeader (ip_hd);
-              p->AddHeader (eeh_header);
-            }
-        }
-
-      NS_LOG_DEBUG ("Ethernet header added, packet size: " << p->GetSize ());
+      HandleLayer4 (p, cus_hd, eeh_header);
     }
   else
     {
@@ -448,7 +475,7 @@ CustomP2PNetDevice::AddHeader (Ptr<Packet> p, Mac48Address source, Mac48Address 
   // p->Print (std::cout);
   // std::cout << " " << std::endl;
 
-  NS_LOG_DEBUG ("==== finish Adding header, Packet Length " << p->GetSize ());
+  NS_LOG_DEBUG ("Finish adding header, packet total length " << p->GetSize ());
 }
 
 bool
@@ -895,23 +922,8 @@ bool
 CustomP2PNetDevice::SendFrom (Ptr<Packet> packet, const Address &source, const Address &dest,
                               uint16_t protocolNumber)
 {
-  /**
-    ==========*** Print Packet Headers ***==========
-    * Ethernet header detecting, packet length: 1049
-    ** Ethernet packet
-    *** Ethernet header: Source MAC: 00:00:00:00:00:01, Destination MAC: ff:ff:ff:ff:ff:ff, Protocol: 0x12
-    * Custom header detecting, packet length: 1035
-    ** Custom header detected
-    *** Custom header content: 
-    CustomHeader { Field1: 0x11 Field2: 0x1234 Field3: 0x89ABCDEF }
-    * UDP header detecting, packet length: 1028
-    ** UDP packet
-    *** UDP header: Source Port: 17664, Destination Port: 1028
-    ==========*** ====== ***==========
-   */
   NS_LOG_FUNCTION (this << packet << source << dest << protocolNumber);
-  NS_LOG_LOGIC ("packet =" << packet);
-  NS_LOG_LOGIC ("UID is " << packet->GetUid () << ")");
+  NS_LOG_LOGIC ("packet =" << packet << " UID is " << packet->GetUid () << ")");
 
   NS_ASSERT (IsLinkUp ());
 
@@ -1212,88 +1224,5 @@ CustomP2PNetDevice::CheckIfTcpHeader (Ptr<Packet> p, TcpHeader &tcp_hd)
     }
   return 0;
 }
-
-// void
-// CustomP2PNetDevice::PrintPacketHeaders (Ptr<Packet> p)
-// {
-//   // Deprecated function
-
-//   NS_LOG_DEBUG ("==========*** Print Packet Headers ***==========");
-//   Ptr<Packet> copy = p->Copy ();
-
-//   copy->EnablePrinting ();
-//   copy->Print (std::cout);
-//   std::cout << " " << std::endl;
-
-//   if (!m_NeedProcessHeader)
-//     {
-//       uint16_t eth_protocol = CheckIfEthernetHeader (copy);
-//       if (eth_protocol == 0x0800) // IPv4
-//         {
-//           uint8_t ipv4_protocol = CheckIfIpv4Header (copy);
-//           if (ipv4_protocol == 17)
-//             {
-//               CheckIfUdpHeader (copy);
-//             }
-//           else if (ipv4_protocol == 6)
-//             {
-//               CheckIfTcpHeader (copy);
-//             }
-//         }
-//       else if (eth_protocol == 0x0806) // ARP
-//         {
-//           CheckIfArpHeader (copy);
-//         }
-//     }
-//   else
-//     {
-//       // @TODO
-//       uint64_t protocol = m_protocol;
-//       while (protocol != 0)
-//         {
-//           switch (protocol)
-//             {
-//             case 0x1: // Ethernet (Assume in p4sim)
-//               protocol = CheckIfEthernetHeader (copy);
-//               NS_LOG_DEBUG ("Parser: Ethernet protocol: " << protocol);
-//               break;
-//             case 0x0800: // IPv4
-//               protocol = CheckIfIpv4Header (copy);
-//               NS_LOG_DEBUG ("Parser: IPv4 protocol: " << (uint32_t) protocol);
-//               break;
-//             case 0x0806: // ARP
-//               protocol = CheckIfArpHeader (copy);
-//               break;
-//             case 0x86DD: // IPv6
-//               protocol = 0;
-//               break;
-//             case 0x11: // UDP (0x11 == 17)
-//               protocol = CheckIfUdpHeader (copy);
-//               if (m_header.GetLayer () == HeaderLayer::LAYER_4 &&
-//                   m_header.GetOperator () == HeaderLayerOperator::ADD_AFTER)
-//                 {
-//                   protocol = P4GlobalVar::g_p4Protocol;
-//                 }
-//               break;
-//             case 0x06: // TCP
-//               protocol = CheckIfTcpHeader (copy);
-//               if (m_header.GetLayer () == HeaderLayer::LAYER_4 &&
-//                   m_header.GetOperator () == HeaderLayerOperator::ADD_AFTER)
-//                 {
-//                   protocol = P4GlobalVar::g_p4Protocol;
-//                 }
-//               break;
-//             case P4GlobalVar::g_p4Protocol: // Custom Protocol
-//               protocol = CheckIfCustomHeader (copy);
-//               break;
-//             default:
-//               protocol = 0; // End
-//               break;
-//             }
-//         }
-//     }
-
-//   NS_LOG_DEBUG ("==========*** ====== ***==========");
-// }
 
 } // namespace ns3

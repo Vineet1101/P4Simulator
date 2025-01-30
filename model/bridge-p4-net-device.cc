@@ -21,8 +21,6 @@
 #include "ns3/bridge-p4-net-device.h"
 #include "ns3/global.h"
 #include "ns3/p4-switch-interface.h"
-
-#include "ns3/boolean.h"
 #include "ns3/channel.h"
 #include "ns3/ethernet-header.h"
 #include "ns3/log.h"
@@ -78,20 +76,9 @@ BridgeP4NetDevice::BridgeP4NetDevice () : m_node (nullptr), m_ifIndex (0)
       static_cast<unsigned int> (P4GlobalVar::g_networkFunc)); //!< Network function ID.
   p4SwitchInterface->SetPopulateFlowTableWay (
       P4GlobalVar::g_populateFlowTableWay); //!< Method to populate the flow table.
-
-  // std::string jsonPath = P4GlobalVar::g_p4JsonPath;
-  // std::vector<char*> args;
-  // args.push_back(nullptr);
-  // args.push_back(jsonPath.data());
-  // m_p4Switch->init(static_cast<int>(args.size()), args.data());
-
   p4SwitchInterface->Init (); // init the switch with p4 configure files (*.json)
 
   m_p4Switch->start_and_return_ ();
-
-  // // Init P4Model Flow Table
-  // if (P4GlobalVar::g_populateFlowTableWay == LOCAL_CALL)
-  //     p4SwitchInterface->Init();
 
   // Clear the local pointer to avoid accidental use; the object is managed by P4Controller
   p4SwitchInterface = nullptr;
@@ -225,10 +212,6 @@ BridgeP4NetDevice::AddBridgePort (Ptr<NetDevice> bridgePort)
                                    bridgePort, true);
   m_ports.push_back (bridgePort);
   m_channel->AddChannel (bridgePort->GetChannel ());
-
-  // Add the bridge port to the P4 switch
-  // m_p4Switch->AddVritualQueue (m_ports.size () -
-  //                              1); // Add a new virtual queue from number 0 (if port size = 1)
 }
 
 uint32_t

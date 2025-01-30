@@ -37,6 +37,13 @@ public:
   CustomP2PNetDevice ();
   virtual ~CustomP2PNetDevice ();
 
+  uint16_t GetDstPort (Ptr<Packet> p);
+  bool HandleTransportLayerHeader (Ptr<Packet> p, CustomHeader &cus_hd, uint16_t protocol,
+                                   bool removeHeader = false);
+  void HandleLayer2 (Ptr<Packet> p, CustomHeader &cus_hd, EthernetHeader &eeh_header);
+  void HandleLayer3 (Ptr<Packet> p, CustomHeader &cus_hd, EthernetHeader &eeh_header);
+  void HandleLayer4 (Ptr<Packet> p, CustomHeader &cus_hd, EthernetHeader &eeh_header);
+
   /**
    * Set the Data Rate used for transmission of packets.  The data rate is
    * set in the Attach () method from the corresponding field in the channel
