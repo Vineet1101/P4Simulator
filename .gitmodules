@@ -1,0 +1,3 @@
+[submodule "vm24"]
+	path = vm24
+	url = https://github.com/p4lang/tutorials.git
