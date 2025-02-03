@@ -18,6 +18,9 @@ namespace ns3 {
 #define NS3 1 // Normal switch
 #define P4Simulator 0 // P4 switch
 
+#define P4ARCHV1MODEL 0 // P4 architecture v1model
+#define P4ARCHPSA 1 // P4 architecture PSA
+
 enum class P4ModuleType {
   BASIC,
   FIREWALL,
@@ -46,6 +49,7 @@ public:
 
   // Network function configuration
   static P4ModuleType g_networkFunc;
+  static unsigned int g_p4ArchType;
   static unsigned int g_populateFlowTableWay;
   static P4ChannelType g_channelType;
 
