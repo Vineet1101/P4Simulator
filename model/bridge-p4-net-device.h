@@ -26,6 +26,7 @@
 #include "ns3/nstime.h"
 #include "ns3/p4-bridge-channel.h"
 #include "ns3/p4-switch-core.h"
+#include "ns3/p4-psa-switch-core.h"
 
 #include <map>
 #include <stdint.h>
@@ -41,6 +42,7 @@ namespace ns3 {
 
 class Node;
 class P4Switch;
+class PsaSwitch;
 
 /**
  * \defgroup bridge Bridge P4 Network Device
@@ -189,6 +191,7 @@ private:
   uint16_t m_mtu; //!< MTU of the bridged NetDevice
 
   P4Switch *m_p4Switch; //!< P4 switch core
+  PsaSwitch *m_psaSwitch; //!< PSA switch core
 };
 
 } // namespace ns3

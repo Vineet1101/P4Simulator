@@ -25,6 +25,7 @@
 #include "ns3/log.h"
 #include "ns3/simulator.h"
 #include "ns3/socket.h"
+#include "ns3/p4-switch-core.h"
 
 #define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_OFF
 #include <bm/spdlog/spdlog.h>
@@ -45,7 +46,7 @@ namespace ns3 {
 
 namespace {
 
-struct hash_ex
+struct hash_ex_v1model
 {
   uint32_t
   operator() (const char *buf, size_t s) const
@@ -65,7 +66,7 @@ struct hash_ex
   }
 };
 
-struct bmv2_hash
+struct bmv2_hash_v1model
 {
   uint64_t
   operator() (const char *buf, size_t s) const
@@ -78,8 +79,8 @@ struct bmv2_hash
 
 // if REGISTER_HASH calls placed in the anonymous namespace, some compiler can
 // give an unused variable warning
-REGISTER_HASH (hash_ex);
-REGISTER_HASH (bmv2_hash);
+REGISTER_HASH (hash_ex_v1model);
+REGISTER_HASH (bmv2_hash_v1model);
 
 class P4Switch::MirroringSessions
 {
