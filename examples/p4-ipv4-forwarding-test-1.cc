@@ -1,15 +1,8 @@
-/**
- * 最简单的一发一收测试，h0 -> h1
- * 信道CSMA
- * 速率1Gbps
- * 
- * 
- */
-
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
 #include "ns3/applications-module.h"
-#include "ns3/csma-helper.h"
+// #include "ns3/csma-helper.h"
+#include "ns3/p4-p2p-helper.h"
 #include "ns3/internet-module.h"
 #include "ns3/bridge-helper.h"
 #include "ns3/p4-helper.h"
@@ -21,26 +14,9 @@
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE ("P4Ipv4ForwardingTest");
+NS_LOG_COMPONENT_DEFINE ("P4Ipv4ForwardingTest1");
 
 unsigned long start = getTickCount ();
-double global_start_time = 1.0;
-double sink_start_time = global_start_time + 1.0;
-double client_start_time = sink_start_time + 1.0;
-double client_stop_time = client_start_time + 3; // sending time 30s
-double sink_stop_time = client_stop_time + 5;
-double global_stop_time = sink_stop_time + 5;
-
-bool first_tx = true;
-bool first_rx = true;
-int counter_sender_10 = 10;
-int counter_receiver_10 = 10;
-double first_packet_send_time_tx = 0.0;
-double last_packet_send_time_tx = 0.0;
-double first_packet_received_time_rx = 0.0;
-double last_packet_received_time_rx = 0.0;
-uint64_t totalTxBytes = 0;
-uint64_t totalRxBytes = 0;
 
 // Convert IP address to hexadecimal format
 std::string
@@ -54,6 +30,15 @@ ConvertIpToHex (Ipv4Address ipAddr)
             << std::setw (2) << ((ip >> 8) & 0xFF) // Third byte
             << std::setw (2) << (ip & 0xFF); // Fourth byte
   return hexStream.str ();
+}
+
+// 在仿真结束时打印总吞吐量
+void
+CalculateThroughput (Ptr<PacketSink> sink, double simulationTime)
+{
+  uint64_t totalRx = sink->GetTotalRx (); // 获取总接收字节数
+  double throughput = (totalRx * 8.0) / (simulationTime * 1e6); // 转换为 Mbps
+  std::cout << "Total Throughput: " << throughput << " Mbps" << std::endl;
 }
 
 // Convert MAC address to hexadecimal format
@@ -71,62 +56,6 @@ ConvertMacToHex (Address macAddr)
       hexStream << std::hex << std::setfill ('0') << std::setw (2) << static_cast<int> (buffer[i]);
     }
   return hexStream.str ();
-}
-
-void
-TxCallback (Ptr<const Packet> packet)
-{
-  if (first_tx)
-    {
-      first_packet_send_time_tx = Simulator::Now ().GetSeconds ();
-      counter_sender_10--;
-      if (counter_sender_10 == 0)
-        {
-          first_tx = false;
-        }
-    }
-  totalTxBytes += packet->GetSize ();
-  last_packet_send_time_tx = Simulator::Now ().GetSeconds ();
-}
-
-void
-RxCallback (Ptr<const Packet> packet, const Address &addr)
-{
-  if (first_rx)
-    {
-      first_packet_received_time_rx = Simulator::Now ().GetSeconds ();
-      counter_receiver_10--;
-      if (counter_receiver_10 == 0)
-        {
-          first_rx = false;
-        }
-    }
-  totalRxBytes += packet->GetSize ();
-  last_packet_received_time_rx = Simulator::Now ().GetSeconds ();
-}
-
-void
-PrintFinalThroughput ()
-{
-  double send_time = last_packet_send_time_tx - first_packet_send_time_tx;
-  double elapsed_time = last_packet_received_time_rx - first_packet_received_time_rx;
-
-  double finalTxThroughput = (totalTxBytes * 8.0) / (send_time * 1e6);
-  double finalRxThroughput = (totalRxBytes * 8.0) / (elapsed_time * 1e6);
-  std::cout << "client_start_time: " << first_packet_send_time_tx
-            << "client_stop_time: " << last_packet_send_time_tx
-            << "sink_start_time: " << first_packet_received_time_rx
-            << "sink_stop_time: " << last_packet_received_time_rx << std::endl;
-
-  std::cout << "======================================" << std::endl;
-  std::cout << "Final Simulation Results:" << std::endl;
-  std::cout << "Total Transmitted Bytes: " << totalTxBytes << " bytes in time " << send_time
-            << std::endl;
-  std::cout << "Total Received Bytes: " << totalRxBytes << " bytes in time " << elapsed_time
-            << std::endl;
-  std::cout << "Final Transmitted Throughput: " << finalTxThroughput << " Mbps" << std::endl;
-  std::cout << "Final Received Throughput: " << finalRxThroughput << " Mbps" << std::endl;
-  std::cout << "======================================" << std::endl;
 }
 
 // ============================ data struct ============================
@@ -148,7 +77,7 @@ struct HostNodeC_t
 int
 main (int argc, char *argv[])
 {
-  LogComponentEnable ("P4Ipv4ForwardingTest", LOG_LEVEL_INFO);
+  LogComponentEnable ("P4Ipv4ForwardingTest1", LOG_LEVEL_INFO);
 
   // ============================ parameters ============================
 
@@ -156,14 +85,25 @@ main (int argc, char *argv[])
 
   // ============================ parameters ============================
 
+  // Simulation parameters
+
   int running_number = 0;
   uint16_t pktSize = 1000; //in Bytes. 1458 to prevent fragments, default 512
 
+  // h1 -> h2 with 2.0Mbps
   std::string appDataRate = "1Mbps"; // Default application data rate
-  uint64_t congestion_bottleneck = 1000; // Mbps
-  std::string ns3_link_rate = "1000Mbps";
+
+  // Here we need calculated the congestion, how many packets we want to pass the queue
+  uint64_t congestion_bottleneck = 10000; // Mbps
+
   bool enableTracePcap = false;
-  P4GlobalVar::g_nsType = P4Simulator;
+  double global_start_time = 1.0;
+  double sink_start_time = global_start_time + 1.0;
+  double client_start_time = sink_start_time + 1.0;
+  double client_stop_time = client_start_time + 5; // sending time 30s
+  double sink_stop_time = client_stop_time + 10;
+  double global_stop_time = sink_stop_time + 10;
+
   // P4 simulation paths
   // P4GlobalVar::HomePath = "/home/p4/workdir/";
   // P4GlobalVar::g_ns3RootName = "";
@@ -173,40 +113,33 @@ main (int argc, char *argv[])
                                    P4GlobalVar::PathConfig::Ns3SrcName + "contrib/p4sim/test/";
   P4GlobalVar::InitNfStrUintMap ();
 
-  P4GlobalVar::g_channelType = P4ChannelType::CSMA;
+  P4GlobalVar::g_channelType = P4ChannelType::P2P;
 
   // ============================  command line ============================
   CommandLine cmd;
-  cmd.AddValue ("simType", "simulation with ns3 (1) or P4sim (0)", P4GlobalVar::g_nsType);
   cmd.AddValue ("runnum", "running number in loops", running_number);
   cmd.AddValue ("model", "Select P4Simulator[0] or NS3[1]", P4GlobalVar::g_nsType);
   cmd.AddValue ("pktSize", "Packet size in bytes (default 1000)", pktSize);
   cmd.AddValue ("appDataRate", "Application data rate in bps (default 1Mbps)", appDataRate);
   cmd.AddValue ("congestion_bottleneck", "Congestion bottleneck in Mbps (default 5)",
                 congestion_bottleneck);
-  cmd.AddValue ("ns3_link_rate", "Congestion bottleneck in link for ns3 simulation", ns3_link_rate);
   cmd.AddValue ("pcap", "Trace packet pacp [true] or not[false]", enableTracePcap);
   cmd.Parse (argc, argv);
 
   // ===== Here the packets size is 1000 bytes (This is sending rate in Application layer, when add
   // header underlayer will be 1000 + 46 bytes (Check the PCAP file) =====`
 
-  // pps
-  // P4GlobalVar::g_switchBottleNeck =
-  //     (uint64_t) (congestion_bottleneck * 1000 * 1000 / ((pktSize + 46) * 8));
   P4GlobalVar::g_switchBottleNeck =
-      (uint64_t) (congestion_bottleneck * 1000 * 1000 / (pktSize * 8));
+      (uint64_t) (congestion_bottleneck * 1000 * 1000 / ((pktSize + 46) * 8));
   NS_LOG_INFO ("*** Congestion bottleneck: "
                << congestion_bottleneck << " Mbps, packet size: " << pktSize
-               << " Bytes, switch bottleneck: " << P4GlobalVar::g_switchBottleNeck << " pps");
-
-  // with Gbps
+               << " pps, switch bottleneck: " << P4GlobalVar::g_switchBottleNeck << " ns");
 
   // ============================ topo -> network ============================
 
   // loading from topo file --> gene topo(linking the nodes)
   std::string topoInput = P4GlobalVar::PathConfig::NfDir + "test_simple/topo.txt";
-  std::string topoFormat ("CsmaTopo");
+  std::string topoFormat ("P2PTopo");
 
   P4TopologyReaderHelper p4TopoHelp;
   p4TopoHelp.SetFileName (topoInput);
@@ -229,9 +162,11 @@ main (int argc, char *argv[])
   NS_LOG_INFO ("*** Host number: " << hostNum << ", Switch number: " << switchNum);
 
   // set default network link parameter
-  CsmaHelper csma;
-  csma.SetChannelAttribute ("DataRate", StringValue (ns3_link_rate)); //@todo
-  // csma.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (0.01)));
+  //   CsmaHelper csma;
+  //   csma.SetChannelAttribute ("DataRate", StringValue ("10Mbps")); //@todo
+  //   csma.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (0.01)));
+  P4PointToPointHelper p4p2phelper;
+  p4p2phelper.SetChannelAttribute ("Delay", TimeValue (NanoSeconds (10)));
 
   //  ============================  init network link info ============================
   P4TopologyReader::ConstLinksIterator_t iter;
@@ -241,13 +176,13 @@ main (int argc, char *argv[])
   std::string dataRate, delay;
   for (iter = topoReader->LinksBegin (); iter != topoReader->LinksEnd (); iter++)
     {
-      // if (iter->GetAttributeFailSafe ("DataRate", dataRate))
-      //   csma.SetChannelAttribute ("DataRate", StringValue (dataRate));
-      // if (iter->GetAttributeFailSafe ("Delay", delay))
-      //   csma.SetChannelAttribute ("Delay", StringValue (delay));
+      //   if (iter->GetAttributeFailSafe ("DataRate", dataRate))
+      //     csma.SetChannelAttribute ("DataRate", StringValue (dataRate));
+      //   if (iter->GetAttributeFailSafe ("Delay", delay))
+      //     csma.SetChannelAttribute ("Delay", StringValue (delay));
 
       NetDeviceContainer link =
-          csma.Install (NodeContainer (iter->GetFromNode (), iter->GetToNode ()));
+          p4p2phelper.Install (NodeContainer (iter->GetFromNode (), iter->GetToNode ()));
       fromIndex = iter->GetFromIndex ();
       toIndex = iter->GetToIndex ();
       if (iter->GetFromType () == 's' && iter->GetToType () == 's')
@@ -433,11 +368,21 @@ main (int argc, char *argv[])
   onOff1.SetAttribute ("DataRate", StringValue (appDataRate));
   onOff1.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]"));
   onOff1.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0]"));
-  // onOff1.SetAttribute ("MaxBytes", UintegerValue (200000));
+  // onOff1.SetAttribute ("MaxBytes", UintegerValue (20000));
 
   ApplicationContainer app1 = onOff1.Install (terminals.Get (clientI));
   app1.Start (Seconds (client_start_time));
   app1.Stop (Seconds (client_stop_time));
+
+  sinkApp1.Get (0)->GetObject<PacketSink> (); // 获取 PacketSink 应用程序
+  Ptr<PacketSink> sink = DynamicCast<PacketSink> (sinkApp1.Get (0));
+  if (sink == nullptr)
+    {
+      std::cerr << "Error: DynamicCast to PacketSink failed!" << std::endl;
+      return 0;
+    }
+  double sink_simulationTime = sink_stop_time - sink_start_time; // 仿真时间
+  Simulator::Schedule (Seconds (sink_stop_time), &CalculateThroughput, sink, sink_simulationTime);
 
   // Enable pcap tracing
   if (enableTracePcap)
@@ -449,14 +394,10 @@ main (int argc, char *argv[])
       std::string runDir = baseDir + "/run_" + std::to_string (running_number);
       std::filesystem::create_directories (runDir); // Ensure the directory exists
 
-      std::string pcapPrefix = runDir + "/p4-ipv4-forwarding-test";
-      csma.EnablePcapAll (pcapPrefix);
+      std::string pcapPrefix = runDir + "/p4-ipv4-forwarding-test-1";
+      p4p2phelper.EnablePcapAll (pcapPrefix);
       // csma.EnablePcapAll ("p4-ipv4-forwarding-test");
     }
-  Ptr<OnOffApplication> ptr_app1 =
-      DynamicCast<OnOffApplication> (terminals.Get (0)->GetApplication (0));
-  ptr_app1->TraceConnectWithoutContext ("Tx", MakeCallback (&TxCallback));
-  sinkApp1.Get (0)->TraceConnectWithoutContext ("Rx", MakeCallback (&RxCallback));
 
   // Run simulation
   NS_LOG_INFO ("Running simulation...");
@@ -470,8 +411,6 @@ main (int argc, char *argv[])
                                          << "Total Running time: " << end - start << "ms"
                                          << std::endl
                                          << "Run successfully!");
-
-  PrintFinalThroughput ();
 
   return 0;
 }

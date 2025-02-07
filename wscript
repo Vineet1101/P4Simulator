@@ -33,7 +33,6 @@ def build(bld):
     ]
     module = bld.create_ns3_module('p4sim', req_ns3_modules)
     module.source = [
-        'model/p4sim.cc',
         'model/p4-queue.cc',
         'model/p4-bridge-channel.cc',
         'model/p4-p2p-channel.cc',
@@ -41,6 +40,7 @@ def build(bld):
         'model/p4-controller.cc',
         'model/p4-topology-reader.cc',
         'model/p4-switch-core.cc',
+        "model/p4-psa-switch-core.cc",
         'model/p4-switch-interface.cc',
         'model/bridge-p4-net-device.cc',
         'model/custom-p2p-net-device.cc',
@@ -75,7 +75,6 @@ def build(bld):
     headers = bld(features='ns3header')
     headers.module = 'p4sim'
     headers.source = [
-        'model/p4sim.h',
         'model/p4-queue.h',
         'model/p4-bridge-channel.h',
         'model/p4-p2p-channel.h',
@@ -83,6 +82,7 @@ def build(bld):
         'model/p4-controller.h',
         'model/p4-topology-reader.h',
         'model/p4-switch-core.h',
+        "model/p4-psa-switch-core.h",
         'model/p4-switch-interface.h',
         'model/bridge-p4-net-device.h',
         'model/custom-p2p-net-device.h',

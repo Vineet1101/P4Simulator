@@ -11,6 +11,7 @@ P4Controller P4GlobalVar::g_p4Controller;
 
 // Network function configuration
 P4ModuleType P4GlobalVar::g_networkFunc = P4ModuleType::BASIC;
+unsigned int P4GlobalVar::g_p4ArchType = P4ARCHV1MODEL;
 unsigned int P4GlobalVar::g_populateFlowTableWay = RUNTIME_CLI;
 P4ChannelType P4GlobalVar::g_channelType = P4ChannelType::CSMA;
 
@@ -20,8 +21,8 @@ std::string P4GlobalVar::g_flowTablePath = "";
 std::string P4GlobalVar::g_viewFlowTablePath = "";
 std::string P4GlobalVar::g_p4JsonPath = "";
 
-// Bottleneck configuration
-int P4GlobalVar::g_switchBottleNeck = 10000;
+// Bottleneck configuration, packet per second [pps]
+uint64_t P4GlobalVar::g_switchBottleNeck = 10000;
 
 // Simulation type and mapping
 unsigned int P4GlobalVar::g_nsType = P4Simulator;

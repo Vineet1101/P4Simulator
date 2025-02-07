@@ -75,7 +75,7 @@ main (int argc, char *argv[])
 
   // ============================ parameters ============================
 
-  // ns3::PacketMetadata::Enable (); // 开启数据包元数据追踪
+  ns3::PacketMetadata::Enable (); // 开启数据包元数据追踪
 
   // Simulation parameters
   uint16_t pktSize = 1000; //in Bytes. 1458 to prevent fragments, default 512
@@ -392,7 +392,7 @@ main (int argc, char *argv[])
   onOff1.SetAttribute ("DataRate", StringValue (appDataRate[0]));
   onOff1.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]"));
   onOff1.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0]"));
-  onOff1.SetAttribute ("MaxBytes", UintegerValue (1000));
+  onOff1.SetAttribute ("MaxBytes", UintegerValue (2000));
 
   ApplicationContainer app1 = onOff1.Install (terminals.Get (clientI));
   app1.Start (Seconds (client_start_time));

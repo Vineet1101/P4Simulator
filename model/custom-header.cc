@@ -3,6 +3,7 @@
 #include "ns3/log.h"
 #include "ns3/string.h" // For StringValue
 #include "ns3/attribute.h" // For MakeStringAccessor and MakeStringChecker
+#include "ns3/assert.h"
 
 namespace ns3 {
 
@@ -18,7 +19,7 @@ CustomHeader::GetTypeId (void)
   return tid;
 }
 
-CustomHeader::CustomHeader () : m_protocol_number (0)
+CustomHeader::CustomHeader () : m_protocol_number (0), m_offset_bytes (0)
 {
   InitFields (); // init based on GlobalVar::g_templateHeaderFields
 }
@@ -28,7 +29,8 @@ CustomHeader::CustomHeader (const CustomHeader &other)
       m_layer (other.m_layer),
       m_op (other.m_op),
       m_protocol_number (other.m_protocol_number),
-      m_fields (other.m_fields) // Use std::vector's copy constructor
+      m_fields (other.m_fields),
+      m_offset_bytes (other.m_offset_bytes)
 {
   NS_LOG_DEBUG ("Copy constructor called");
 }
@@ -62,10 +64,124 @@ CustomHeader::operator= (const CustomHeader &other)
   m_op = other.m_op;
   m_protocol_number = other.m_protocol_number;
   m_fields = other.m_fields; // Use std::vector's copy constructor
+  m_offset_bytes = other.m_offset_bytes;
 
   NS_LOG_DEBUG ("Assignment operator called");
   return *this;
 }
+
+// Function to calculate the offset where the custom header should be inserted
+uint32_t
+CustomHeader::CalculateHeaderInsertOffset (HeaderLayer layer, HeaderLayerOperator operation)
+{
+  // Define the size of known headers
+  const uint32_t ETH_HEADER_SIZE = 14; // Ethernet header
+  const uint32_t IPV4_HEADER_SIZE = 20; // IPv4 header (minimum size)
+  const uint32_t UDP_HEADER_SIZE = 8; // UDP header
+  // const uint32_t TCP_HEADER_SIZE = 20; // TCP header (minimum size)
+
+  // Start with offset = 0 (beginning of the packet)
+  uint32_t offset = 0;
+
+  switch (layer)
+    {
+    case LAYER_2:
+      if (operation == ADD_BEFORE)
+        {
+          offset = 0; // Before Ethernet header
+        }
+      else if (operation == REPLACE || operation == ADD_AFTER)
+        {
+          offset = ETH_HEADER_SIZE; // End of Ethernet header
+        }
+      break;
+
+    case LAYER_3:
+      if (operation == ADD_BEFORE)
+        {
+          offset = ETH_HEADER_SIZE; // Before IPv4 header
+        }
+      else if (operation == REPLACE || operation == ADD_AFTER)
+        {
+          offset = ETH_HEADER_SIZE + IPV4_HEADER_SIZE; // After IPv4 header
+        }
+      break;
+
+    case LAYER_4:
+      if (operation == ADD_BEFORE)
+        {
+          offset = ETH_HEADER_SIZE + IPV4_HEADER_SIZE; // Before UDP/TCP header
+        }
+      else if (operation == REPLACE || operation == ADD_AFTER)
+        {
+          offset =
+              ETH_HEADER_SIZE + IPV4_HEADER_SIZE + UDP_HEADER_SIZE; // Default to UDP header size
+        }
+      break;
+
+    case LAYER_5:
+      if (operation == ADD_BEFORE)
+        {
+          offset = ETH_HEADER_SIZE + IPV4_HEADER_SIZE + UDP_HEADER_SIZE; // Before Application data
+        }
+      else if (operation == REPLACE || operation == ADD_AFTER)
+        {
+          // Assume no additional layer beyond application data
+          offset = ETH_HEADER_SIZE + IPV4_HEADER_SIZE + UDP_HEADER_SIZE; // End of packet
+        }
+      break;
+
+    default:
+      std::cerr << "Unknown layer specified!" << std::endl;
+      break;
+    }
+
+  return offset;
+}
+
+// bool
+// CustomHeader::SetHeaderForPacket (Ptr<Packet> packet, HeaderLayer layer,
+//                                   HeaderLayerOperator operation)
+// {
+//   // Calculate the offset where the custom header should be inserted
+//   m_offset_bytes = CalculateHeaderInsertOffset (layer, operation);
+// }
+
+// void
+// CustomHeader::InsertCustomHeader (Ptr<Packet> packet, const CustomHeader &header)
+// {
+//   uint32_t headerSize = header.GetSerializedSize ();
+//   NS_ASSERT_MSG (header.GetOffset () <= packet->GetSize (), "Offset is out of bounds!");
+
+//   // Insertion position: Start from the packet buffer and move to the specified offset
+//   Buffer::Iterator insertPosition = packet->GetBuffer ()->Begin ();
+//   insertPosition.Next (header.GetOffset ());
+
+//   // Expand the buffer for the new header
+//   packet->GetBuffer ()->AddAt (insertPosition, headerSize);
+
+//   // Serialize the Header to the specified location
+//   header.Serialize (insertPosition);
+// }
+
+// void
+// CustomHeader::RemoveHeaderAtOffset (Ptr<Packet> packet, CustomHeader &header)
+// {
+//   uint16_t offset = header.GetOffset ();
+//   NS_ASSERT_MSG (offset <= packet->GetSize (), "Offset is out of bounds!");
+
+//   // 定位到 Header 的位置
+//   Buffer::Iterator start = packet->GetBuffer ()->Begin ();
+//   start.Next (offset);
+
+//   // 获取 Header 的大小并反序列化
+//   Buffer::Iterator end = start;
+//   end.Next (header.GetSerializedSize ());
+//   uint32_t deserializedSize = header.Deserialize (start, end);
+
+//   // 从缓冲区中移除 Header
+//   packet->GetBuffer ()->RemoveAt (offset, deserializedSize);
+// }
 
 void
 CustomHeader::AddField (const std::string &name, uint32_t bitWidth)
@@ -112,7 +228,7 @@ CustomHeader::GetField (const std::string &name) const
 void
 CustomHeader::SetProtocolFieldNumber (uint64_t id)
 {
-  if (m_fields.empty ()) // 判断是否已经赋值
+  if (m_fields.empty ())
     {
       NS_LOG_WARN ("m_fields is empty! Set protocol number.");
     }

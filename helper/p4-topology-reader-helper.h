@@ -17,8 +17,6 @@
  * 
  * Author: Tommaso Pecorella (tommaso.pecorella@unifi.it)
  * Author: Valerio Sartini (valesar@gmail.com)
- * Author: PengKuang <kphf1995cm@outlook.com>
- * 
  * Modified: Mingyu Ma (mingyu.ma@tu-dresden.de)
  */
 

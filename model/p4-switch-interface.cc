@@ -1,7 +1,6 @@
 #include "ns3/p4-switch-interface.h"
 #include "ns3/format-utils.h"
 #include "ns3/p4-exception-handle.h"
-
 #include "ns3/log.h"
 
 #include <bm/bm_sim/options_parse.h>
@@ -42,6 +41,92 @@ P4SwitchInterface::~P4SwitchInterface ()
     }*/
   //***************************************************************
   NS_LOG_FUNCTION (this);
+}
+
+// === Setter Methods ===
+void
+P4SwitchInterface::SetP4NetDeviceCore (P4Switch *model)
+{
+  p4Core_ = model;
+}
+
+void
+P4SwitchInterface::SetJsonPath (const std::string &path)
+{
+  jsonPath_ = path;
+}
+
+void
+P4SwitchInterface::SetP4InfoPath (const std::string &path)
+{
+  p4InfoPath_ = path;
+}
+
+void
+P4SwitchInterface::SetFlowTablePath (const std::string &path)
+{
+  flowTablePath_ = path;
+}
+
+void
+P4SwitchInterface::SetViewFlowTablePath (const std::string &path)
+{
+  viewFlowTablePath_ = path;
+}
+
+void
+P4SwitchInterface::SetNetworkFunc (unsigned int func)
+{
+  networkFunc_ = func;
+}
+
+void
+P4SwitchInterface::SetPopulateFlowTableWay (uint way)
+{
+  populateFLowTableWay_ = way;
+}
+
+// === Getter Methods ===
+P4Switch *
+P4SwitchInterface::GetP4Switch () const
+{
+  return p4Core_;
+}
+
+const std::string &
+P4SwitchInterface::GetJsonPath () const
+{
+  return jsonPath_;
+}
+
+const std::string &
+P4SwitchInterface::GetP4InfoPath () const
+{
+  return p4InfoPath_;
+}
+
+const std::string &
+P4SwitchInterface::GetFlowTablePath () const
+{
+  return flowTablePath_;
+}
+
+const std::string &
+P4SwitchInterface::GetViewFlowTablePath () const
+{
+  return viewFlowTablePath_;
+}
+
+unsigned int
+P4SwitchInterface::GetNetworkFunc () const
+{
+  return networkFunc_;
+}
+
+uint
+P4SwitchInterface::GetPopulateFlowTableWay () const
+{
+  return populateFLowTableWay_;
 }
 
 void
@@ -904,8 +989,7 @@ P4SwitchInterface::Init ()
       args.push_back (P4GlobalVar::g_p4JsonPath.data ());
 
       // Initialize P4 core with local command line options
-      status =
-          p4Core_->InitFromCommandLineOptionsLocal (static_cast<int> (args.size ()), args.data ());
+      status = p4Core_->InitFromCommandLineOptions (static_cast<int> (args.size ()), args.data ());
       if (status != 0)
         {
           NS_LOG_ERROR ("Failed to initialize P4Switch with local command line options.");

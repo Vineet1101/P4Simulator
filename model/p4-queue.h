@@ -201,15 +201,6 @@ public:
     w_info.q_not_empty.notify_one ();
     return 1;
   }
-
-  /**
-   * @brief  Place the packet in the queue. The state is priority queue not 
-   * enabled.
-   * 
-   * @param queue_id each egress port will have a queue_id
-   * @param item the packet or things to be placed in the queue
-   * @return int 
-   */
   int
   push_front (size_t queue_id, const T &item)
   {
@@ -279,16 +270,22 @@ public:
       {
         if (w_info.size == 0)
           {
-            // w_info.q_not_empty.wait(lock); // Empty queue, wait until lock state changes (add pkts)
-            // will take out the null, but leave the detection step to a later process
+            // waiting for add queue item
+            // w_info.q_not_empty.wait (lock);
             return;
           }
         else
           {
-            // There's a pkt in the queue.
             Time now = Simulator::Now ();
-            Time next = now + Seconds (10); // set 10s as the max interval for one packet process.
-            for (pri = 0; pri < nb_priorities; pri++)
+            Time next = now + Seconds (5);
+
+            // auto now_real = std::chrono::steady_clock::now ();
+            // auto next_real = now_real + std::chrono::nanoseconds (next.GetNanoSeconds ());
+            // auto now = clock::now ();
+            // auto next = clock::time_point::max ();
+
+            // This will iterate from nb_priorities-1 to 0
+            for (pri = nb_priorities; pri-- > 0;)
               {
                 auto &q = w_info.queues[pri];
                 if (q.size () == 0)
@@ -298,13 +295,18 @@ public:
                     queue = &q;
                     break;
                   }
-                next = (next < q.top ().send) ? next : q.top ().send;
+                next = std::min (next, q.top ().send);
+                // next_real = now_real + std::chrono::nanoseconds (next.GetNanoSeconds ());
               }
             if (queue)
               break;
-            // At this point the queue is empty again, waiting for the lock state to change (add pkts)
-            // Null will be taken out, but the detection step is left to a later process
             return;
+            // if (w_info.q_not_empty.wait_until (lock, next_real) == std::cv_status::timeout)
+            //   {
+            //     // Time Out in 5s
+            //     *pItem = nullptr;
+            //     return;
+            //   }
           }
       }
     *queue_id = queue->top ().queue_id;
@@ -318,6 +320,40 @@ public:
     q_info_pri.size--;
     q_info.size--;
     w_info.size--;
+  }
+
+  Time
+  get_this_pkt_delay (const size_t queue_id, const size_t priority)
+  {
+    auto &q_info = get_queue (queue_id);
+    auto &q_info_pri = q_info.at (priority);
+    // Time now = Simulator::Now ();
+    return q_info_pri.pkt_delay_time;
+  }
+
+  Time
+  get_next_tp_all_ports ()
+  {
+    Time now = Simulator::Now ();
+    Time next = now + Seconds (5);
+
+    // This will iterate from nb_priorities-1 to 0
+    for (auto it = workers_info.begin (); it != workers_info.end (); it++)
+      {
+        auto &w_info = it->second;
+        for (size_t pri = nb_priorities; pri-- > 0;)
+          {
+            auto &q = w_info.queues[pri];
+            if (q.size () == 0)
+              continue;
+            if (q.top ().send <= now)
+              {
+                return q.top ().send;
+              }
+            next = std::min (next, q.top ().send);
+          }
+      }
+    return next;
   }
 
   /**

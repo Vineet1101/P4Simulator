@@ -26,6 +26,7 @@
 #include "ns3/nstime.h"
 #include "ns3/p4-bridge-channel.h"
 #include "ns3/p4-switch-core.h"
+#include "ns3/p4-psa-switch-core.h"
 
 #include <map>
 #include <stdint.h>
@@ -41,6 +42,7 @@ namespace ns3 {
 
 class Node;
 class P4Switch;
+class PsaSwitch;
 
 /**
  * \defgroup bridge Bridge P4 Network Device
@@ -50,18 +52,6 @@ class P4Switch;
  * BridgeP4NetDevice is a subclass of NetDevice in the ns-3 domain and serves as
  * the network layer of a P4 target. It is compatible with other net devices
  * in ns-3.
- *
- * \attention The Spanning Tree Protocol part of 802.1D is not
- * implemented.  Therefore, you have to be careful not to create
- * bridging loops, or else the network will collapse.
- *
- * \TODO Create a new channel class supporting arbitrary underlying channel.
- */
-
-/**
- * \ingroup bridge
- * \brief A Bridge Net Device with Programmable Data Plane, based on that,
- * it also can be a p4 switch in network.
  */
 class BridgeP4NetDevice : public NetDevice
 {
@@ -190,6 +180,8 @@ protected:
   // Ptr<NetDevice> GetLearnedState(Mac48Address source);
 
 private:
+  bool SetSwitchType (const int switchType);
+
   NetDevice::ReceiveCallback m_rxCallback; //!< receive callback
   NetDevice::PromiscReceiveCallback m_promiscRxCallback; //!< promiscuous receive callback
 
@@ -199,8 +191,10 @@ private:
   std::vector<Ptr<NetDevice>> m_ports; //!< bridged ports
   uint32_t m_ifIndex; //!< Interface index
   uint16_t m_mtu; //!< MTU of the bridged NetDevice
+  int m_switch_type; //!< switch type
 
   P4Switch *m_p4Switch; //!< P4 switch core
+  PsaSwitch *m_psaSwitch; //!< PSA switch core
 };
 
 } // namespace ns3

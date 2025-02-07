@@ -7,6 +7,7 @@
 #define CUSTOM_HEADER_H
 
 #include "ns3/header.h"
+#include "ns3/packet.h"
 #include <string>
 #include <vector>
 #include <stdexcept>
@@ -47,6 +48,10 @@ public:
 
   void InitFields ();
 
+  uint32_t CalculateHeaderInsertOffset (HeaderLayer layer, HeaderLayerOperator operation);
+
+  // bool SetHeaderForPacket (Ptr<Packet> packet, HeaderLayer layer, HeaderLayerOperator operation);
+
   // Add a field definition [Deprecated]
   void AddField (const std::string &name, uint32_t bitWidth);
 
@@ -74,16 +79,27 @@ public:
   static TypeId GetTypeId (void);
   virtual TypeId GetInstanceTypeId (void) const override;
 
+  uint16_t
+  GetOffset () const
+  {
+    return m_offset_bytes;
+  }
+
   virtual void Serialize (Buffer::Iterator start) const override;
   virtual uint32_t Deserialize (Buffer::Iterator start) override;
   virtual uint32_t GetSerializedSize (void) const override;
   virtual void Print (std::ostream &os) const override;
+
+  // static void InsertCustomHeader (Ptr<Packet> packet, const CustomHeader &header);
+  // static void RemoveHeaderAtOffset (Ptr<Packet> packet, CustomHeader &header);
 
 private:
   HeaderLayer m_layer; // OSI Layer for this header
   HeaderLayerOperator m_op; // Operator for this header
   uint64_t m_protocol_number; // Protocol number
   std::vector<Field> m_fields; // Dynamic list of fields
+
+  uint16_t m_offset_bytes; // Offset in bytes
 };
 
 } // namespace ns3
