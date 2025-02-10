@@ -10,8 +10,8 @@ def configure(conf):
     # Check and configure required libraries
     libraries = {
         'bm': 'BM',
-        'boost_system': 'BOOST',
-        'simple_switch': 'SW'
+        # 'boost_system': 'BOOST',
+        # 'simple_switch': 'SW'
     }
 
     for lib, store in libraries.items():
@@ -97,7 +97,9 @@ def build(bld):
         ]
 
     # Add library dependencies
-    module.use += ['BM', 'BOOST', 'SW']
+    # module.use += ['BM', 'BOOST', 'SW']
+    module.use += ['BM']
+
 
     # Recursive compilation example (if enabled)
     if bld.env.ENABLE_EXAMPLES:

@@ -14,7 +14,7 @@
 #include "ns3/ptr.h"
 #include "ns3/mac48-address.h"
 #include "ns3/p4-p2p-channel.h"
-
+#include "ns3/queue.h"
 #include "ns3/ethernet-header.h"
 #include <ns3/arp-l3-protocol.h>
 #include <ns3/arp-header.h>
@@ -24,8 +24,6 @@
 
 namespace ns3 {
 
-template <typename Item>
-class Queue;
 class ErrorModel;
 class P4P2PChannel;
 
