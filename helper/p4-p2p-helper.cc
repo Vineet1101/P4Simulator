@@ -85,7 +85,7 @@ P4PointToPointHelper::EnablePcapInternal (std::string prefix, Ptr<NetDevice> nd,
   // the system.  We can only deal with devices of type CustomP2PNetDevice.
   //
   Ptr<CustomP2PNetDevice> device = nd->GetObject<CustomP2PNetDevice> ();
-  if (device == 0)
+  if (device == nullptr)
     {
       NS_LOG_INFO ("P4PointToPointHelper::EnablePcapInternal(): Device "
                    << device << " not of type ns3::CustomP2PNetDevice");
@@ -119,7 +119,7 @@ P4PointToPointHelper::EnableAsciiInternal (Ptr<OutputStreamWrapper> stream, std:
   // the system.  We can only deal with devices of type CustomP2PNetDevice.
   //
   Ptr<CustomP2PNetDevice> device = nd->GetObject<CustomP2PNetDevice> ();
-  if (device == 0)
+  if (device == nullptr)
     {
       NS_LOG_INFO ("P4PointToPointHelper::EnableAsciiInternal(): Device "
                    << device << " not of type ns3::CustomP2PNetDevice");
@@ -138,7 +138,7 @@ P4PointToPointHelper::EnableAsciiInternal (Ptr<OutputStreamWrapper> stream, std:
   // since there will be one file per context and therefore the context would
   // be redundant.
   //
-  if (stream == 0)
+  if (stream == nullptr)
     {
       //
       // Set up an output stream object to deal with private ofstream copy
@@ -259,7 +259,7 @@ P4PointToPointHelper::Install (Ptr<Node> a, Ptr<Node> b)
   ndqiB->GetTxQueue (0)->ConnectQueueTraces (queueB);
   devB->AggregateObject (ndqiB);
 
-  Ptr<P4P2PChannel> channel = 0;
+  Ptr<P4P2PChannel> channel = nullptr;
 
   // If MPI is enabled, we need to see if both nodes have the same system id
   // (rank), and the rank is the same as this instance.  If both are true,

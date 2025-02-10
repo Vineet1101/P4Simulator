@@ -1,3 +1,19 @@
+#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_OFF
+
+#ifdef Mutex
+#undef Mutex
+#endif
+
+// Undefine conflicting macro if it exists
+#ifdef registry_t
+#undef registry_t
+#endif
+
+// #include <bm/spdlog/spdlog.h>
+// #undef LOG_INFO
+// #undef LOG_ERROR
+// #undef LOG_DEBUG
+
 #include "ns3/p4-switch-interface.h"
 #include "ns3/format-utils.h"
 #include "ns3/p4-exception-handle.h"
@@ -6,7 +22,6 @@
 #include <bm/bm_sim/options_parse.h>
 #include <bm/bm_runtime/bm_runtime.h>
 #include <bm/bm_sim/switch.h>
-
 #include <fstream>
 #include <iostream>
 #include <string>
