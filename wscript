@@ -1,21 +1,15 @@
 # -*- Mode: python; py-indent-offset: 4; indent-tabs-mode: nil; coding: utf-8; -*-
 
-# def options(opt):
-#     pass
-
+# # Check the libs (Deprecated, with set_pkg_config_env.sh)
 # def configure(conf):
-#     conf.check_nonfatal(header_name='stdint.h', define_name='HAVE_STDINT_H')
-
-def configure(conf):
-    # Check and configure required libraries
-    libraries = {
-        'bm': 'BM',
-        # 'boost_system': 'BOOST',
-        # 'simple_switch': 'SW'
-    }
-
-    for lib, store in libraries.items():
-        conf.check_cfg(package=lib, uselib_store=store, args=['--cflags', '--libs'], mandatory=True)
+#     # Check and configure required libraries
+#     libraries = {
+#         'bm': 'BM',
+#         'boost_system': 'BOOST',
+#         'simple_switch': 'SW'
+#     }
+#     for lib, store in libraries.items():
+#         conf.check_cfg(package=lib, uselib_store=store, args=['--cflags', '--libs'], mandatory=True)
     
 def build(bld):
     req_ns3_modules = [
@@ -53,17 +47,13 @@ def build(bld):
         'helper/p4-p2p-helper.cc'
         ]
 
-    # module.include = [
-    #     '/home/vagrant/behavioral-model/third_party/spdlog/bm/',
-    # ]
-    
     module_test = bld.create_ns3_module_test_library('p4sim')
     module_test.source = [
-        'test/p4sim-test-suite.cc',
-        'test/format-utils-test-suite.cc',
-        # 'test/p4-queue-disc-test-suite.cc',
-        'test/p4-topology-reader-test-suite.cc',
-        'test/p4-p2p-channel-test-suite.cc',
+        # 'test/p4sim-test-suite.cc',
+        # 'test/format-utils-test-suite.cc',
+        # # 'test/p4-queue-disc-test-suite.cc',
+        # 'test/p4-topology-reader-test-suite.cc',
+        # 'test/p4-p2p-channel-test-suite.cc',
         ]
     
     # Tests encapsulating example programs should be listed here
@@ -96,11 +86,16 @@ def build(bld):
         'helper/p4-p2p-helper.h'
         ]
 
-    # Add library dependencies
+    # Add library dependencies (Deprecated)
     # module.use += ['BM', 'BOOST', 'SW']
-    module.use += ['BM']
-
-
+    # module.use += ['BM']
+    
+    # Add library dependencies
+    module.uselib_local = ['BM']
+    module.includes = ['/usr/local/include']
+    module.lib = ['bmall', 'bmpi', 'pi', 'gmp']
+    module.libpath = ['/usr/local/lib']
+    
     # Recursive compilation example (if enabled)
     if bld.env.ENABLE_EXAMPLES:
         bld.recurse('examples')
