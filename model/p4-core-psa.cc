@@ -25,7 +25,7 @@
 #include "ns3/log.h"
 #include "ns3/simulator.h"
 #include "ns3/socket.h"
-#include "ns3/p4-psa-switch-core.h"
+#include "ns3/p4-core-psa.h"
 
 #define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_OFF
 #include <bm/spdlog/spdlog.h>
@@ -40,7 +40,7 @@
 // #include <bm/bm_sim/switch.h>
 // #include <bm/bm_sim/core/primitives.h>
 
-NS_LOG_COMPONENT_DEFINE ("PsaSwitchCore");
+NS_LOG_COMPONENT_DEFINE ("P4CorePsa");
 
 namespace ns3 {
 
@@ -90,7 +90,7 @@ REGISTER_HASH (bmv2_hash_psa);
 // extern int import_internet_checksum ();
 // extern int import_hash ();
 
-class PsaSwitch::MirroringSessions
+class P4CorePsa::MirroringSessions
 {
 public:
   bool
@@ -145,9 +145,9 @@ private:
   std::unordered_map<int, MirroringSessionConfig> sessions_map;
 };
 
-bm::packet_id_t PsaSwitch::packet_id = 0;
+bm::packet_id_t P4CorePsa::packet_id = 0;
 
-PsaSwitch::PsaSwitch (BridgeP4NetDevice *net_device, bool enable_swap, port_t drop_port,
+P4CorePsa::P4CorePsa (P4SwitchNetDevice *net_device, bool enable_swap, port_t drop_port,
                       size_t nb_queues_per_port)
     : bm::Switch (enable_swap),
       drop_port (drop_port),
@@ -162,7 +162,7 @@ PsaSwitch::PsaSwitch (BridgeP4NetDevice *net_device, bool enable_swap, port_t dr
 {
   NS_LOG_FUNCTION (this << " Switch ID Drop port: " << drop_port
                         << " Queues per port: " << nb_queues_per_port);
-  NS_LOG_DEBUG ("Creating PsaSwitch with drop port " << drop_port << " and " << nb_queues_per_port
+  NS_LOG_DEBUG ("Creating P4CorePsa with drop port " << drop_port << " and " << nb_queues_per_port
                                                      << " queues per port");
 
   add_component<bm::McSimplePreLAG> (m_pre);
@@ -230,7 +230,7 @@ PsaSwitch::PsaSwitch (BridgeP4NetDevice *net_device, bool enable_swap, port_t dr
                               << " ns (" << egress_time_reference.GetNanoSeconds () << " [ns])");
 }
 
-PsaSwitch::~PsaSwitch ()
+P4CorePsa::~P4CorePsa ()
 {
   NS_LOG_FUNCTION (this << " Switch ID: " << psa_switch_ID);
   input_buffer.push_front (nullptr);
@@ -242,14 +242,14 @@ PsaSwitch::~PsaSwitch ()
 }
 
 TypeId
-PsaSwitch::GetTypeId (void)
+P4CorePsa::GetTypeId (void)
 {
-  static TypeId tid = TypeId ("ns3::PsaSwitch").SetParent<Object> ().SetGroupName ("P4sim");
+  static TypeId tid = TypeId ("ns3::P4CorePsa").SetParent<Object> ().SetGroupName ("P4sim");
   return tid;
 }
 
 int
-PsaSwitch::InitFromCommandLineOptions (int argc, char *argv[])
+P4CorePsa::InitFromCommandLineOptions (int argc, char *argv[])
 {
   bm::OptionsParser parser;
   parser.parse (argc, argv, m_argParser);
@@ -270,7 +270,7 @@ PsaSwitch::InitFromCommandLineOptions (int argc, char *argv[])
 }
 
 void
-PsaSwitch::RunCli (const std::string &commandsFile)
+P4CorePsa::RunCli (const std::string &commandsFile)
 {
   NS_LOG_FUNCTION (this << " Switch ID: " << psa_switch_ID << " Running CLI commands from "
                         << commandsFile);
@@ -287,7 +287,7 @@ PsaSwitch::RunCli (const std::string &commandsFile)
 }
 
 int
-PsaSwitch::receive_ (uint32_t port_num, const char *buffer, int len)
+P4CorePsa::receive_ (uint32_t port_num, const char *buffer, int len)
 {
   NS_LOG_FUNCTION (this << " Switch ID: " << psa_switch_ID << " Port: " << port_num
                         << " Len: " << len);
@@ -295,7 +295,7 @@ PsaSwitch::receive_ (uint32_t port_num, const char *buffer, int len)
 }
 
 void
-PsaSwitch::start_and_return_ ()
+P4CorePsa::start_and_return_ ()
 {
   NS_LOG_FUNCTION ("Switch ID: " << psa_switch_ID << " start");
   CheckQueueingMetadata ();
@@ -307,18 +307,18 @@ PsaSwitch::start_and_return_ ()
                         << " Scheduling initial timer event using egress_time_reference = "
                         << egress_time_reference.GetNanoSeconds () << " ns");
       egress_timer_event =
-          Simulator::Schedule (egress_time_reference, &PsaSwitch::SetEgressTimerEvent, this);
+          Simulator::Schedule (egress_time_reference, &P4CorePsa::SetEgressTimerEvent, this);
     }
 }
 
 void
-PsaSwitch::SetEgressTimerEvent ()
+P4CorePsa::SetEgressTimerEvent ()
 {
   NS_LOG_FUNCTION ("p4_switch has been triggered by the egress timer event");
   static bool m_firstRun = false;
   bool checkflag = ProcessEgress (0);
   egress_timer_event =
-      Simulator::Schedule (egress_time_reference, &PsaSwitch::SetEgressTimerEvent, this);
+      Simulator::Schedule (egress_time_reference, &P4CorePsa::SetEgressTimerEvent, this);
   if (!m_firstRun && checkflag)
     {
       m_firstRun = true;
@@ -326,25 +326,25 @@ PsaSwitch::SetEgressTimerEvent ()
   if (m_firstRun && !checkflag)
     {
       NS_LOG_INFO ("Egress timer event needs additional scheduling due to !checkflag.");
-      Simulator::Schedule (Time (NanoSeconds (10)), &PsaSwitch::ProcessEgress, this, 0);
+      Simulator::Schedule (Time (NanoSeconds (10)), &P4CorePsa::ProcessEgress, this, 0);
     }
 }
 
 uint64_t
-PsaSwitch::GetTimeStamp ()
+P4CorePsa::GetTimeStamp ()
 {
   return Simulator::Now ().GetNanoSeconds () - start_timestamp;
 }
 
 void
-PsaSwitch::swap_notify_ ()
+P4CorePsa::swap_notify_ ()
 {
   NS_LOG_FUNCTION ("p4_switch has been notified of a config swap");
   CheckQueueingMetadata ();
 }
 
 void
-PsaSwitch::CheckQueueingMetadata ()
+P4CorePsa::CheckQueueingMetadata ()
 {
   // TODO(antonin): add qid in required fields
   bool enq_timestamp_e = field_exists ("queueing_metadata", "enq_timestamp");
@@ -375,14 +375,14 @@ PsaSwitch::CheckQueueingMetadata ()
 }
 
 void
-PsaSwitch::reset_target_state_ ()
+P4CorePsa::reset_target_state_ ()
 {
   NS_LOG_DEBUG ("Resetting simple_switch target-specific state");
   get_component<bm::McSimplePreLAG> ()->reset_state ();
 }
 
 int
-PsaSwitch::ReceivePacket (Ptr<Packet> packetIn, int inPort, uint16_t protocol,
+P4CorePsa::ReceivePacket (Ptr<Packet> packetIn, int inPort, uint16_t protocol,
                           const Address &destination)
 {
   NS_LOG_FUNCTION (this);
@@ -424,13 +424,13 @@ PsaSwitch::ReceivePacket (Ptr<Packet> packetIn, int inPort, uint16_t protocol,
   input_buffer.push_front (std::move (bm_packet));
   // input_buffer.push_front (InputBuffer::PacketType::NORMAL, std::move (bm_packet));
   ProcessIngress ();
-  NS_LOG_DEBUG ("Packet received by PsaSwitch, Port: " << inPort << ", Packet ID: " << packet_id
+  NS_LOG_DEBUG ("Packet received by P4CorePsa, Port: " << inPort << ", Packet ID: " << packet_id
                                                        << ", Size: " << len << " bytes");
   return 0;
 }
 
 void
-PsaSwitch::Enqueue (port_t egress_port, std::unique_ptr<bm::Packet> &&packet)
+P4CorePsa::Enqueue (port_t egress_port, std::unique_ptr<bm::Packet> &&packet)
 {
   packet->set_egress_port (egress_port);
 
@@ -451,7 +451,7 @@ PsaSwitch::Enqueue (port_t egress_port, std::unique_ptr<bm::Packet> &&packet)
 }
 
 void
-PsaSwitch::ProcessIngress ()
+P4CorePsa::ProcessIngress ()
 {
   NS_LOG_FUNCTION (this);
 
@@ -614,7 +614,7 @@ PsaSwitch::ProcessIngress ()
 }
 
 bool
-PsaSwitch::ProcessEgress (size_t worker_id)
+P4CorePsa::ProcessEgress (size_t worker_id)
 {
   NS_LOG_FUNCTION ("Dequeue packet from QueueBuffer");
   std::unique_ptr<bm::Packet> bm_packet;
@@ -746,7 +746,7 @@ PsaSwitch::ProcessEgress (size_t worker_id)
 }
 
 Ptr<Packet>
-PsaSwitch::ConvertToNs3Packet (std::unique_ptr<bm::Packet> &&bm_packet)
+P4CorePsa::ConvertToNs3Packet (std::unique_ptr<bm::Packet> &&bm_packet)
 {
   // Create a new ns3::Packet using the data buffer
   char *bm_buf = bm_packet.get ()->data ();
@@ -757,7 +757,7 @@ PsaSwitch::ConvertToNs3Packet (std::unique_ptr<bm::Packet> &&bm_packet)
 }
 
 void
-PsaSwitch::MultiCastPacket (bm::Packet *packet, unsigned int mgid, PktInstanceType path,
+P4CorePsa::MultiCastPacket (bm::Packet *packet, unsigned int mgid, PktInstanceType path,
                             unsigned int class_of_service)
 {
   auto phv = packet->get_phv ();
@@ -783,67 +783,67 @@ PsaSwitch::MultiCastPacket (bm::Packet *packet, unsigned int mgid, PktInstanceTy
 }
 
 bool
-PsaSwitch::AddMirroringSession (int mirror_id, const MirroringSessionConfig &config)
+P4CorePsa::AddMirroringSession (int mirror_id, const MirroringSessionConfig &config)
 {
   return mirroring_sessions->add_session (mirror_id, config);
 }
 
 bool
-PsaSwitch::DeleteMirroringSession (int mirror_id)
+P4CorePsa::DeleteMirroringSession (int mirror_id)
 {
   return mirroring_sessions->delete_session (mirror_id);
 }
 
 bool
-PsaSwitch::GetMirroringSession (int mirror_id, MirroringSessionConfig *config) const
+P4CorePsa::GetMirroringSession (int mirror_id, MirroringSessionConfig *config) const
 {
   return mirroring_sessions->get_session (mirror_id, config);
 }
 
 int
-PsaSwitch::SetEgressPriorityQueueDepth (size_t port, size_t priority, const size_t depth_pkts)
+P4CorePsa::SetEgressPriorityQueueDepth (size_t port, size_t priority, const size_t depth_pkts)
 {
   egress_buffer.set_capacity (port, priority, depth_pkts);
   return 0;
 }
 
 int
-PsaSwitch::SetEgressQueueDepth (size_t port, const size_t depth_pkts)
+P4CorePsa::SetEgressQueueDepth (size_t port, const size_t depth_pkts)
 {
   egress_buffer.set_capacity (port, depth_pkts);
   return 0;
 }
 
 int
-PsaSwitch::SetAllEgressQueueDepths (const size_t depth_pkts)
+P4CorePsa::SetAllEgressQueueDepths (const size_t depth_pkts)
 {
   egress_buffer.set_capacity_for_all (depth_pkts);
   return 0;
 }
 
 int
-PsaSwitch::SetEgressPriorityQueueRate (size_t port, size_t priority, const uint64_t rate_pps)
+P4CorePsa::SetEgressPriorityQueueRate (size_t port, size_t priority, const uint64_t rate_pps)
 {
   egress_buffer.set_rate (port, priority, rate_pps);
   return 0;
 }
 
 int
-PsaSwitch::SetEgressQueueRate (size_t port, const uint64_t rate_pps)
+P4CorePsa::SetEgressQueueRate (size_t port, const uint64_t rate_pps)
 {
   egress_buffer.set_rate (port, rate_pps);
   return 0;
 }
 
 int
-PsaSwitch::SetAllEgressQueueRates (const uint64_t rate_pps)
+P4CorePsa::SetAllEgressQueueRates (const uint64_t rate_pps)
 {
   egress_buffer.set_rate_for_all (rate_pps);
   return 0;
 }
 
 int
-PsaSwitch::GetAddressIndex (const Address &destination)
+P4CorePsa::GetAddressIndex (const Address &destination)
 {
   auto it = address_map.find (destination);
   if (it != address_map.end ())

@@ -18,7 +18,7 @@
  * Authors: Mingyu Ma <mingyu.ma@tu-dresden.de>
  */
 
-#include "ns3/bridge-p4-net-device.h"
+#include "ns3/p4-switch-net-device.h"
 #include "ns3/global.h"
 #include "ns3/channel.h"
 #include "ns3/ethernet-header.h"
@@ -37,85 +37,91 @@
 
 namespace ns3 {
 
-NS_LOG_COMPONENT_DEFINE ("BridgeP4NetDevice");
+NS_LOG_COMPONENT_DEFINE ("P4SwitchNetDevice");
 
-NS_OBJECT_ENSURE_REGISTERED (BridgeP4NetDevice);
+NS_OBJECT_ENSURE_REGISTERED (P4SwitchNetDevice);
 
 TypeId
-BridgeP4NetDevice::GetTypeId ()
+P4SwitchNetDevice::GetTypeId ()
 {
   static TypeId tid =
-      TypeId ("ns3::BridgeP4NetDevice")
+      TypeId ("ns3::P4SwitchNetDevice")
           .SetParent<NetDevice> ()
           .SetGroupName ("Bridge")
-          .AddConstructor<BridgeP4NetDevice> ()
+          .AddConstructor<P4SwitchNetDevice> ()
           .AddAttribute (
               "Mtu", "The MAC-level Maximum Transmission Unit", UintegerValue (1500),
-              MakeUintegerAccessor (&BridgeP4NetDevice::SetMtu, &BridgeP4NetDevice::GetMtu),
+              MakeUintegerAccessor (&P4SwitchNetDevice::SetMtu, &P4SwitchNetDevice::GetMtu),
               MakeUintegerChecker<uint16_t> ())
 
           .AddAttribute ("JsonPath", "Path to the P4 JSON configuration file.",
                          StringValue ("/path/to/default.json"),
-                         MakeStringAccessor (&BridgeP4NetDevice::jsonPath_), MakeStringChecker ())
+                         MakeStringAccessor (&P4SwitchNetDevice::jsonPath_), MakeStringChecker ())
 
           .AddAttribute ("FlowTablePath", "Path to the flow table file.",
                          StringValue ("/path/to/flow_table.txt"),
-                         MakeStringAccessor (&BridgeP4NetDevice::flowTablePath_),
+                         MakeStringAccessor (&P4SwitchNetDevice::flowTablePath_),
                          MakeStringChecker ())
+
+          .AddAttribute ("ChannelType", "Channel type for the switch, csma with 0, p2p with 1.",
+                         UintegerValue (P4CHANNELCSMA),
+                         MakeUintegerAccessor (&P4SwitchNetDevice::m_channelType),
+                         MakeUintegerChecker<int8_t> ())
 
           .AddAttribute ("InputBufferSizeLow", "Low input buffer size for the switch queue.",
                          UintegerValue (128),
-                         MakeUintegerAccessor (&BridgeP4NetDevice::input_buffer_size_low),
+                         MakeUintegerAccessor (&P4SwitchNetDevice::input_buffer_size_low),
                          MakeUintegerChecker<size_t> ())
 
           .AddAttribute ("InputBufferSizeHigh", "High input buffer size for the switch queue.",
                          UintegerValue (128),
-                         MakeUintegerAccessor (&BridgeP4NetDevice::input_buffer_size_high),
+                         MakeUintegerAccessor (&P4SwitchNetDevice::input_buffer_size_high),
                          MakeUintegerChecker<size_t> ())
 
           .AddAttribute ("QueueBufferSize", "Total buffer size for the switch queue.",
                          UintegerValue (128),
-                         MakeUintegerAccessor (&BridgeP4NetDevice::queue_buffer_size),
+                         MakeUintegerAccessor (&P4SwitchNetDevice::queue_buffer_size),
                          MakeUintegerChecker<size_t> ())
+
           .AddAttribute ("PacketRate", "Packet processing speed in switch (unit: pps)",
                          UintegerValue (1000),
-                         MakeUintegerAccessor (&BridgeP4NetDevice::packet_rate),
+                         MakeUintegerAccessor (&P4SwitchNetDevice::packet_rate),
                          MakeUintegerChecker<uint64_t> ());
   return tid;
 }
 
-BridgeP4NetDevice::BridgeP4NetDevice () : m_node (nullptr), m_ifIndex (0)
+P4SwitchNetDevice::P4SwitchNetDevice () : m_node (nullptr), m_ifIndex (0)
 {
   NS_LOG_FUNCTION_NOARGS ();
   m_channel = CreateObject<P4BridgeChannel> ();
 
-  m_p4Switch = nullptr;
+  NS_LOG_DEBUG ("P4 architecture: v1model");
+  m_p4Switch = new P4CoreV1model (this, false, packet_rate, input_buffer_size_low,
+                                  input_buffer_size_high, queue_buffer_size);
+  m_p4Switch->InitSwitchWithP4 (jsonPath_, flowTablePath_);
+  m_p4Switch->start_and_return_ ();
+
   // m_psaSwitch = nullptr;
-  if (P4GlobalVar::g_p4ArchType == P4ARCHV1MODEL)
-    {
-      NS_LOG_DEBUG ("P4 architecture: v1model");
-      m_p4Switch = new P4Switch (this, false, packet_rate, input_buffer_size_low,
-                                 input_buffer_size_high, queue_buffer_size);
-      m_p4Switch->InitSwitchWithP4 (jsonPath_, flowTablePath_);
-      m_p4Switch->start_and_return_ ();
-    }
-  else if (P4GlobalVar::g_p4ArchType == P4ARCHPSA)
-    {
-      NS_LOG_DEBUG ("P4 architecture: psa");
-    }
-  else
-    {
-      NS_LOG_ERROR ("Unsupported P4 architecture type.");
-    }
+  // if (P4GlobalVar::g_p4ArchType == P4ARCHV1MODEL)
+  //   {
+  //   }
+  // else if (P4GlobalVar::g_p4ArchType == P4ARCHPSA)
+  //   {
+  //     NS_LOG_DEBUG ("P4 architecture: psa");
+  //   }
+  // else
+  //   {
+  //     NS_LOG_ERROR ("Unsupported P4 architecture type.");
+  //   }
 }
 
-BridgeP4NetDevice::~BridgeP4NetDevice ()
+P4SwitchNetDevice::~P4SwitchNetDevice ()
 {
   NS_LOG_FUNCTION_NOARGS ();
 }
 
 void
-BridgeP4NetDevice::DoDispose ()
+P4SwitchNetDevice::DoDispose ()
 {
   NS_LOG_FUNCTION_NOARGS ();
   for (auto iter = m_ports.begin (); iter != m_ports.end (); iter++)
@@ -129,7 +135,7 @@ BridgeP4NetDevice::DoDispose ()
 }
 
 void
-BridgeP4NetDevice::ReceiveFromDevice (Ptr<NetDevice> incomingPort, Ptr<const Packet> packet,
+P4SwitchNetDevice::ReceiveFromDevice (Ptr<NetDevice> incomingPort, Ptr<const Packet> packet,
                                       uint16_t protocol, const Address &src, const Address &dst,
                                       PacketType packetType)
 {
@@ -153,7 +159,7 @@ BridgeP4NetDevice::ReceiveFromDevice (Ptr<NetDevice> incomingPort, Ptr<const Pac
 
   Ptr<ns3::Packet> ns3Packet ((ns3::Packet *) PeekPointer (packet));
 
-  if (P4GlobalVar::g_channelType == P4ChannelType::CSMA)
+  if (m_channelType == P4CHANNELCSMA)
     {
       EthernetHeader eeh;
       eeh.SetDestination (dst48);
@@ -162,7 +168,7 @@ BridgeP4NetDevice::ReceiveFromDevice (Ptr<NetDevice> incomingPort, Ptr<const Pac
 
       ns3Packet->AddHeader (eeh);
     }
-  else if (P4GlobalVar::g_channelType == P4ChannelType::P2P)
+  else if (m_channelType == P4CHANNELP2P)
     {
       // The P4 processing part need the Ethernet header.
       EthernetHeader eeh_1;
@@ -191,19 +197,23 @@ BridgeP4NetDevice::ReceiveFromDevice (Ptr<NetDevice> incomingPort, Ptr<const Pac
       // ns3Packet->Print (std::cout);
       // std::cout << std::endl;
     }
+  else
+    {
+      NS_LOG_ERROR ("Unsupported channel type.");
+    }
 
   m_p4Switch->ReceivePacket (ns3Packet, inPort, protocol, dst);
 }
 
 uint32_t
-BridgeP4NetDevice::GetNBridgePorts () const
+P4SwitchNetDevice::GetNBridgePorts () const
 {
   NS_LOG_FUNCTION_NOARGS ();
   return m_ports.size ();
 }
 
 Ptr<NetDevice>
-BridgeP4NetDevice::GetBridgePort (uint32_t n) const
+P4SwitchNetDevice::GetBridgePort (uint32_t n) const
 {
   NS_LOG_FUNCTION_NOARGS ();
   if (n >= m_ports.size ())
@@ -212,7 +222,7 @@ BridgeP4NetDevice::GetBridgePort (uint32_t n) const
 }
 
 void
-BridgeP4NetDevice::AddBridgePort (Ptr<NetDevice> bridgePort)
+P4SwitchNetDevice::AddBridgePort (Ptr<NetDevice> bridgePort)
 {
   NS_LOG_FUNCTION_NOARGS ();
   NS_ASSERT (bridgePort != this);
@@ -231,14 +241,14 @@ BridgeP4NetDevice::AddBridgePort (Ptr<NetDevice> bridgePort)
 
   NS_LOG_DEBUG ("RegisterProtocolHandler for " << bridgePort->GetInstanceTypeId ().GetName ());
 
-  m_node->RegisterProtocolHandler (MakeCallback (&BridgeP4NetDevice::ReceiveFromDevice, this), 0,
+  m_node->RegisterProtocolHandler (MakeCallback (&P4SwitchNetDevice::ReceiveFromDevice, this), 0,
                                    bridgePort, true);
   m_ports.push_back (bridgePort);
   m_channel->AddChannel (bridgePort->GetChannel ());
 }
 
 uint32_t
-BridgeP4NetDevice::GetPortNumber (Ptr<NetDevice> port) const
+P4SwitchNetDevice::GetPortNumber (Ptr<NetDevice> port) const
 {
   int portsNum = GetNBridgePorts ();
   for (int i = 0; i < portsNum; i++)
@@ -252,42 +262,42 @@ BridgeP4NetDevice::GetPortNumber (Ptr<NetDevice> port) const
 }
 
 void
-BridgeP4NetDevice::SetIfIndex (const uint32_t index)
+P4SwitchNetDevice::SetIfIndex (const uint32_t index)
 {
   NS_LOG_FUNCTION_NOARGS ();
   m_ifIndex = index;
 }
 
 uint32_t
-BridgeP4NetDevice::GetIfIndex () const
+P4SwitchNetDevice::GetIfIndex () const
 {
   NS_LOG_FUNCTION_NOARGS ();
   return m_ifIndex;
 }
 
 Ptr<Channel>
-BridgeP4NetDevice::GetChannel () const
+P4SwitchNetDevice::GetChannel () const
 {
   NS_LOG_FUNCTION_NOARGS ();
   return m_channel;
 }
 
 void
-BridgeP4NetDevice::SetAddress (Address address)
+P4SwitchNetDevice::SetAddress (Address address)
 {
   NS_LOG_FUNCTION_NOARGS ();
   m_address = Mac48Address::ConvertFrom (address);
 }
 
 Address
-BridgeP4NetDevice::GetAddress () const
+P4SwitchNetDevice::GetAddress () const
 {
   NS_LOG_FUNCTION_NOARGS ();
   return m_address;
 }
 
 bool
-BridgeP4NetDevice::SetMtu (const uint16_t mtu)
+P4SwitchNetDevice::SetMtu (const uint16_t mtu)
 {
   NS_LOG_FUNCTION_NOARGS ();
   m_mtu = mtu;
@@ -295,47 +305,47 @@ BridgeP4NetDevice::SetMtu (const uint16_t mtu)
 }
 
 uint16_t
-BridgeP4NetDevice::GetMtu () const
+P4SwitchNetDevice::GetMtu () const
 {
   NS_LOG_FUNCTION_NOARGS ();
   return m_mtu;
 }
 
 bool
-BridgeP4NetDevice::IsLinkUp () const
+P4SwitchNetDevice::IsLinkUp () const
 {
   NS_LOG_FUNCTION_NOARGS ();
   return true;
 }
 
 void
-BridgeP4NetDevice::AddLinkChangeCallback (Callback<void> callback)
+P4SwitchNetDevice::AddLinkChangeCallback (Callback<void> callback)
 {
 }
 
 bool
-BridgeP4NetDevice::IsBroadcast () const
+P4SwitchNetDevice::IsBroadcast () const
 {
   NS_LOG_FUNCTION_NOARGS ();
   return true;
 }
 
 Address
-BridgeP4NetDevice::GetBroadcast () const
+P4SwitchNetDevice::GetBroadcast () const
 {
   NS_LOG_FUNCTION_NOARGS ();
   return Mac48Address::GetBroadcast ();
 }
 
 bool
-BridgeP4NetDevice::IsMulticast () const
+P4SwitchNetDevice::IsMulticast () const
 {
   NS_LOG_FUNCTION_NOARGS ();
   return true;
 }
 
 Address
-BridgeP4NetDevice::GetMulticast (Ipv4Address multicastGroup) const
+P4SwitchNetDevice::GetMulticast (Ipv4Address multicastGroup) const
 {
   NS_LOG_FUNCTION (this << multicastGroup);
   Mac48Address multicast = Mac48Address::GetMulticast (multicastGroup);
@@ -343,28 +353,28 @@ BridgeP4NetDevice::GetMulticast (Ipv4Address multicastGroup) const
 }
 
 bool
-BridgeP4NetDevice::IsPointToPoint () const
+P4SwitchNetDevice::IsPointToPoint () const
 {
   NS_LOG_FUNCTION_NOARGS ();
   return false;
 }
 
 bool
-BridgeP4NetDevice::IsBridge () const
+P4SwitchNetDevice::IsBridge () const
 {
   NS_LOG_FUNCTION_NOARGS ();
   return true;
 }
 
 bool
-BridgeP4NetDevice::Send (Ptr<Packet> packet, const Address &dest, uint16_t protocolNumber)
+P4SwitchNetDevice::Send (Ptr<Packet> packet, const Address &dest, uint16_t protocolNumber)
 {
   NS_LOG_FUNCTION_NOARGS ();
   return SendFrom (packet, m_address, dest, protocolNumber);
 }
 
 bool
-BridgeP4NetDevice::SendFrom (Ptr<Packet> packet, const Address &src, const Address &dest,
+P4SwitchNetDevice::SendFrom (Ptr<Packet> packet, const Address &src, const Address &dest,
                              uint16_t protocolNumber)
 {
   /*
@@ -397,14 +407,14 @@ BridgeP4NetDevice::SendFrom (Ptr<Packet> packet, const Address &src, const Addre
 }
 
 void
-BridgeP4NetDevice::SendPacket (Ptr<Packet> packetOut, int outPort, uint16_t protocol,
+P4SwitchNetDevice::SendPacket (Ptr<Packet> packetOut, int outPort, uint16_t protocol,
                                const Address &destination)
 {
   SendNs3Packet (packetOut, outPort, protocol, destination);
 }
 
 void
-BridgeP4NetDevice::SendNs3Packet (Ptr<Packet> packetOut, int outPort, uint16_t protocol,
+P4SwitchNetDevice::SendNs3Packet (Ptr<Packet> packetOut, int outPort, uint16_t protocol,
                                   const Address &destination)
 {
   NS_LOG_DEBUG ("Sending ns3 packet to port " << outPort);
@@ -448,49 +458,49 @@ BridgeP4NetDevice::SendNs3Packet (Ptr<Packet> packetOut, int outPort, uint16_t p
 }
 
 Ptr<Node>
-BridgeP4NetDevice::GetNode () const
+P4SwitchNetDevice::GetNode () const
 {
   NS_LOG_FUNCTION_NOARGS ();
   return m_node;
 }
 
 void
-BridgeP4NetDevice::SetNode (Ptr<Node> node)
+P4SwitchNetDevice::SetNode (Ptr<Node> node)
 {
   NS_LOG_FUNCTION_NOARGS ();
   m_node = node;
 }
 
 bool
-BridgeP4NetDevice::NeedsArp () const
+P4SwitchNetDevice::NeedsArp () const
 {
   NS_LOG_FUNCTION_NOARGS ();
   return true;
 }
 
 void
-BridgeP4NetDevice::SetReceiveCallback (NetDevice::ReceiveCallback cb)
+P4SwitchNetDevice::SetReceiveCallback (NetDevice::ReceiveCallback cb)
 {
   NS_LOG_FUNCTION_NOARGS ();
   m_rxCallback = cb;
 }
 
 void
-BridgeP4NetDevice::SetPromiscReceiveCallback (NetDevice::PromiscReceiveCallback cb)
+P4SwitchNetDevice::SetPromiscReceiveCallback (NetDevice::PromiscReceiveCallback cb)
 {
   NS_LOG_FUNCTION_NOARGS ();
   m_promiscRxCallback = cb;
 }
 
 bool
-BridgeP4NetDevice::SupportsSendFrom () const
+P4SwitchNetDevice::SupportsSendFrom () const
 {
   NS_LOG_FUNCTION_NOARGS ();
   return true;
 }
 
 Address
-BridgeP4NetDevice::GetMulticast (Ipv6Address addr) const
+P4SwitchNetDevice::GetMulticast (Ipv6Address addr) const
 {
   NS_LOG_FUNCTION (this << addr);
   return Mac48Address::GetMulticast (addr);

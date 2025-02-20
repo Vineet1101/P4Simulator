@@ -3,6 +3,7 @@
 #define FORMAT_UTILS_H
 
 #include <string>
+#include <cstdint>
 
 namespace ns3 {
 
@@ -162,6 +163,8 @@ std::string IntToBytes (const std::string &inputStr, int bitWidth);
  * @throws std::invalid_argument if the string format is invalid.
  */
 std::string ParseParam (std::string &inputStr, unsigned int bitWidth);
+
+uint64_t getTickCount (); // Get current time (ms)
 
 } // namespace ns3
 

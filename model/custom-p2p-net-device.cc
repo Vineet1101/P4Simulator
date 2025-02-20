@@ -60,6 +60,18 @@ CustomP2PNetDevice::GetTypeId (void)
           .AddAttribute ("TxQueue", "A queue to use as the transmit queue in the device.",
                          PointerValue (), MakePointerAccessor (&CustomP2PNetDevice::m_queue),
                          MakePointerChecker<Queue<Packet>> ())
+
+          //
+          // In [CUSTOM_DST_PORT_MIN, CUSTOM_DST_PORT_MAX], the packet will be assigned a custom header
+          //
+          .AddAttribute (
+              "CustomDstPortMin", "The minimum destination port number to add the custom header",
+              UintegerValue (10000), MakeUintegerAccessor (&CustomP2PNetDevice::m_customDstPortMin),
+              MakeUintegerChecker<uint16_t> ())
+          .AddAttribute (
+              "CustomDstPortMax", "The maximum destination port number to add the custom header",
+              UintegerValue (12000), MakeUintegerAccessor (&CustomP2PNetDevice::m_customDstPortMax),
+              MakeUintegerChecker<uint16_t> ())
           //
           // Trace sources at the "top" of the net device, where packets transition
           // to/from higher layers.
@@ -139,12 +151,10 @@ CustomP2PNetDevice::CustomP2PNetDevice ()
     : m_txMachineState (READY),
       m_channel (0),
       m_NeedProcessHeader (false),
-      m_protocol (0x1),
       m_linkUp (false),
       m_currentPkt (0)
 {
   NS_LOG_FUNCTION (this);
-  // m_protocol = 0x1; // Ethernet protocol number (start parser with Ethernet)
 }
 
 CustomP2PNetDevice::~CustomP2PNetDevice ()
@@ -244,9 +254,7 @@ CustomP2PNetDevice::HandleLayer2 (Ptr<Packet> p, CustomHeader &cus_hd, EthernetH
   switch (cus_hd.GetOperator ())
     {
     case HeaderLayerOperator::ADD_BEFORE:
-      // In this case, we set m_protocol (parser start number)
       // Layer 2: [custom] [ethernet] layer 3: [ipv4] layer 4: [udp/tcp]
-      m_protocol = P4GlobalVar::g_p4Protocol;
       cus_hd.SetProtocolFieldNumber (0x1); // ethernet
 
       p->AddHeader (eeh_header);
@@ -254,16 +262,14 @@ CustomP2PNetDevice::HandleLayer2 (Ptr<Packet> p, CustomHeader &cus_hd, EthernetH
       break;
     case HeaderLayerOperator::ADD_AFTER:
       // Layer 2: [ethernet] [custom] layer 3: [ipv4] layer 4: [udp/tcp]
-      eeh_header.SetLengthType (P4GlobalVar::g_p4Protocol);
+      eeh_header.SetLengthType (m_p4ProtocolNumber);
       cus_hd.SetProtocolFieldNumber (0x0800); //ipv4
 
       p->AddHeader (cus_hd);
       p->AddHeader (eeh_header);
       break;
     case HeaderLayerOperator::REPLACE:
-      // In this case, we set m_protocol (parser start number)
       // Layer 2: [custom] layer 3: [ipv4] layer 4: [udp/tcp]
-      m_protocol = P4GlobalVar::g_p4Protocol;
       cus_hd.SetProtocolFieldNumber (0x0800); //ipv4
 
       p->AddHeader (cus_hd);
@@ -286,7 +292,7 @@ CustomP2PNetDevice::HandleLayer3 (Ptr<Packet> p, CustomHeader &cus_hd, EthernetH
     {
     case HeaderLayerOperator::ADD_BEFORE:
       // Layer 2: [ethernet] layer 3: [custom] [ipv4] layer 4: [udp/tcp]
-      eeh_header.SetLengthType (P4GlobalVar::g_p4Protocol);
+      eeh_header.SetLengthType (m_p4ProtocolNumber);
       cus_hd.SetProtocolFieldNumber (0x0800); //ipv4
 
       p->AddHeader (cus_hd);
@@ -297,7 +303,7 @@ CustomP2PNetDevice::HandleLayer3 (Ptr<Packet> p, CustomHeader &cus_hd, EthernetH
       hasIpv4 = p->RemoveHeader (ip_hd); // Remove IPv4 header
       if (hasIpv4)
         {
-          ip_hd.SetProtocol (P4GlobalVar::g_p4Protocol);
+          ip_hd.SetProtocol (m_p4ProtocolNumber);
           protocol_temp = ip_hd.GetProtocol ();
           cus_hd.SetProtocolFieldNumber (protocol_temp);
 
@@ -312,7 +318,7 @@ CustomP2PNetDevice::HandleLayer3 (Ptr<Packet> p, CustomHeader &cus_hd, EthernetH
       break;
     case HeaderLayerOperator::REPLACE:
       // Layer 2: [ethernet] layer 3: [custom] layer 4: [udp/tcp]
-      eeh_header.SetLengthType (P4GlobalVar::g_p4Protocol);
+      eeh_header.SetLengthType (m_p4ProtocolNumber);
 
       hasIpv4 = p->RemoveHeader (ip_hd); // Remove IPv4 header
       if (hasIpv4)
@@ -353,7 +359,7 @@ CustomP2PNetDevice::HandleLayer4 (Ptr<Packet> p, CustomHeader &cus_hd, EthernetH
   switch (cus_hd.GetOperator ())
     {
     case HeaderLayerOperator::ADD_BEFORE:
-      ip_hd.SetProtocol (P4GlobalVar::g_p4Protocol);
+      ip_hd.SetProtocol (m_p4ProtocolNumber);
       cus_hd.SetProtocolFieldNumber (protocol_temp);
 
       p->AddHeader (cus_hd);
@@ -436,7 +442,7 @@ CustomP2PNetDevice::AddHeader (Ptr<Packet> p, Mac48Address source, Mac48Address 
 
   uint16_t dst_port = GetDstPort (p);
 
-  if ((dst_port < P4GlobalVar::g_portRangeMin) || (dst_port > P4GlobalVar::g_portRangeMax))
+  if ((dst_port < m_customDstPortMin) || (dst_port > m_customDstPortMax))
     {
 
       // NS_LOG_DEBUG ("Sending: after adding the ethernet header (not add custom header)");
@@ -537,7 +543,7 @@ CustomP2PNetDevice::RestoreOriginalHeaders (Ptr<Packet> p)
           if (cus_hd.GetLayer () == HeaderLayer::LAYER_4 &&
               cus_hd.GetOperator () == HeaderLayerOperator::ADD_AFTER)
             {
-              protocol = P4GlobalVar::g_p4Protocol;
+              protocol = m_p4ProtocolNumber;
             }
           break;
         case 0x06: // TCP
@@ -545,10 +551,10 @@ CustomP2PNetDevice::RestoreOriginalHeaders (Ptr<Packet> p)
           if (cus_hd.GetLayer () == HeaderLayer::LAYER_4 &&
               cus_hd.GetOperator () == HeaderLayerOperator::ADD_AFTER)
             {
-              protocol = P4GlobalVar::g_p4Protocol;
+              protocol = m_p4ProtocolNumber;
             }
           break;
-        case P4GlobalVar::g_p4Protocol: // Custom Protocol
+        case m_p4ProtocolNumber: // Custom Protocol
           protocol = CheckIfCustomHeader (p);
           break;
         default:
@@ -566,7 +572,7 @@ CustomP2PNetDevice::RestoreOriginalHeaders (Ptr<Packet> p)
 
       switch (reverseProtocol)
         {
-        case P4GlobalVar::g_p4Protocol:
+        case m_p4ProtocolNumber:
           NS_LOG_DEBUG ("Reverse Parser: Custom P4 Header");
           break;
         case 0x11:

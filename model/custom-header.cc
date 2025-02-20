@@ -19,16 +19,16 @@ CustomHeader::GetTypeId (void)
   return tid;
 }
 
-CustomHeader::CustomHeader () : m_protocol_number (0), m_offset_bytes (0)
+CustomHeader::CustomHeader () : m_protocol_index (0), m_offset_bytes (0)
 {
-  InitFields (); // init based on GlobalVar::g_templateHeaderFields
+  InitFields ();
 }
 
 CustomHeader::CustomHeader (const CustomHeader &other)
     : Header (),
       m_layer (other.m_layer),
       m_op (other.m_op),
-      m_protocol_number (other.m_protocol_number),
+      m_protocol_index (other.m_protocol_index),
       m_fields (other.m_fields),
       m_offset_bytes (other.m_offset_bytes)
 {
@@ -43,10 +43,6 @@ void
 CustomHeader::InitFields ()
 {
   m_fields.clear ();
-  for (const auto &field : P4GlobalVar::g_templateHeaderFields)
-    {
-      m_fields.push_back ({std::string (field.first), field.second, 0});
-    }
 }
 
 CustomHeader &
@@ -62,7 +58,7 @@ CustomHeader::operator= (const CustomHeader &other)
   // Copy other members
   m_layer = other.m_layer;
   m_op = other.m_op;
-  m_protocol_number = other.m_protocol_number;
+  m_protocol_index = other.m_protocol_index;
   m_fields = other.m_fields; // Use std::vector's copy constructor
   m_offset_bytes = other.m_offset_bytes;
 
@@ -240,22 +236,22 @@ CustomHeader::SetProtocolFieldNumber (uint64_t id)
       return;
     }
 
-  m_protocol_number = id;
+  m_protocol_index = id;
 }
 
 uint64_t
 CustomHeader::GetProtocolNumber ()
 {
-  NS_LOG_INFO ("Protocol number: " << m_protocol_number);
+  NS_LOG_INFO ("Protocol number: " << m_protocol_index);
 
-  if (m_protocol_number >= m_fields.size ())
+  if (m_protocol_index >= m_fields.size ())
     {
-      NS_LOG_ERROR ("Index out of bounds: m_protocol_number = "
-                    << m_protocol_number << ", but m_fields size = " << m_fields.size ());
+      NS_LOG_ERROR ("Index out of bounds: m_protocol_index = "
+                    << m_protocol_index << ", but m_fields size = " << m_fields.size ());
       return 0;
     }
 
-  return m_fields[m_protocol_number].value;
+  return m_fields[m_protocol_index].value;
 }
 
 void

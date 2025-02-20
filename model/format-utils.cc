@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <vector>
 #include <iostream>
+#include <chrono>
 
 namespace ns3 {
 
@@ -355,6 +356,14 @@ ParseParam (std::string &input_str, unsigned int bitwidth)
 
   int bw = (bitwidth + 7) / 8;
   return IntToBytes (input_str, bw);
+}
+
+uint64_t
+getTickCount ()
+{
+  return std::chrono::duration_cast<std::chrono::milliseconds> (
+             std::chrono::steady_clock::now ().time_since_epoch ())
+      .count ();
 }
 
 } // namespace ns3

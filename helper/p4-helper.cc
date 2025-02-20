@@ -1,9 +1,9 @@
 #include "ns3/p4-helper.h"
 #include "ns3/log.h"
-#include "ns3/bridge-p4-net-device.h"
 #include "ns3/node.h"
 #include "ns3/names.h"
 #include "ns3/net-device-container.h"
+#include "ns3/p4-switch-net-device.h"
 
 namespace ns3 {
 
@@ -12,8 +12,8 @@ NS_LOG_COMPONENT_DEFINE ("P4Helper");
 P4Helper::P4Helper ()
 {
   NS_LOG_FUNCTION (this);
-  // Set the default type of the device to BridgeP4NetDevice
-  m_deviceFactory.SetTypeId ("ns3::BridgeP4NetDevice");
+  // Set the default type of the device to P4SwitchNetDevice
+  m_deviceFactory.SetTypeId ("ns3::P4SwitchNetDevice");
 }
 
 void
@@ -37,10 +37,10 @@ P4Helper::Install (Ptr<Node> node, const NetDeviceContainer &netDevices) const
     }
 
   NS_LOG_FUNCTION (this << node->GetId ());
-  NS_LOG_LOGIC ("Installing BridgeP4NetDevice on node: " << node->GetId ());
+  NS_LOG_LOGIC ("Installing P4SwitchNetDevice on node: " << node->GetId ());
 
   // Create the P4 bridge device
-  Ptr<BridgeP4NetDevice> bridgeDevice = m_deviceFactory.Create<BridgeP4NetDevice> ();
+  Ptr<P4SwitchNetDevice> bridgeDevice = m_deviceFactory.Create<P4SwitchNetDevice> ();
   node->AddDevice (bridgeDevice);
 
   // Attach each NetDevice in the container to the bridge

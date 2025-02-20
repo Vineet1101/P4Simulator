@@ -135,7 +135,7 @@ main (int argc, char *argv[])
   int running_number = 0;
   uint16_t pktSize = 1000; //in Bytes. 1458 to prevent fragments, default 512
   int model = 0;
-  std::string appDataRate = "1Mbps"; // Default application data rate
+  std::string appDataRate = "3Mbps"; // Default application data rate
   uint64_t congestion_bottleneck = 1000; // Mbps
   std::string ns3_link_rate = "1000Mbps";
   bool enableTracePcap = false;
@@ -146,8 +146,6 @@ main (int argc, char *argv[])
       "/home/p4/workdir/ns3.35/contrib/p4sim/test/test_simple/flowtable_0.txt";
   std::string topoInput = "/home/p4/workdir/ns3.35/contrib/p4sim/test/test_simple/topo.txt";
   std::string topoFormat ("CsmaTopo");
-
-  P4GlobalVar::g_channelType = P4ChannelType::CSMA;
 
   // ============================  command line ============================
   CommandLine cmd;
@@ -240,6 +238,8 @@ main (int argc, char *argv[])
       P4Helper p4Bridge;
       p4Bridge.SetDeviceAttribute ("JsonPath", StringValue (p4JsonPath));
       p4Bridge.SetDeviceAttribute ("FlowTablePath", StringValue (flowTablePath));
+
+      NS_LOG_INFO ("*** P4 switch configuration: " << p4JsonPath << ", " << flowTablePath);
 
       for (unsigned int i = 0; i < switchNum; i++)
         {
