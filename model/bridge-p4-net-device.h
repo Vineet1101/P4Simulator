@@ -43,7 +43,6 @@ namespace ns3 {
 class Node;
 class P4Switch;
 class PsaSwitch;
-class P4SwitchInterface;
 
 /**
  * \defgroup bridge Bridge P4 Network Device
@@ -181,9 +180,18 @@ protected:
   // Ptr<NetDevice> GetLearnedState(Mac48Address source);
 
 private:
-  NetDevice::ReceiveCallback m_rxCallback; //!< receive callback
-  NetDevice::PromiscReceiveCallback m_promiscRxCallback; //!< promiscuous receive callback
+  // Switch Init Configure and Information
+  std::string jsonPath_; //!< Path to the P4 JSON configuration file.
+  std::string flowTablePath_; //!< Path to the flow table file.
 
+  // Switch Queue Info
+  size_t input_buffer_size_low;
+  size_t input_buffer_size_high;
+  size_t queue_buffer_size;
+  // size_t output_buffer_size;
+  uint64_t packet_rate;
+
+  // Switch Net Device Info
   Mac48Address m_address; //!< MAC address of the NetDevice
   Ptr<Node> m_node; //!< node owning this NetDevice
   Ptr<P4BridgeChannel> m_channel; //!< virtual bridged channel
@@ -193,7 +201,9 @@ private:
 
   P4Switch *m_p4Switch; //!< P4 switch core
   PsaSwitch *m_psaSwitch; //!< PSA switch core
-  P4SwitchInterface *m_p4SwitchInterface; //!< P4 switch interface
+
+  NetDevice::ReceiveCallback m_rxCallback; //!< receive callback
+  NetDevice::PromiscReceiveCallback m_promiscRxCallback; //!< promiscuous receive callback
 };
 
 } // namespace ns3

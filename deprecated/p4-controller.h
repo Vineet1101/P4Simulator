@@ -1,7 +1,6 @@
 #ifndef P4_CONTROLLER_H
 #define P4_CONTROLLER_H
 
-#include "ns3/p4-switch-interface.h"
 #include "ns3/object.h"
 
 #include <string>

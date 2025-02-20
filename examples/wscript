@@ -1,45 +1,45 @@
 # -*- Mode: python; py-indent-offset: 4; indent-tabs-mode: nil; coding: utf-8; -*-
 
 def build(bld):
-    obj = bld.create_ns3_program('p4sim-example', ['p4sim', 'internet', 'applications', 'network'])
-    obj.source = 'p4sim-example.cc'
+    # obj = bld.create_ns3_program('p4sim-example', ['p4sim', 'internet', 'applications', 'network'])
+    # obj.source = 'p4sim-example.cc'
     
-    obj = bld.create_ns3_program('p4-basic-test', ['p4sim', 'internet', 'applications', 'network'])
-    obj.source = 'p4-basic-test.cc'
+    # obj = bld.create_ns3_program('p4-basic-test', ['p4sim', 'internet', 'applications', 'network'])
+    # obj.source = 'p4-basic-test.cc'
     
-    obj = bld.create_ns3_program('p4-basic-test-p2p', ['p4sim', 'internet', 'applications', 'network'])
-    obj.source = 'p4-basic-test-p2p.cc'
+    # obj = bld.create_ns3_program('p4-basic-test-p2p', ['p4sim', 'internet', 'applications', 'network'])
+    # obj.source = 'p4-basic-test-p2p.cc'
     
-    obj = bld.create_ns3_program('p4-custom-header-test', ['p4sim'])
-    obj.source = 'p4-custom-header-test.cc'
+    # obj = bld.create_ns3_program('p4-custom-header-test', ['p4sim'])
+    # obj.source = 'p4-custom-header-test.cc'
     
-    obj = bld.create_ns3_program('p4-basic-example', ['p4sim', 'internet', 'applications', 'network'])
-    obj.source = 'p4-basic-example.cc'
+    # obj = bld.create_ns3_program('p4-basic-example', ['p4sim', 'internet', 'applications', 'network'])
+    # obj.source = 'p4-basic-example.cc'
     
-    obj = bld.create_ns3_program('p4-basic-tunnel-example', ['p4sim', 'internet', 'applications', 'network'])
-    obj.source = 'p4-basic-tunnel-example.cc'
+    # obj = bld.create_ns3_program('p4-basic-tunnel-example', ['p4sim', 'internet', 'applications', 'network'])
+    # obj.source = 'p4-basic-tunnel-example.cc'
     
-    obj = bld.create_ns3_program('p4-p2p-custom-header-test', ['p4sim', 'internet', 'applications', 'network'])
-    obj.source = 'p4-p2p-custom-header-test.cc'
+    # obj = bld.create_ns3_program('p4-p2p-custom-header-test', ['p4sim', 'internet', 'applications', 'network'])
+    # obj.source = 'p4-p2p-custom-header-test.cc'
     
-    obj = bld.create_ns3_program('p4-custom-test', ['p4sim', 'internet', 'applications', 'network'])
-    obj.source = 'p4-custom-test.cc'
+    # obj = bld.create_ns3_program('p4-custom-test', ['p4sim', 'internet', 'applications', 'network'])
+    # obj.source = 'p4-custom-test.cc'
     
     ## ================================== Evaluation of the P4 program
     
-    # 1. basic ipv4 forwarding test with 2 hosts 1 switch CSMA channel
-    obj = bld.create_ns3_program('p4-ipv4-forwarding-test', ['p4sim', 'internet', 'applications', 'network'])
-    obj.source = 'p4-ipv4-forwarding-test.cc'
+    # # 1. basic ipv4 forwarding test with 2 hosts 1 switch CSMA channel
+    # obj = bld.create_ns3_program('p4-ipv4-forwarding-test', ['p4sim', 'internet', 'applications', 'network'])
+    # obj.source = 'p4-ipv4-forwarding-test.cc'
     
-    # 2. basic ipv4 forwarding test with 2 hosts 1 switch P2P channel
-    obj = bld.create_ns3_program('p4-ipv4-forwarding-test-1', ['p4sim', 'internet', 'applications', 'network'])
-    obj.source = 'p4-ipv4-forwarding-test-1.cc'
+    # # 2. basic ipv4 forwarding test with 2 hosts 1 switch P2P channel
+    # obj = bld.create_ns3_program('p4-ipv4-forwarding-test-1', ['p4sim', 'internet', 'applications', 'network'])
+    # obj.source = 'p4-ipv4-forwarding-test-1.cc'
     
     
     # 2.0 basic ipv4 forwarding test with 2 hosts 1 switch P2P channel
     obj = bld.create_ns3_program('p4-ipv4-forwarding-refactor', ['p4sim', 'internet', 'applications', 'network'])
     obj.source = 'p4-ipv4-forwarding-refactor.cc'
     
-    # 3. basic p2p test with 2 hosts 1
-    obj = bld.create_ns3_program('p2p-test', ['p4sim', 'internet', 'applications', 'network'])
-    obj.source = 'p2p-test.cc'
+    # # 3. basic p2p test with 2 hosts 1
+    # obj = bld.create_ns3_program('p2p-test', ['p4sim', 'internet', 'applications', 'network'])
+    # obj.source = 'p2p-test.cc'

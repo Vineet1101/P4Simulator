@@ -221,7 +221,7 @@ PsaSwitch::PsaSwitch (BridgeP4NetDevice *net_device, bool enable_swap, port_t dr
   bridge_net_device = net_device;
 
   egress_timer_event = EventId ();
-  double packet_rate_pps = P4GlobalVar::g_switchBottleNeck; //Packet sending frequency (unit: pps)
+  double packet_rate_pps = 1000; //Packet sending frequency (unit: pps) //@TODO
   uint64_t bottleneck_ns = 1e9 / packet_rate_pps;
   egress_buffer.set_rate_for_all (packet_rate_pps);
   egress_time_reference = Time::FromDouble (bottleneck_ns, Time::NS);

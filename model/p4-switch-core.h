@@ -33,9 +33,6 @@
 #include <bm/bm_sim/simple_pre_lag.h>
 
 #define SSWITCH_PRIORITY_QUEUEING_SRC "intrinsic_metadata.priority"
-#define SSWITCH_INPUT_BUFFER_SIZE_LO 1024
-#define SSWITCH_INPUT_BUFFER_SIZE_HI 1024
-#define SSWITCH_QUEUE_BUFFER_SIZE 64
 #define SSWITCH_OUTPUT_BUFFER_SIZE 1024
 #define SSWITCH_DROP_PORT 511
 #define SSWITCH_VIRTUAL_QUEUE_NUM 8
@@ -59,11 +56,13 @@ class P4Switch : public bm::Switch
 {
 public:
   // === Constructor & Destructor ===
-  P4Switch (BridgeP4NetDevice *netDevice, bool enableSwap = false,
+  P4Switch (BridgeP4NetDevice *netDevice, bool enableSwap, uint64_t packet_rate,
+            size_t input_buffer_size_low, size_t input_buffer_size_high, size_t queue_buffer_size,
             port_t dropPort = SSWITCH_DROP_PORT, size_t queuesPerPort = SSWITCH_VIRTUAL_QUEUE_NUM);
   ~P4Switch ();
 
   // === Public Methods ===
+  void InitSwitchWithP4 (std::string jsonPath, std::string flowTablePath);
   void RunCli (const std::string &commandsFile);
   int InitFromCommandLineOptions (int argc, char *argv[]);
   int ReceivePacket (Ptr<Packet> packetIn, int inPort, uint16_t protocol,

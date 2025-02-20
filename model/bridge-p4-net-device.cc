@@ -20,7 +20,6 @@
 
 #include "ns3/bridge-p4-net-device.h"
 #include "ns3/global.h"
-#include "ns3/p4-switch-interface.h"
 #include "ns3/channel.h"
 #include "ns3/ethernet-header.h"
 #include "ns3/log.h"
@@ -29,11 +28,12 @@
 #include "ns3/simulator.h"
 #include "ns3/uinteger.h"
 
-#include <ns3/arp-l3-protocol.h>
-#include <ns3/arp-header.h>
-#include <ns3/ipv4-l3-protocol.h>
-#include <ns3/tcp-l4-protocol.h>
-#include <ns3/udp-l4-protocol.h>
+#include "ns3/arp-l3-protocol.h"
+#include "ns3/arp-header.h"
+#include "ns3/ipv4-l3-protocol.h"
+#include "ns3/tcp-l4-protocol.h"
+#include "ns3/udp-l4-protocol.h"
+#include "ns3/string.h"
 
 namespace ns3 {
 
@@ -52,7 +52,35 @@ BridgeP4NetDevice::GetTypeId ()
           .AddAttribute (
               "Mtu", "The MAC-level Maximum Transmission Unit", UintegerValue (1500),
               MakeUintegerAccessor (&BridgeP4NetDevice::SetMtu, &BridgeP4NetDevice::GetMtu),
-              MakeUintegerChecker<uint16_t> ());
+              MakeUintegerChecker<uint16_t> ())
+
+          .AddAttribute ("JsonPath", "Path to the P4 JSON configuration file.",
+                         StringValue ("/path/to/default.json"),
+                         MakeStringAccessor (&BridgeP4NetDevice::jsonPath_), MakeStringChecker ())
+
+          .AddAttribute ("FlowTablePath", "Path to the flow table file.",
+                         StringValue ("/path/to/flow_table.txt"),
+                         MakeStringAccessor (&BridgeP4NetDevice::flowTablePath_),
+                         MakeStringChecker ())
+
+          .AddAttribute ("InputBufferSizeLow", "Low input buffer size for the switch queue.",
+                         UintegerValue (128),
+                         MakeUintegerAccessor (&BridgeP4NetDevice::input_buffer_size_low),
+                         MakeUintegerChecker<size_t> ())
+
+          .AddAttribute ("InputBufferSizeHigh", "High input buffer size for the switch queue.",
+                         UintegerValue (128),
+                         MakeUintegerAccessor (&BridgeP4NetDevice::input_buffer_size_high),
+                         MakeUintegerChecker<size_t> ())
+
+          .AddAttribute ("QueueBufferSize", "Total buffer size for the switch queue.",
+                         UintegerValue (128),
+                         MakeUintegerAccessor (&BridgeP4NetDevice::queue_buffer_size),
+                         MakeUintegerChecker<size_t> ())
+          .AddAttribute ("PacketRate", "Packet processing speed in switch (unit: pps)",
+                         UintegerValue (1000),
+                         MakeUintegerAccessor (&BridgeP4NetDevice::packet_rate),
+                         MakeUintegerChecker<uint64_t> ());
   return tid;
 }
 
@@ -62,53 +90,18 @@ BridgeP4NetDevice::BridgeP4NetDevice () : m_node (nullptr), m_ifIndex (0)
   m_channel = CreateObject<P4BridgeChannel> ();
 
   m_p4Switch = nullptr;
-  m_psaSwitch = nullptr;
+  // m_psaSwitch = nullptr;
   if (P4GlobalVar::g_p4ArchType == P4ARCHV1MODEL)
     {
       NS_LOG_DEBUG ("P4 architecture: v1model");
-      m_p4Switch = new P4Switch (this);
-
-      m_p4SwitchInterface = P4GlobalVar::g_p4Controller.AddP4Switch ();
-      m_p4SwitchInterface->SetP4NetDeviceCore (m_p4Switch); //!< Pointer to the P4 core model.
-      m_p4SwitchInterface->SetJsonPath (
-          P4GlobalVar::g_p4JsonPath); //!< Path to the P4 JSON configuration file.
-      m_p4SwitchInterface->SetP4InfoPath (
-          P4GlobalVar::g_p4MatchTypePath); //!< Path to the P4 info file.
-      m_p4SwitchInterface->SetFlowTablePath (
-          P4GlobalVar::g_flowTablePath); //!< Path to the flow table file.
-      m_p4SwitchInterface->SetViewFlowTablePath (
-          P4GlobalVar::g_viewFlowTablePath); //!< Path to the view flow table file.
-      m_p4SwitchInterface->SetPopulateFlowTableWay (
-          P4GlobalVar::g_populateFlowTableWay); //!< Method to populate the flow table.
-      m_p4SwitchInterface->Init (); // init the switch with p4 configure files (*.json)
-
+      m_p4Switch = new P4Switch (this, false, packet_rate, input_buffer_size_low,
+                                 input_buffer_size_high, queue_buffer_size);
+      m_p4Switch->InitSwitchWithP4 (jsonPath_, flowTablePath_);
       m_p4Switch->start_and_return_ ();
-      // Clear the local pointer to avoid accidental use; the object is managed by P4Controller
     }
   else if (P4GlobalVar::g_p4ArchType == P4ARCHPSA)
     {
       NS_LOG_DEBUG ("P4 architecture: psa");
-      // m_psaSwitch = new PsaSwitch (this);
-
-      // P4SwitchInterface *m_p4SwitchInterface = P4GlobalVar::g_p4Controller.AddP4Switch ();
-      // m_p4SwitchInterface->SetP4NetDeviceCore (m_psaSwitch); //!< Pointer to the P4 core model.
-      // m_p4SwitchInterface->SetJsonPath (
-      //     P4GlobalVar::g_p4JsonPath); //!< Path to the P4 JSON configuration file.
-      // m_p4SwitchInterface->SetP4InfoPath (
-      //     P4GlobalVar::g_p4MatchTypePath); //!< Path to the P4 info file.
-      // m_p4SwitchInterface->SetFlowTablePath (
-      //     P4GlobalVar::g_flowTablePath); //!< Path to the flow table file.
-      // m_p4SwitchInterface->SetViewFlowTablePath (
-      //     P4GlobalVar::g_viewFlowTablePath); //!< Path to the view flow table file.
-      // m_p4SwitchInterface->SetNetworkFunc (
-      //     static_cast<unsigned int> (P4GlobalVar::g_networkFunc)); //!< Network function ID.
-      // m_p4SwitchInterface->SetPopulateFlowTableWay (
-      //     P4GlobalVar::g_populateFlowTableWay); //!< Method to populate the flow table.
-      // m_p4SwitchInterface->Init (); // init the switch with p4 configure files (*.json)
-
-      // m_psaSwitch->start_and_return_ ();
-      // // Clear the local pointer to avoid accidental use; the object is managed by P4Controller
-      // m_p4SwitchInterface = nullptr;
     }
   else
     {

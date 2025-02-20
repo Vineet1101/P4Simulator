@@ -30,10 +30,10 @@
 #undef registry_t
 #endif
 
-// #include <bm/spdlog/spdlog.h>
-// #undef LOG_INFO
-// #undef LOG_ERROR
-// #undef LOG_DEBUG
+#include <bm/spdlog/spdlog.h>
+#undef LOG_INFO
+#undef LOG_ERROR
+#undef LOG_DEBUG
 
 #include "ns3/global.h"
 #include "ns3/register_access.h"
@@ -159,17 +159,18 @@ private:
 
 bm::packet_id_t P4Switch::packet_id = 0;
 
-P4Switch::P4Switch (BridgeP4NetDevice *net_device, bool enable_swap, port_t drop_port,
-                    size_t nb_queues_per_port)
+P4Switch::P4Switch (BridgeP4NetDevice *net_device, bool enable_swap, uint64_t packet_rate,
+                    size_t input_buffer_size_low, size_t input_buffer_size_high,
+                    size_t queue_buffer_size, port_t drop_port, size_t nb_queues_per_port)
     : bm::Switch (enable_swap),
       drop_port (drop_port),
       nb_queues_per_port (nb_queues_per_port),
-      packet_rate_pps (1000),
+      packet_rate_pps (packet_rate),
       start_timestamp (Simulator::Now ().GetNanoSeconds ()),
-      input_buffer (new InputBuffer (SSWITCH_INPUT_BUFFER_SIZE_LO /* normal capacity */,
-                                     SSWITCH_INPUT_BUFFER_SIZE_HI /* resubmit/recirc capacity */)),
-      egress_buffer (nb_egress_threads, SSWITCH_QUEUE_BUFFER_SIZE,
-                     EgressThreadMapper (nb_egress_threads), nb_queues_per_port),
+      input_buffer (new InputBuffer (input_buffer_size_low /* normal capacity */,
+                                     input_buffer_size_high /* resubmit/recirc capacity */)),
+      egress_buffer (nb_egress_threads, queue_buffer_size, EgressThreadMapper (nb_egress_threads),
+                     nb_queues_per_port),
       output_buffer (SSWITCH_OUTPUT_BUFFER_SIZE),
       m_pre (new bm::McSimplePreLAG ()),
       mirroring_sessions (new MirroringSessions ())
@@ -199,7 +200,7 @@ P4Switch::P4Switch (BridgeP4NetDevice *net_device, bool enable_swap, port_t drop
   bridge_net_device = net_device;
 
   egress_timer_event = EventId ();
-  packet_rate_pps = P4GlobalVar::g_switchBottleNeck; //Packet sending frequency (unit: pps) //@TODO
+  // packet_rate_pps = P4GlobalVar::g_switchBottleNeck; //Packet sending frequency (unit: pps) //@TODO
   uint64_t bottleneck_ns = 1e9 / packet_rate_pps;
   egress_buffer.set_rate_for_all (packet_rate_pps);
   egress_time_reference = Time::FromDouble (bottleneck_ns, Time::NS);
@@ -221,6 +222,70 @@ P4Switch::~P4Switch ()
         continue;
     }
   output_buffer.push_front (nullptr);
+}
+
+void
+P4Switch::InitSwitchWithP4 (std::string jsonPath, std::string flowTablePath)
+{
+  NS_LOG_FUNCTION (this); // Log function entry
+
+  int status = 0; // Status flag for initialization
+
+  /**
+   * @brief NS3PIFOTM mode initializes the switch using a JSON file in jsonPath
+   * and populates the flow table entry in flowTablePath.
+   */
+  NS_LOG_INFO ("Initializing P4Switch with NS3PIFOTM mode.");
+
+  static int p4_switch_ctrl_plane_thrift_port = 9090;
+
+  bm::OptionsParser opt_parser;
+  opt_parser.config_file_path = jsonPath;
+  opt_parser.debugger_addr =
+      "ipc:///tmp/bmv2-" + std::to_string (p4_switch_ctrl_plane_thrift_port) + "-debug.ipc";
+  opt_parser.notifications_addr =
+      "ipc:///tmp/bmv2-" + std::to_string (p4_switch_ctrl_plane_thrift_port) + "-notifications.ipc";
+  opt_parser.file_logger =
+      "/tmp/bmv2-" + std::to_string (p4_switch_ctrl_plane_thrift_port) + "-pipeline.log";
+  opt_parser.thrift_port = p4_switch_ctrl_plane_thrift_port++;
+  opt_parser.console_logging = true;
+
+  // Initialize the switch
+  status = 0;
+  status = init_from_options_parser (opt_parser);
+  if (status != 0)
+    {
+      NS_LOG_ERROR ("Failed to initialize P4Switch with NS3PIFOTM mode.");
+      return; // Avoid exiting simulation
+    }
+
+  // Start the runtime server
+  int port = get_runtime_port ();
+  bm_runtime::start_server (this, port);
+
+  // Execute CLI command to populate the flow table
+  std::string cmd = "simple_switch_CLI --thrift-port " + std::to_string (port) + " < " +
+                    flowTablePath + " > /dev/null 2>&1";
+
+  int result = std::system (cmd.c_str ());
+
+  // sleep for 2 second to avoid the server not ready
+  sleep (2);
+  if (result != 0)
+    {
+      NS_LOG_ERROR ("Error executing flow table population command: " << cmd);
+    }
+
+  // Note: Consider stopping the server if needed
+  // bm_runtime::stop_server();
+
+  if (status != 0)
+    {
+      NS_LOG_ERROR ("P4Switch initialization failed with status: " << status);
+      return;
+    }
+
+  NS_LOG_INFO ("P4Switch initialization completed successfully.");
 }
 
 int
