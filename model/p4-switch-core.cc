@@ -164,6 +164,7 @@ P4Switch::P4Switch (BridgeP4NetDevice *net_device, bool enable_swap, port_t drop
     : bm::Switch (enable_swap),
       drop_port (drop_port),
       nb_queues_per_port (nb_queues_per_port),
+      packet_rate_pps (1000),
       start_timestamp (Simulator::Now ().GetNanoSeconds ()),
       input_buffer (new InputBuffer (SSWITCH_INPUT_BUFFER_SIZE_LO /* normal capacity */,
                                      SSWITCH_INPUT_BUFFER_SIZE_HI /* resubmit/recirc capacity */)),
@@ -198,7 +199,7 @@ P4Switch::P4Switch (BridgeP4NetDevice *net_device, bool enable_swap, port_t drop
   bridge_net_device = net_device;
 
   egress_timer_event = EventId ();
-  double packet_rate_pps = P4GlobalVar::g_switchBottleNeck; //Packet sending frequency (unit: pps)
+  packet_rate_pps = P4GlobalVar::g_switchBottleNeck; //Packet sending frequency (unit: pps) //@TODO
   uint64_t bottleneck_ns = 1e9 / packet_rate_pps;
   egress_buffer.set_rate_for_all (packet_rate_pps);
   egress_time_reference = Time::FromDouble (bottleneck_ns, Time::NS);
@@ -220,13 +221,6 @@ P4Switch::~P4Switch ()
         continue;
     }
   output_buffer.push_front (nullptr);
-}
-
-TypeId
-P4Switch::GetTypeId (void)
-{
-  static TypeId tid = TypeId ("ns3::P4Switch").SetParent<Object> ().SetGroupName ("P4sim");
-  return tid;
 }
 
 int
@@ -888,6 +882,20 @@ P4Switch::GetAddressIndex (const Address &destination)
       address_map[destination] = new_index;
       return new_index;
     }
+}
+
+void
+P4Switch::PrintSwitchConfig ()
+{
+  std::cout << "\n========== Switch Configuration ==========\n";
+  std::cout << "Thrift Port:             " << get_runtime_port () << "\n";
+  std::cout << "Switch ID:               " << p4_switch_ID << "\n";
+  std::cout << "Drop Port:               " << static_cast<int> (drop_port) << "\n";
+  std::cout << "Queues Per Port:         " << nb_queues_per_port << "\n";
+  std::cout << "Queueing Metadata:       " << (with_queueing_metadata ? "Enabled" : "Disabled")
+            << "\n";
+  std::cout << "Packet Processing Rate:  " << packet_rate_pps << " PPS\n";
+  std::cout << "Start Timestamp:         " << start_timestamp << "\n";
 }
 
 } // namespace ns3

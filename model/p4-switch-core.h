@@ -58,9 +58,6 @@ class InputBuffer;
 class P4Switch : public bm::Switch
 {
 public:
-  // === Static Methods ===
-  static TypeId GetTypeId (void);
-
   // === Constructor & Destructor ===
   P4Switch (BridgeP4NetDevice *netDevice, bool enableSwap = false,
             port_t dropPort = SSWITCH_DROP_PORT, size_t queuesPerPort = SSWITCH_VIRTUAL_QUEUE_NUM);
@@ -87,6 +84,8 @@ public:
   int SetEgressPriorityQueueRate (size_t port, size_t priority, uint64_t ratePps);
   int SetEgressQueueRate (size_t port, uint64_t ratePps);
   int SetAllEgressQueueRates (uint64_t ratePps);
+
+  void PrintSwitchConfig ();
 
   // Disabling copy and move operations
   P4Switch (const P4Switch &) = delete;
@@ -147,7 +146,7 @@ protected:
                       int fieldListId);
 
 private:
-  static int thrift_port;
+  // static int thrift_port;
   int p4_switch_ID; //!< ID of the switch
   BridgeP4NetDevice *bridge_net_device;
   port_t drop_port; //!< Port to drop packets
@@ -161,7 +160,9 @@ private:
 
   // Timers
   uint64_t GetTimeStamp ();
-  EventId egress_timer_event; //!< The timer event ID [Egress]
+
+  uint64_t packet_rate_pps; //!< Switch processing capability (unit: PPS (Packets Per Second))
+  EventId egress_timer_event; //!< The timer event ID for dequeue
   Time egress_time_reference; //!< Desired time between timer event triggers
   uint64_t start_timestamp; //!< Start time of the switch
 

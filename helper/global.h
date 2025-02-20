@@ -34,8 +34,7 @@ enum class P4ModuleType {
 
 enum class P4ChannelType { CSMA, P2P };
 
-// Get current time (ms)
-uint64_t getTickCount ();
+uint64_t getTickCount (); // Get current time (ms)
 
 class P4Controller;
 

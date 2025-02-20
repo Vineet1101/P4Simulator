@@ -35,6 +35,11 @@ def build(bld):
     obj = bld.create_ns3_program('p4-ipv4-forwarding-test-1', ['p4sim', 'internet', 'applications', 'network'])
     obj.source = 'p4-ipv4-forwarding-test-1.cc'
     
+    
+    # 2.0 basic ipv4 forwarding test with 2 hosts 1 switch P2P channel
+    obj = bld.create_ns3_program('p4-ipv4-forwarding-refactor', ['p4sim', 'internet', 'applications', 'network'])
+    obj.source = 'p4-ipv4-forwarding-refactor.cc'
+    
     # 3. basic p2p test with 2 hosts 1
     obj = bld.create_ns3_program('p2p-test', ['p4sim', 'internet', 'applications', 'network'])
     obj.source = 'p2p-test.cc'

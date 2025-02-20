@@ -1,11 +1,3 @@
-/**
- * 最简单的一发一收测试，h0 -> h1
- * 信道CSMA
- * 速率1Gbps
- * 
- * 
- */
-
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
 #include "ns3/applications-module.h"
@@ -17,11 +9,11 @@
 #include "ns3/format-utils.h"
 #include "ns3/p4-topology-reader-helper.h"
 #include <iomanip>
-#include <filesystem> // C++17 文件系统支持
+#include <filesystem>
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE ("P4Ipv4ForwardingTest");
+NS_LOG_COMPONENT_DEFINE ("P4Ipv4ForwardingRefactor");
 
 unsigned long start = getTickCount ();
 double global_start_time = 1.0;
@@ -129,26 +121,10 @@ PrintFinalThroughput ()
   std::cout << "======================================" << std::endl;
 }
 
-// ============================ data struct ============================
-struct SwitchNodeC_t
-{
-  NetDeviceContainer switchDevices;
-  std::vector<std::string> switchPortInfos;
-};
-
-struct HostNodeC_t
-{
-  NetDeviceContainer hostDevice;
-  Ipv4InterfaceContainer hostIpv4;
-  unsigned int linkSwitchIndex;
-  unsigned int linkSwitchPort;
-  std::string hostIpv4Str;
-};
-
 int
 main (int argc, char *argv[])
 {
-  LogComponentEnable ("P4Ipv4ForwardingTest", LOG_LEVEL_INFO);
+  LogComponentEnable ("P4Ipv4ForwardingRefactor", LOG_LEVEL_INFO);
 
   // ============================ parameters ============================
 
@@ -200,20 +176,16 @@ main (int argc, char *argv[])
                << congestion_bottleneck << " Mbps, packet size: " << pktSize
                << " Bytes, switch bottleneck: " << P4GlobalVar::g_switchBottleNeck << " pps");
 
-  // with Gbps
-
   // ============================ topo -> network ============================
-
-  // loading from topo file --> gene topo(linking the nodes)
   std::string topoInput = P4GlobalVar::PathConfig::NfDir + "test_simple/topo.txt";
   std::string topoFormat ("CsmaTopo");
 
-  P4TopologyReaderHelper p4TopoHelp;
-  p4TopoHelp.SetFileName (topoInput);
-  p4TopoHelp.SetFileType (topoFormat);
+  P4TopologyReaderHelper p4TopoHelper;
+  p4TopoHelper.SetFileName (topoInput);
+  p4TopoHelper.SetFileType (topoFormat);
   NS_LOG_INFO ("*** Reading topology from file: " << topoInput << " with format: " << topoFormat);
 
-  Ptr<P4TopologyReader> topoReader = p4TopoHelp.GetTopologyReader ();
+  Ptr<P4TopologyReader> topoReader = p4TopoHelper.GetTopologyReader ();
 
   if (topoReader->LinksSize () == 0)
     {
@@ -233,125 +205,25 @@ main (int argc, char *argv[])
   csma.SetChannelAttribute ("DataRate", StringValue (ns3_link_rate)); //@todo
   csma.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (0.01)));
 
-  //  ============================  init network link info ============================
-  P4TopologyReader::ConstLinksIterator_t iter;
-  SwitchNodeC_t switchNodes[switchNum];
-  HostNodeC_t hostNodes[hostNum];
-  unsigned int fromIndex, toIndex;
-  std::string dataRate, delay;
-  for (iter = topoReader->LinksBegin (); iter != topoReader->LinksEnd (); iter++)
-    {
-      if (iter->GetAttributeFailSafe ("DataRate", dataRate))
-        csma.SetChannelAttribute ("DataRate", StringValue (dataRate));
-      if (iter->GetAttributeFailSafe ("Delay", delay))
-        csma.SetChannelAttribute ("Delay", StringValue (delay));
+  // 创建并安装网络设备
+  NetDeviceContainer terminalDevices = csma.Install (terminals);
+  NetDeviceContainer switchDevices = csma.Install (switchNode);
 
-      NetDeviceContainer link =
-          csma.Install (NodeContainer (iter->GetFromNode (), iter->GetToNode ()));
-      fromIndex = iter->GetFromIndex ();
-      toIndex = iter->GetToIndex ();
-      if (iter->GetFromType () == 's' && iter->GetToType () == 's')
-        {
-          NS_LOG_INFO ("*** Link from  switch " << fromIndex << " to  switch " << toIndex
-                                                << " with data rate " << dataRate << " and delay "
-                                                << delay);
-
-          unsigned int fromSwitchPortNumber = switchNodes[fromIndex].switchDevices.GetN ();
-          unsigned int toSwitchPortNumber = switchNodes[toIndex].switchDevices.GetN ();
-          switchNodes[fromIndex].switchDevices.Add (link.Get (0));
-          switchNodes[fromIndex].switchPortInfos.push_back ("s" + UintToString (toIndex) + "_" +
-                                                            UintToString (toSwitchPortNumber));
-
-          switchNodes[toIndex].switchDevices.Add (link.Get (1));
-          switchNodes[toIndex].switchPortInfos.push_back ("s" + UintToString (fromIndex) + "_" +
-                                                          UintToString (fromSwitchPortNumber));
-        }
-      else
-        {
-          if (iter->GetFromType () == 's' && iter->GetToType () == 'h')
-            {
-              NS_LOG_INFO ("*** Link from switch " << fromIndex << " to  host" << toIndex
-                                                   << " with data rate " << dataRate
-                                                   << " and delay " << delay);
-
-              unsigned int fromSwitchPortNumber = switchNodes[fromIndex].switchDevices.GetN ();
-              switchNodes[fromIndex].switchDevices.Add (link.Get (0));
-              switchNodes[fromIndex].switchPortInfos.push_back ("h" +
-                                                                UintToString (toIndex - switchNum));
-
-              hostNodes[toIndex - switchNum].hostDevice.Add (link.Get (1));
-              hostNodes[toIndex - switchNum].linkSwitchIndex = fromIndex;
-              hostNodes[toIndex - switchNum].linkSwitchPort = fromSwitchPortNumber;
-            }
-          else
-            {
-              if (iter->GetFromType () == 'h' && iter->GetToType () == 's')
-                {
-                  NS_LOG_INFO ("*** Link from host " << fromIndex << " to  switch" << toIndex
-                                                     << " with data rate " << dataRate
-                                                     << " and delay " << delay);
-                  unsigned int toSwitchPortNumber = switchNodes[toIndex].switchDevices.GetN ();
-                  switchNodes[toIndex].switchDevices.Add (link.Get (1));
-                  switchNodes[toIndex].switchPortInfos.push_back (
-                      "h" + UintToString (fromIndex - switchNum));
-
-                  hostNodes[fromIndex - switchNum].hostDevice.Add (link.Get (0));
-                  hostNodes[fromIndex - switchNum].linkSwitchIndex = toIndex;
-                  hostNodes[fromIndex - switchNum].linkSwitchPort = toSwitchPortNumber;
-                }
-              else
-                {
-                  NS_LOG_ERROR ("link error!");
-                  abort ();
-                }
-            }
-        }
-    }
-
-  // ============================ print topo info ============================
-  // view host link info
-  for (unsigned int i = 0; i < hostNum; i++)
-    std::cout << "host " << i << ": connect with switch " << hostNodes[i].linkSwitchIndex
-              << " port " << hostNodes[i].linkSwitchPort << std::endl;
-
-  // view switch port info
-  for (unsigned int i = 0; i < switchNum; i++)
-    {
-      std::cout << "switch " << i << " connect with: ";
-      for (size_t k = 0; k < switchNodes[i].switchPortInfos.size (); k++)
-        std::cout << switchNodes[i].switchPortInfos[k] << " ";
-      std::cout << std::endl;
-    }
-
-  // ============================ add internet stack to the hosts ============================
-
+  // 安装网络协议栈
   InternetStackHelper internet;
   internet.Install (terminals);
   internet.Install (switchNode);
 
-  //  ===============================  Assign IP addresses ===============================
+  // 分配 IP 地址
   Ipv4AddressHelper ipv4;
   ipv4.SetBase ("10.1.1.0", "255.255.255.0");
-  for (unsigned int i = 0; i < hostNum; i++)
-    {
-      hostNodes[i].hostIpv4 = ipv4.Assign (hostNodes[i].hostDevice);
-      hostNodes[i].hostIpv4Str = Uint32IpToHex (hostNodes[i].hostIpv4.GetAddress (0).Get ());
-    }
-
-  // build needed parameter to build flow table entries
-  std::vector<unsigned int> linkSwitchIndex (hostNum);
-  std::vector<unsigned int> linkSwitchPort (hostNum);
+  std::vector<Ipv4InterfaceContainer> terminalInterfaces (hostNum);
   std::vector<std::string> hostIpv4 (hostNum);
-  std::vector<std::vector<std::string>> switchPortInfo (switchNum);
+
   for (unsigned int i = 0; i < hostNum; i++)
     {
-      linkSwitchIndex[i] = hostNodes[i].linkSwitchIndex;
-      linkSwitchPort[i] = hostNodes[i].linkSwitchPort;
-      hostIpv4[i] = hostNodes[i].hostIpv4Str;
-    }
-  for (unsigned int i = 0; i < switchNum; i++)
-    {
-      switchPortInfo[i] = switchNodes[i].switchPortInfos;
+      terminalInterfaces[i] = ipv4.Assign (terminalDevices.Get (i));
+      hostIpv4[i] = Uint32IpToHex (terminalInterfaces[i].GetAddress (0).Get ());
     }
 
   //===============================  Print IP and MAC addresses===============================
@@ -399,7 +271,7 @@ main (int argc, char *argv[])
                        << "FlowTablePath = " << P4GlobalVar::g_flowTablePath << ", " << std::endl
                        << "ViewFlowTablePath = " << P4GlobalVar::g_viewFlowTablePath);
 
-          p4Bridge.Install (switchNode.Get (i), switchNodes[i].switchDevices);
+          p4Bridge.Install (switchNode.Get (i), switchDevices.Get (i));
         }
     }
   else
@@ -407,7 +279,7 @@ main (int argc, char *argv[])
       BridgeHelper bridge;
       for (unsigned int i = 0; i < switchNum; i++)
         {
-          bridge.Install (switchNode.Get (i), switchNodes[i].switchDevices);
+          bridge.Install (switchNode.Get (i), switchDevices.Get (i));
         }
     }
 
@@ -433,7 +305,7 @@ main (int argc, char *argv[])
   onOff1.SetAttribute ("DataRate", StringValue (appDataRate));
   onOff1.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]"));
   onOff1.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0]"));
-  // onOff1.SetAttribute ("MaxBytes", UintegerValue (200000));
+  // onOff1.SetAttribute ("MaxBytes", UintegerValue (2000));
 
   ApplicationContainer app1 = onOff1.Install (terminals.Get (clientI));
   app1.Start (Seconds (client_start_time));

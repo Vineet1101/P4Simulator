@@ -17,20 +17,20 @@ P4Controller::GetTypeId (void)
 
 P4Controller::P4Controller ()
 {
-  NS_LOG_FUNCTION (this); // Log constructor call
+  NS_LOG_FUNCTION (this);
 }
 
 P4Controller::~P4Controller ()
 {
-  NS_LOG_FUNCTION (this); // Log destructor call
+  NS_LOG_FUNCTION (this);
 
   // Clean up all P4SwitchInterface pointers
-  for (size_t i = 0; i < m_p4Switches.size (); i++)
+  for (size_t i = 0; i < p4SwitchInterfaces_.size (); i++)
     {
-      if (m_p4Switches[i] != nullptr)
+      if (p4SwitchInterfaces_[i] != nullptr)
         {
-          delete m_p4Switches[i];
-          m_p4Switches[i] = nullptr; // Prevent dangling pointers
+          delete p4SwitchInterfaces_[i];
+          p4SwitchInterfaces_[i] = nullptr;
         }
     }
 }
@@ -38,10 +38,9 @@ P4Controller::~P4Controller ()
 void
 P4Controller::ViewAllSwitchFlowTableInfo ()
 {
-  NS_LOG_FUNCTION (this); // Log function call
+  NS_LOG_FUNCTION (this);
 
-  // Iterate over all P4 switches and view their flow table info
-  for (size_t i = 0; i < m_p4Switches.size (); i++)
+  for (size_t i = 0; i < p4SwitchInterfaces_.size (); i++)
     {
       ViewP4SwitchFlowTableInfo (i);
     }
@@ -50,79 +49,72 @@ P4Controller::ViewAllSwitchFlowTableInfo ()
 void
 P4Controller::ViewP4SwitchFlowTableInfo (size_t index)
 {
-  NS_LOG_FUNCTION (this << index); // Log function call with index
+  NS_LOG_FUNCTION (this << index);
 
-  if (index >= m_p4Switches.size () || m_p4Switches[index] == nullptr)
+  if (index >= p4SwitchInterfaces_.size () || p4SwitchInterfaces_[index] == nullptr)
     {
       NS_LOG_ERROR ("Call ViewP4SwitchFlowTableInfo("
                     << index << "): P4SwitchInterface pointer is null or index out of range.");
       return;
     }
 
-  // View flow table, counter, register, and meter info for the specific P4 switch
-  m_p4Switches[index]->AttainSwitchFlowTableInfo ();
+  p4SwitchInterfaces_[index]->AttainSwitchFlowTableInfo ();
 }
 
 void
 P4Controller::SetP4SwitchViewFlowTablePath (size_t index, const std::string &viewFlowTablePath)
 {
-  NS_LOG_FUNCTION (this << index << viewFlowTablePath); // Log function call with parameters
+  NS_LOG_FUNCTION (this << index << viewFlowTablePath);
 
-  if (index >= m_p4Switches.size () || m_p4Switches[index] == nullptr)
+  if (index >= p4SwitchInterfaces_.size () || p4SwitchInterfaces_[index] == nullptr)
     {
       NS_LOG_ERROR ("Call SetP4SwitchViewFlowTablePath("
                     << index << "): P4SwitchInterface pointer is null or index out of range.");
       return;
     }
 
-  // Set the path for viewing flow table information
-  m_p4Switches[index]->SetViewFlowTablePath (viewFlowTablePath);
+  p4SwitchInterfaces_[index]->SetViewFlowTablePath (viewFlowTablePath);
 }
 
 void
 P4Controller::SetP4SwitchFlowTablePath (size_t index, const std::string &flowTablePath)
 {
-  NS_LOG_FUNCTION (this << index << flowTablePath); // Log function call with parameters
+  NS_LOG_FUNCTION (this << index << flowTablePath);
 
-  if (index >= m_p4Switches.size () || m_p4Switches[index] == nullptr)
+  if (index >= p4SwitchInterfaces_.size () || p4SwitchInterfaces_[index] == nullptr)
     {
       NS_LOG_ERROR ("Call SetP4SwitchFlowTablePath("
                     << index << "): P4SwitchInterface pointer is null or index out of range.");
       return;
     }
 
-  // Set the path for populating the flow table
-  m_p4Switches[index]->SetFlowTablePath (flowTablePath);
+  p4SwitchInterfaces_[index]->SetFlowTablePath (flowTablePath);
 }
 
 P4SwitchInterface *
 P4Controller::GetP4Switch (size_t index)
 {
-  NS_LOG_FUNCTION (this << index); // Log function call with index
+  NS_LOG_FUNCTION (this << index);
 
-  if (index >= m_p4Switches.size ())
+  if (index >= p4SwitchInterfaces_.size ())
     {
       NS_LOG_ERROR ("Call GetP4Switch(" << index << "): Index out of range.");
       return nullptr;
     }
 
-  // Return the requested P4 switch
-  return m_p4Switches[index];
+  return p4SwitchInterfaces_[index];
 }
 
 P4SwitchInterface *
 P4Controller::AddP4Switch ()
 {
-  NS_LOG_FUNCTION (this); // Log function call
+  NS_LOG_FUNCTION (this);
 
-  //@TODO connect with the p4-bridge-net-device class
+  P4SwitchInterface *p4SwitchInterface = new P4SwitchInterface;
+  p4SwitchInterfaces_.push_back (p4SwitchInterface);
 
-  // Create a new P4 switch and add it to the collection
-  P4SwitchInterface *p4Switch = new P4SwitchInterface;
-  m_p4Switches.push_back (p4Switch);
-
-  NS_LOG_INFO ("Added a new P4 switch. Total switches: " << m_p4Switches.size ());
-  return p4Switch;
+  NS_LOG_INFO ("Added a new P4 switch. Total switches: " << p4SwitchInterfaces_.size ());
+  return p4SwitchInterface;
 }
 
 } // namespace ns3

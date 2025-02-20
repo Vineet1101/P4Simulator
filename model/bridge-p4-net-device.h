@@ -43,6 +43,7 @@ namespace ns3 {
 class Node;
 class P4Switch;
 class PsaSwitch;
+class P4SwitchInterface;
 
 /**
  * \defgroup bridge Bridge P4 Network Device
@@ -180,8 +181,6 @@ protected:
   // Ptr<NetDevice> GetLearnedState(Mac48Address source);
 
 private:
-  bool SetSwitchType (const int switchType);
-
   NetDevice::ReceiveCallback m_rxCallback; //!< receive callback
   NetDevice::PromiscReceiveCallback m_promiscRxCallback; //!< promiscuous receive callback
 
@@ -191,10 +190,10 @@ private:
   std::vector<Ptr<NetDevice>> m_ports; //!< bridged ports
   uint32_t m_ifIndex; //!< Interface index
   uint16_t m_mtu; //!< MTU of the bridged NetDevice
-  int m_switch_type; //!< switch type
 
   P4Switch *m_p4Switch; //!< P4 switch core
   PsaSwitch *m_psaSwitch; //!< PSA switch core
+  P4SwitchInterface *m_p4SwitchInterface; //!< P4 switch interface
 };
 
 } // namespace ns3

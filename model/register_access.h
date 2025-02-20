@@ -65,12 +65,12 @@ public:
   static constexpr uint64_t RECIRCULATE_FLAG_MASK = 0x000000000000ffff;
   static constexpr uint64_t RECIRCULATE_FLAG_SHIFT = 0;
 
-  // For ns3 saving the protocol
+  // For saving the ns-3 protocol
   static constexpr int NS_PROTOCOL_REG_IDX = 2;
   static constexpr uint64_t NS_PROTOCOL_MASK = 0x00000000ffff0000;
   static constexpr uint64_t NS_PROTOCOL_SHIFT = 16;
 
-  // For ns3 saving the address
+  // For saving the ns-3 address
   static constexpr int NS_ADDRESS_REG_IDX = 2;
   static constexpr uint64_t NS_ADDRESS_MASK = 0x0000ffff00000000;
   static constexpr uint64_t NS_ADDRESS_SHIFT = 32;
@@ -158,7 +158,7 @@ public:
     pkt->set_register (RECIRCULATE_FLAG_REG_IDX, rv);
   }
 
-  // ns3 protocol
+  // ns-3 protocol
   static uint16_t
   get_ns_protocol (bm::Packet *pkt)
   {
@@ -174,7 +174,7 @@ public:
     pkt->set_register (NS_PROTOCOL_REG_IDX, rv);
   }
 
-  // ns3 address, maximum 65535 connections for different address
+  // ns-3 address, maximum 65535 connections for different address
   static uint16_t
   get_ns_address (bm::Packet *pkt)
   {

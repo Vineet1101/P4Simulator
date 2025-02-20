@@ -83,7 +83,6 @@ public:
   void SetP4InfoPath (const std::string &path);
   void SetFlowTablePath (const std::string &path);
   void SetViewFlowTablePath (const std::string &path);
-  void SetNetworkFunc (unsigned int func);
   void SetPopulateFlowTableWay (uint way);
   // === Getter Methods ===
   P4Switch *GetP4Switch () const;
@@ -91,7 +90,6 @@ public:
   const std::string &GetP4InfoPath () const;
   const std::string &GetFlowTablePath () const;
   const std::string &GetViewFlowTablePath () const;
-  unsigned int GetNetworkFunc () const;
   uint GetPopulateFlowTableWay () const;
 
   // === Flow Table Operations ===
@@ -124,6 +122,9 @@ public:
   void HandleMeterArraySetRates (const std::vector<std::string> &params);
   void HandleMeterSetRates (const std::vector<std::string> &params);
 
+  // print switch info
+  void PrintP4SwitchInfo ();
+
   // Utility functions
   bm::MatchKeyParam ParseMatchField (const std::string &field, bm::MatchKeyParam::Type matchType);
   bm::Meter::rate_config_t ParseRateConfig (const std::string &rateConfig);
@@ -141,7 +142,6 @@ private:
   std::string flowTablePath_; //!< Path to the flow table file.
   std::string viewFlowTablePath_; //!< Path to the view flow table file.
   uint populateFLowTableWay_ = 0; //!< Method to populate the flow table.
-  unsigned int networkFunc_ = 0; //!< Network function ID.
 
   std::unordered_map<std::string, Meter> meters_; //!< Map of meter configurations.
   std::unordered_map<std::string, FlowTable> flowTables_; //!< Map of flow table configurations.

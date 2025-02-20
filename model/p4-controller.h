@@ -33,6 +33,13 @@ public:
   ~P4Controller ();
 
   /**
+     * @brief Register the P4Controller class with the NS-3 type system.
+     * 
+     * @return TypeId for the P4Controller class.
+     */
+  static TypeId GetTypeId (void);
+
+  /**
      * @brief View flow table information for all P4 switches managed by the controller.
      */
   void ViewAllSwitchFlowTableInfo ();
@@ -84,22 +91,15 @@ public:
   unsigned int
   GetP4SwitchNum () const
   {
-    return m_p4Switches.size ();
+    return p4SwitchInterfaces_.size ();
   }
-
-  /**
-     * @brief Register the P4Controller class with the NS-3 type system.
-     * 
-     * @return TypeId for the P4Controller class.
-     */
-  static TypeId GetTypeId (void);
 
 private:
   /**
      * @brief Collection of P4 switch interfaces managed by the controller.
      *        Each switch is identified by its index in this vector.
      */
-  std::vector<P4SwitchInterface *> m_p4Switches;
+  std::vector<P4SwitchInterface *> p4SwitchInterfaces_;
 
   // Disable copy constructor and assignment operator
   P4Controller (const P4Controller &) = delete;

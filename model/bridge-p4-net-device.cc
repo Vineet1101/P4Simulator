@@ -68,50 +68,47 @@ BridgeP4NetDevice::BridgeP4NetDevice () : m_node (nullptr), m_ifIndex (0)
       NS_LOG_DEBUG ("P4 architecture: v1model");
       m_p4Switch = new P4Switch (this);
 
-      P4SwitchInterface *p4SwitchInterface = P4GlobalVar::g_p4Controller.AddP4Switch ();
-      p4SwitchInterface->SetP4NetDeviceCore (m_p4Switch); //!< Pointer to the P4 core model.
-      p4SwitchInterface->SetJsonPath (
+      m_p4SwitchInterface = P4GlobalVar::g_p4Controller.AddP4Switch ();
+      m_p4SwitchInterface->SetP4NetDeviceCore (m_p4Switch); //!< Pointer to the P4 core model.
+      m_p4SwitchInterface->SetJsonPath (
           P4GlobalVar::g_p4JsonPath); //!< Path to the P4 JSON configuration file.
-      p4SwitchInterface->SetP4InfoPath (
+      m_p4SwitchInterface->SetP4InfoPath (
           P4GlobalVar::g_p4MatchTypePath); //!< Path to the P4 info file.
-      p4SwitchInterface->SetFlowTablePath (
+      m_p4SwitchInterface->SetFlowTablePath (
           P4GlobalVar::g_flowTablePath); //!< Path to the flow table file.
-      p4SwitchInterface->SetViewFlowTablePath (
+      m_p4SwitchInterface->SetViewFlowTablePath (
           P4GlobalVar::g_viewFlowTablePath); //!< Path to the view flow table file.
-      p4SwitchInterface->SetNetworkFunc (
-          static_cast<unsigned int> (P4GlobalVar::g_networkFunc)); //!< Network function ID.
-      p4SwitchInterface->SetPopulateFlowTableWay (
+      m_p4SwitchInterface->SetPopulateFlowTableWay (
           P4GlobalVar::g_populateFlowTableWay); //!< Method to populate the flow table.
-      p4SwitchInterface->Init (); // init the switch with p4 configure files (*.json)
+      m_p4SwitchInterface->Init (); // init the switch with p4 configure files (*.json)
 
       m_p4Switch->start_and_return_ ();
       // Clear the local pointer to avoid accidental use; the object is managed by P4Controller
-      p4SwitchInterface = nullptr;
     }
   else if (P4GlobalVar::g_p4ArchType == P4ARCHPSA)
     {
       NS_LOG_DEBUG ("P4 architecture: psa");
       // m_psaSwitch = new PsaSwitch (this);
 
-      // P4SwitchInterface *p4SwitchInterface = P4GlobalVar::g_p4Controller.AddP4Switch ();
-      // p4SwitchInterface->SetP4NetDeviceCore (m_psaSwitch); //!< Pointer to the P4 core model.
-      // p4SwitchInterface->SetJsonPath (
+      // P4SwitchInterface *m_p4SwitchInterface = P4GlobalVar::g_p4Controller.AddP4Switch ();
+      // m_p4SwitchInterface->SetP4NetDeviceCore (m_psaSwitch); //!< Pointer to the P4 core model.
+      // m_p4SwitchInterface->SetJsonPath (
       //     P4GlobalVar::g_p4JsonPath); //!< Path to the P4 JSON configuration file.
-      // p4SwitchInterface->SetP4InfoPath (
+      // m_p4SwitchInterface->SetP4InfoPath (
       //     P4GlobalVar::g_p4MatchTypePath); //!< Path to the P4 info file.
-      // p4SwitchInterface->SetFlowTablePath (
+      // m_p4SwitchInterface->SetFlowTablePath (
       //     P4GlobalVar::g_flowTablePath); //!< Path to the flow table file.
-      // p4SwitchInterface->SetViewFlowTablePath (
+      // m_p4SwitchInterface->SetViewFlowTablePath (
       //     P4GlobalVar::g_viewFlowTablePath); //!< Path to the view flow table file.
-      // p4SwitchInterface->SetNetworkFunc (
+      // m_p4SwitchInterface->SetNetworkFunc (
       //     static_cast<unsigned int> (P4GlobalVar::g_networkFunc)); //!< Network function ID.
-      // p4SwitchInterface->SetPopulateFlowTableWay (
+      // m_p4SwitchInterface->SetPopulateFlowTableWay (
       //     P4GlobalVar::g_populateFlowTableWay); //!< Method to populate the flow table.
-      // p4SwitchInterface->Init (); // init the switch with p4 configure files (*.json)
+      // m_p4SwitchInterface->Init (); // init the switch with p4 configure files (*.json)
 
       // m_psaSwitch->start_and_return_ ();
       // // Clear the local pointer to avoid accidental use; the object is managed by P4Controller
-      // p4SwitchInterface = nullptr;
+      // m_p4SwitchInterface = nullptr;
     }
   else
     {
@@ -504,14 +501,6 @@ BridgeP4NetDevice::GetMulticast (Ipv6Address addr) const
 {
   NS_LOG_FUNCTION (this << addr);
   return Mac48Address::GetMulticast (addr);
-}
-
-bool
-BridgeP4NetDevice::SetSwitchType (const int switchType)
-{
-  NS_LOG_FUNCTION_NOARGS ();
-  m_switch_type = switchType;
-  return true;
 }
 
 } // namespace ns3
