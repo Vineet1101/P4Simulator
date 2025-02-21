@@ -140,6 +140,12 @@ public:
   Address GetAddress () const override;
   bool SetMtu (const uint16_t mtu) override;
   uint16_t GetMtu () const override;
+
+  void SetJsonPath (const std::string &jsonPath);
+  std::string GetJsonPath (void) const;
+  void SetFlowTablePath (const std::string &flowTablePath);
+  std::string GetFlowTablePath (void) const;
+
   bool IsLinkUp () const override;
   void AddLinkChangeCallback (Callback<void> callback) override;
   bool IsBroadcast () const override;
@@ -160,6 +166,8 @@ public:
   Address GetMulticast (Ipv6Address addr) const override;
 
 protected:
+  virtual void DoInitialize () override;
+
   void DoDispose () override;
 
   /**
@@ -194,7 +202,7 @@ private:
   uint64_t packet_rate;
 
   // Switch Net Device Info
-  int8_t m_channelType; //!< Channel type
+  uint32_t m_channelType; //!< Channel type
   Mac48Address m_address; //!< MAC address of the NetDevice
   Ptr<Node> m_node; //!< node owning this NetDevice
   Ptr<P4BridgeChannel> m_channel; //!< virtual bridged channel

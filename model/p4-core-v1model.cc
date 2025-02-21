@@ -35,7 +35,6 @@
 #undef LOG_ERROR
 #undef LOG_DEBUG
 
-#include "ns3/global.h"
 #include "ns3/register_access.h"
 #include "ns3/ethernet-header.h"
 #include "ns3/log.h"

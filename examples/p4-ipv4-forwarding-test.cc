@@ -1,11 +1,3 @@
-/**
- * 最简单的一发一收测试，h0 -> h1
- * 信道CSMA
- * 速率1Gbps
- * 
- * 
- */
-
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
 #include "ns3/applications-module.h"
@@ -13,7 +5,6 @@
 #include "ns3/internet-module.h"
 #include "ns3/bridge-helper.h"
 #include "ns3/p4-helper.h"
-#include "ns3/global.h"
 #include "ns3/format-utils.h"
 #include "ns3/p4-topology-reader-helper.h"
 #include <iomanip>
@@ -158,56 +149,21 @@ main (int argc, char *argv[])
 
   int running_number = 0;
   uint16_t pktSize = 1000; //in Bytes. 1458 to prevent fragments, default 512
-
-  std::string appDataRate = "1Mbps"; // Default application data rate
-  uint64_t congestion_bottleneck = 1000; // Mbps
+  int model = 0;
+  std::string appDataRate = "3Mbps"; // Default application data rate
   std::string ns3_link_rate = "1000Mbps";
   bool enableTracePcap = false;
-  P4GlobalVar::g_nsType = P4Simulator;
-  // P4 simulation paths
-  // P4GlobalVar::HomePath = "/home/p4/workdir/";
-  // P4GlobalVar::g_ns3RootName = "";
-  // P4GlobalVar::g_ns3SrcName = "ns3.35/";
-  P4GlobalVar::PathConfig::NfDir = P4GlobalVar::PathConfig::HomePath +
-                                   P4GlobalVar::PathConfig::Ns3RootName +
-                                   P4GlobalVar::PathConfig::Ns3SrcName + "contrib/p4sim/test/";
-  P4GlobalVar::InitNfStrUintMap ();
 
-  P4GlobalVar::g_channelType = P4ChannelType::CSMA;
-
-  // ============================  command line ============================
-  CommandLine cmd;
-  cmd.AddValue ("simType", "simulation with ns3 (1) or P4sim (0)", P4GlobalVar::g_nsType);
-  cmd.AddValue ("runnum", "running number in loops", running_number);
-  cmd.AddValue ("model", "Select P4Simulator[0] or NS3[1]", P4GlobalVar::g_nsType);
-  cmd.AddValue ("pktSize", "Packet size in bytes (default 1000)", pktSize);
-  cmd.AddValue ("appDataRate", "Application data rate in bps (default 1Mbps)", appDataRate);
-  cmd.AddValue ("congestion_bottleneck", "Congestion bottleneck in Mbps (default 5)",
-                congestion_bottleneck);
-  cmd.AddValue ("ns3_link_rate", "Congestion bottleneck in link for ns3 simulation", ns3_link_rate);
-  cmd.AddValue ("pcap", "Trace packet pacp [true] or not[false]", enableTracePcap);
-  cmd.Parse (argc, argv);
-
-  // ===== Here the packets size is 1000 bytes (This is sending rate in Application layer, when add
-  // header underlayer will be 1000 + 46 bytes (Check the PCAP file) =====`
-
-  // pps
-  // P4GlobalVar::g_switchBottleNeck =
-  //     (uint64_t) (congestion_bottleneck * 1000 * 1000 / ((pktSize + 46) * 8));
-  P4GlobalVar::g_switchBottleNeck =
-      (uint64_t) (congestion_bottleneck * 1000 * 1000 / (pktSize * 8));
-  NS_LOG_INFO ("*** Congestion bottleneck: "
-               << congestion_bottleneck << " Mbps, packet size: " << pktSize
-               << " Bytes, switch bottleneck: " << P4GlobalVar::g_switchBottleNeck << " pps");
-
-  // with Gbps
+  std::string p4JsonPath =
+      "/home/p4/workdir/ns3.35/contrib/p4sim/test/test_simple/test_simple.json";
+  std::string flowTablePath =
+      "/home/p4/workdir/ns3.35/contrib/p4sim/test/test_simple/flowtable_0.txt";
+  std::string topoInput = "/home/p4/workdir/ns3.35/contrib/p4sim/test/test_simple/topo.txt";
+  std::string topoFormat ("CsmaTopo");
 
   // ============================ topo -> network ============================
 
   // loading from topo file --> gene topo(linking the nodes)
-  std::string topoInput = P4GlobalVar::PathConfig::NfDir + "test_simple/topo.txt";
-  std::string topoFormat ("CsmaTopo");
-
   P4TopologyReaderHelper p4TopoHelp;
   p4TopoHelp.SetFileName (topoInput);
   p4TopoHelp.SetFileType (topoFormat);
@@ -380,26 +336,16 @@ main (int argc, char *argv[])
     }
 
   // Bridge or P4 switch configuration
-  if (P4GlobalVar::g_nsType == P4Simulator)
+  if (model == 0)
     {
       NS_LOG_INFO ("*** P4Simulator mode");
-      P4GlobalVar::g_populateFlowTableWay = NS3PIFOTM; //LOCAL_CALL RUNTIME_CLI NS3PIFOTM
-      P4GlobalVar::g_networkFunc = P4ModuleType::BASIC;
-      P4GlobalVar::SetP4MatchTypeJsonPath ();
+      P4Helper p4Switch;
+      p4Switch.SetDeviceAttribute ("JsonPath", StringValue (p4JsonPath));
+      p4Switch.SetDeviceAttribute ("FlowTablePath", StringValue (flowTablePath));
 
-      P4Helper p4Bridge;
       for (unsigned int i = 0; i < switchNum; i++)
         {
-          P4GlobalVar::g_flowTablePath = P4GlobalVar::PathConfig::NfDir + "test_simple/flowtable_" +
-                                         std::to_string (i) + ".txt";
-          P4GlobalVar::g_viewFlowTablePath = P4GlobalVar::g_flowTablePath;
-          NS_LOG_INFO ("*** Installing P4 bridge [ "
-                       << i << " ]device with configuration: " << std::endl
-                       << "P4JsonPath = " << P4GlobalVar::g_p4JsonPath << ", " << std::endl
-                       << "FlowTablePath = " << P4GlobalVar::g_flowTablePath << ", " << std::endl
-                       << "ViewFlowTablePath = " << P4GlobalVar::g_viewFlowTablePath);
-
-          p4Bridge.Install (switchNode.Get (i), switchNodes[i].switchDevices);
+          p4Switch.Install (switchNode.Get (i), switchNodes[i].switchDevices);
         }
     }
   else

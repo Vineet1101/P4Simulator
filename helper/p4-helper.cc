@@ -40,19 +40,19 @@ P4Helper::Install (Ptr<Node> node, const NetDeviceContainer &netDevices) const
   NS_LOG_LOGIC ("Installing P4SwitchNetDevice on node: " << node->GetId ());
 
   // Create the P4 bridge device
-  Ptr<P4SwitchNetDevice> bridgeDevice = m_deviceFactory.Create<P4SwitchNetDevice> ();
-  node->AddDevice (bridgeDevice);
+  Ptr<P4SwitchNetDevice> switchDevice = m_deviceFactory.Create<P4SwitchNetDevice> ();
+  node->AddDevice (switchDevice);
 
   // Attach each NetDevice in the container to the bridge
   for (auto iter = netDevices.Begin (); iter != netDevices.End (); ++iter)
     {
       NS_LOG_LOGIC ("Adding bridge port: " << *iter);
-      bridgeDevice->AddBridgePort (*iter);
+      switchDevice->AddBridgePort (*iter);
     }
 
   // Return a container with the created device
   NetDeviceContainer installedDevices;
-  installedDevices.Add (bridgeDevice);
+  installedDevices.Add (switchDevice);
   return installedDevices;
 }
 

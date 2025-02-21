@@ -1,5 +1,4 @@
 #include "custom-header.h"
-#include "ns3/global.h"
 #include "ns3/log.h"
 #include "ns3/string.h" // For StringValue
 #include "ns3/attribute.h" // For MakeStringAccessor and MakeStringChecker

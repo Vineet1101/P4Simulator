@@ -18,7 +18,6 @@
 #include "ns3/trace-source-accessor.h"
 #include "ns3/uinteger.h"
 #include "ns3/pointer.h"
-#include <ns3/global.h>
 #include <stack>
 
 namespace ns3 {

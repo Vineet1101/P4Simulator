@@ -5,7 +5,6 @@
 #include "ns3/internet-module.h"
 #include "ns3/bridge-helper.h"
 #include "ns3/p4-helper.h"
-#include "ns3/global.h"
 #include "ns3/format-utils.h"
 #include "ns3/p4-topology-reader-helper.h"
 #include <iomanip>
@@ -138,7 +137,7 @@ main (int argc, char *argv[])
   std::string appDataRate = "3Mbps"; // Default application data rate
   uint64_t congestion_bottleneck = 1000; // Mbps
   std::string ns3_link_rate = "1000Mbps";
-  bool enableTracePcap = false;
+  bool enableTracePcap = true;
 
   std::string p4JsonPath =
       "/home/p4/workdir/ns3.35/contrib/p4sim/test/test_simple/test_simple.json";
@@ -166,6 +165,7 @@ main (int argc, char *argv[])
   p4TopoHelper.SetFileType (topoFormat);
   NS_LOG_INFO ("*** Reading topology from file: " << topoInput << " with format: " << topoFormat);
 
+  // Get the topology reader, and read the file, load in the m_linksList.
   Ptr<P4TopologyReader> topoReader = p4TopoHelper.GetTopologyReader ();
 
   if (topoReader->LinksSize () == 0)
@@ -177,18 +177,47 @@ main (int argc, char *argv[])
   // get switch and host node
   NodeContainer terminals = topoReader->GetHostNodeContainer ();
   NodeContainer switchNode = topoReader->GetSwitchNodeContainer ();
+
   const unsigned int hostNum = terminals.GetN ();
   const unsigned int switchNum = switchNode.GetN ();
   NS_LOG_INFO ("*** Host number: " << hostNum << ", Switch number: " << switchNum);
 
   // set default network link parameter
   CsmaHelper csma;
-  csma.SetChannelAttribute ("DataRate", StringValue (ns3_link_rate)); //@todo
+  csma.SetChannelAttribute ("DataRate", StringValue (ns3_link_rate));
   csma.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (0.01)));
 
-  // 创建并安装网络设备
-  NetDeviceContainer terminalDevices = csma.Install (terminals);
-  NetDeviceContainer switchDevices = csma.Install (switchNode);
+  NetDeviceContainer hostDevices;
+  NetDeviceContainer switchDevices;
+  P4TopologyReader::ConstLinksIterator_t iter;
+  for (iter = topoReader->LinksBegin (); iter != topoReader->LinksEnd (); iter++)
+    {
+
+      NetDeviceContainer link =
+          csma.Install (NodeContainer (iter->GetFromNode (), iter->GetToNode ()));
+      if (iter->GetFromType () == 's' && iter->GetToType () == 's')
+        {
+          switchDevices.Add (link.Get (0));
+          switchDevices.Add (link.Get (1));
+        }
+      else if (iter->GetFromType () == 's' && iter->GetToType () == 'h')
+        {
+          switchDevices.Add (link.Get (0));
+          hostDevices.Add (link.Get (1));
+        }
+      else if (iter->GetFromType () == 'h' && iter->GetToType () == 's')
+        {
+          hostDevices.Add (link.Get (0));
+          switchDevices.Add (link.Get (1));
+        }
+      else
+        {
+          NS_LOG_ERROR ("link error!");
+          abort ();
+        }
+    }
+
+  // ========================Print the Channel Type and NetDevice Type========================
 
   // 安装网络协议栈
   InternetStackHelper internet;
@@ -203,7 +232,7 @@ main (int argc, char *argv[])
 
   for (unsigned int i = 0; i < hostNum; i++)
     {
-      terminalInterfaces[i] = ipv4.Assign (terminalDevices.Get (i));
+      terminalInterfaces[i] = ipv4.Assign (terminals.Get (i)->GetDevice (0));
       hostIpv4[i] = Uint32IpToHex (terminalInterfaces[i].GetAddress (0).Get ());
     }
 
@@ -235,15 +264,16 @@ main (int argc, char *argv[])
   // Bridge or P4 switch configuration
   if (model == 0)
     {
-      P4Helper p4Bridge;
-      p4Bridge.SetDeviceAttribute ("JsonPath", StringValue (p4JsonPath));
-      p4Bridge.SetDeviceAttribute ("FlowTablePath", StringValue (flowTablePath));
-
+      P4Helper p4SwitchHelper;
+      p4SwitchHelper.SetDeviceAttribute ("JsonPath", StringValue (p4JsonPath));
+      p4SwitchHelper.SetDeviceAttribute ("FlowTablePath", StringValue (flowTablePath));
+      p4SwitchHelper.SetDeviceAttribute ("ChannelType", UintegerValue (0));
+      // ChannelType
       NS_LOG_INFO ("*** P4 switch configuration: " << p4JsonPath << ", " << flowTablePath);
 
       for (unsigned int i = 0; i < switchNum; i++)
         {
-          p4Bridge.Install (switchNode.Get (i), switchDevices.Get (i));
+          p4SwitchHelper.Install (switchNode.Get (i), switchDevices);
         }
     }
   else
@@ -251,7 +281,7 @@ main (int argc, char *argv[])
       BridgeHelper bridge;
       for (unsigned int i = 0; i < switchNum; i++)
         {
-          bridge.Install (switchNode.Get (i), switchDevices.Get (i));
+          bridge.Install (switchNode.Get (i), switchDevices);
         }
     }
 

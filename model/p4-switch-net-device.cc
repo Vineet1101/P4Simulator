@@ -19,7 +19,6 @@
  */
 
 #include "ns3/p4-switch-net-device.h"
-#include "ns3/global.h"
 #include "ns3/channel.h"
 #include "ns3/ethernet-header.h"
 #include "ns3/log.h"
@@ -54,19 +53,22 @@ P4SwitchNetDevice::GetTypeId ()
               MakeUintegerAccessor (&P4SwitchNetDevice::SetMtu, &P4SwitchNetDevice::GetMtu),
               MakeUintegerChecker<uint16_t> ())
 
-          .AddAttribute ("JsonPath", "Path to the P4 JSON configuration file.",
-                         StringValue ("/path/to/default.json"),
-                         MakeStringAccessor (&P4SwitchNetDevice::jsonPath_), MakeStringChecker ())
+          .AddAttribute (
+              "JsonPath", "Path to the P4 JSON configuration file.",
+              StringValue ("/path/to/default.json"),
+              MakeStringAccessor (&P4SwitchNetDevice::GetJsonPath, &P4SwitchNetDevice::SetJsonPath),
+              MakeStringChecker ())
 
           .AddAttribute ("FlowTablePath", "Path to the flow table file.",
                          StringValue ("/path/to/flow_table.txt"),
-                         MakeStringAccessor (&P4SwitchNetDevice::flowTablePath_),
+                         MakeStringAccessor (&P4SwitchNetDevice::GetFlowTablePath,
+                                             &P4SwitchNetDevice::SetFlowTablePath),
                          MakeStringChecker ())
 
           .AddAttribute ("ChannelType", "Channel type for the switch, csma with 0, p2p with 1.",
-                         UintegerValue (P4CHANNELCSMA),
+                         UintegerValue (0),
                          MakeUintegerAccessor (&P4SwitchNetDevice::m_channelType),
-                         MakeUintegerChecker<int8_t> ())
+                         MakeUintegerChecker<uint32_t> ())
 
           .AddAttribute ("InputBufferSizeLow", "Low input buffer size for the switch queue.",
                          UintegerValue (128),
@@ -95,29 +97,29 @@ P4SwitchNetDevice::P4SwitchNetDevice () : m_node (nullptr), m_ifIndex (0)
   NS_LOG_FUNCTION_NOARGS ();
   m_channel = CreateObject<P4BridgeChannel> ();
 
+  // NS_LOG_DEBUG ("P4 architecture: v1model");
+  // m_p4Switch = new P4CoreV1model (this, false, packet_rate, input_buffer_size_low,
+  //                                 input_buffer_size_high, queue_buffer_size);
+  // m_p4Switch->InitSwitchWithP4 (jsonPath_, flowTablePath_);
+  // m_p4Switch->start_and_return_ ();
+}
+
+P4SwitchNetDevice::~P4SwitchNetDevice ()
+{
+  NS_LOG_FUNCTION_NOARGS ();
+}
+
+void
+P4SwitchNetDevice::DoInitialize ()
+{
+  NS_LOG_FUNCTION (this);
   NS_LOG_DEBUG ("P4 architecture: v1model");
   m_p4Switch = new P4CoreV1model (this, false, packet_rate, input_buffer_size_low,
                                   input_buffer_size_high, queue_buffer_size);
   m_p4Switch->InitSwitchWithP4 (jsonPath_, flowTablePath_);
   m_p4Switch->start_and_return_ ();
 
-  // m_psaSwitch = nullptr;
-  // if (P4GlobalVar::g_p4ArchType == P4ARCHV1MODEL)
-  //   {
-  //   }
-  // else if (P4GlobalVar::g_p4ArchType == P4ARCHPSA)
-  //   {
-  //     NS_LOG_DEBUG ("P4 architecture: psa");
-  //   }
-  // else
-  //   {
-  //     NS_LOG_ERROR ("Unsupported P4 architecture type.");
-  //   }
-}
-
-P4SwitchNetDevice::~P4SwitchNetDevice ()
-{
-  NS_LOG_FUNCTION_NOARGS ();
+  NetDevice::DoInitialize ();
 }
 
 void
@@ -309,6 +311,30 @@ P4SwitchNetDevice::GetMtu () const
 {
   NS_LOG_FUNCTION_NOARGS ();
   return m_mtu;
+}
+
+void
+P4SwitchNetDevice::SetJsonPath (const std::string &jsonPath)
+{
+  jsonPath_ = jsonPath;
+}
+
+std::string
+P4SwitchNetDevice::GetJsonPath (void) const
+{
+  return jsonPath_;
+}
+
+void
+P4SwitchNetDevice::SetFlowTablePath (const std::string &flowTablePath)
+{
+  flowTablePath_ = flowTablePath;
+}
+
+std::string
+P4SwitchNetDevice::GetFlowTablePath (void) const
+{
+  return flowTablePath_;
 }
 
 bool

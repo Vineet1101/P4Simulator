@@ -27,9 +27,9 @@ def build(bld):
     
     ## ================================== Evaluation of the P4 program
     
-    # # 1. basic ipv4 forwarding test with 2 hosts 1 switch CSMA channel
-    # obj = bld.create_ns3_program('p4-ipv4-forwarding-test', ['p4sim', 'internet', 'applications', 'network'])
-    # obj.source = 'p4-ipv4-forwarding-test.cc'
+    # 1. basic ipv4 forwarding test with 2 hosts 1 switch CSMA channel
+    obj = bld.create_ns3_program('p4-ipv4-forwarding-test', ['p4sim', 'internet', 'applications', 'network'])
+    obj.source = 'p4-ipv4-forwarding-test.cc'
     
     # # 2. basic ipv4 forwarding test with 2 hosts 1 switch P2P channel
     # obj = bld.create_ns3_program('p4-ipv4-forwarding-test-1', ['p4sim', 'internet', 'applications', 'network'])
@@ -43,3 +43,10 @@ def build(bld):
     # # 3. basic p2p test with 2 hosts 1
     # obj = bld.create_ns3_program('p2p-test', ['p4sim', 'internet', 'applications', 'network'])
     # obj.source = 'p2p-test.cc'
+    
+    
+    # 
+    # 
+    # 4.0 basic ipv4 forwarding test with topology and animation
+    obj = bld.create_ns3_program('p4-ipv4-animation', ['p4sim', 'internet', 'applications', 'network', 'netanim'])
+    obj.source = 'p4-ipv4-animation.cc'

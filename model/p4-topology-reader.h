@@ -17,7 +17,6 @@
  *
  * Author: Tommaso Pecorella (tommaso.pecorella@unifi.it)
  * Author: Valerio Sartini (valesar@gmail.com)
- * Modified by: Mingyu Ma (mingyu.ma@tu-dresden.de)
  */
 
 #ifndef P4_TOPOLOGY_READER_H
