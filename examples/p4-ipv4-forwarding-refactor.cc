@@ -195,6 +195,7 @@ main (int argc, char *argv[])
 
       NetDeviceContainer link =
           csma.Install (NodeContainer (iter->GetFromNode (), iter->GetToNode ()));
+
       if (iter->GetFromType () == 's' && iter->GetToType () == 's')
         {
           switchDevices.Add (link.Get (0));
