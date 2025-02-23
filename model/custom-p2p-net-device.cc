@@ -670,13 +670,13 @@ CustomP2PNetDevice::TransmitComplete (void)
   NS_ASSERT_MSG (m_txMachineState == BUSY, "Must be BUSY if transmitting");
   m_txMachineState = READY;
 
-  NS_ASSERT_MSG (m_currentPkt != 0, "CustomP2PNetDevice::TransmitComplete(): m_currentPkt zero");
+  NS_ASSERT_MSG (m_currentPkt != nullptr, "CustomP2PNetDevice::TransmitComplete(): m_currentPkt zero");
 
   m_phyTxEndTrace (m_currentPkt);
-  m_currentPkt = 0;
+  m_currentPkt = nullptr;
 
   Ptr<Packet> p = m_queue->Dequeue ();
-  if (p == 0)
+  if (p == nullptr)
     {
       NS_LOG_LOGIC ("No pending packets in device queue after tx complete");
       return;
@@ -980,7 +980,7 @@ CustomP2PNetDevice::SendFrom (Ptr<Packet> packet, const Address &source, const A
       if (m_queue->IsEmpty () == false)
         {
           Ptr<Packet> packet = m_queue->Dequeue ();
-          NS_ASSERT_MSG (packet != 0,
+          NS_ASSERT_MSG (packet != nullptr,
                          "CustomP2PNetDevice::SendFrom(): IsEmpty false but no packet on queue?");
           m_currentPkt = packet;
           m_promiscSnifferTrace (m_currentPkt);
