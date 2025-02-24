@@ -90,12 +90,6 @@ P4SwitchInterface::SetViewFlowTablePath (const std::string &path)
 }
 
 void
-P4SwitchInterface::SetNetworkFunc (unsigned int func)
-{
-  networkFunc_ = func;
-}
-
-void
 P4SwitchInterface::SetPopulateFlowTableWay (uint way)
 {
   populateFLowTableWay_ = way;
@@ -130,12 +124,6 @@ const std::string &
 P4SwitchInterface::GetViewFlowTablePath () const
 {
   return viewFlowTablePath_;
-}
-
-unsigned int
-P4SwitchInterface::GetNetworkFunc () const
-{
-  return networkFunc_;
 }
 
 uint
@@ -1089,6 +1077,39 @@ P4SwitchInterface::Init ()
     }
 
   NS_LOG_INFO ("P4Switch initialization completed successfully.");
+}
+
+void
+P4SwitchInterface::PrintP4SwitchInfo ()
+{
+  NS_LOG_INFO ("P4SwitchInterface Information:");
+  std::cout << "==================== P4SwitchInterface Information ====================\n";
+  // std::cout << "P4 Core Model Pointer:   " << p4Core_ << "\n";
+  std::cout << "P4 JSON Config Path:     " << jsonPath_ << "\n";
+  std::cout << "P4 Info Path:            " << p4InfoPath_ << "\n";
+  std::cout << "Flow Table Path:         " << flowTablePath_ << "\n";
+  std::cout << "View Flow Table Path:    " << viewFlowTablePath_ << "\n";
+  std::cout << "Flow Table Population Method: " << populateFLowTableWay_ << " (";
+  switch (populateFLowTableWay_)
+    {
+    case LOCAL_CALL:
+      std::cout << "Local call to configure the flow table";
+      break;
+    case RUNTIME_CLI:
+      std::cout << "Using runtime CLI to configure the flow table";
+      break;
+    case NS3PIFOTM:
+      std::cout << "Using Thrift port to configure the flow table";
+      break;
+    default:
+      std::cout << "Unknown method";
+      break;
+    }
+  std::cout << ")\n";
+
+  p4Core_->PrintSwitchConfig ();
+
+  std::cout << "=======================================================================\n";
 }
 
 } // namespace ns3

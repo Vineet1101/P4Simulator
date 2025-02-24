@@ -12,7 +12,7 @@ namespace ns3 {
  * \brief Helper class to manage P4 programmable bridge devices.
  *
  * The P4Helper class simplifies the creation, configuration, and installation
- * of P4-based bridge devices (e.g., ns3::BridgeP4NetDevice) on NS-3 nodes. It
+ * of P4-based bridge devices (e.g., ns3::P4SwitchNetDevice) on NS-3 nodes. It
  * allows for adding LAN segments as ports and configuring attributes for the
  * bridge devices. This helper is designed for simulations involving P4
  * programmable switches or devices.
@@ -24,7 +24,7 @@ public:
      * \brief Construct a P4Helper object.
      *
      * This initializes the internal object factory for creating
-     * ns3::BridgeP4NetDevice instances.
+     * ns3::P4SwitchNetDevice instances.
      */
   P4Helper ();
 
@@ -43,7 +43,7 @@ public:
   /**
      * \brief Install a P4 bridge device on a given node.
      *
-     * This method creates an ns3::BridgeP4NetDevice with the configured
+     * This method creates an ns3::P4SwitchNetDevice with the configured
      * attributes, adds the device to the specified node, and attaches the
      * given net devices as bridge ports.
      *
@@ -57,7 +57,7 @@ public:
      * \brief Install a P4 bridge device on a named node.
      *
      * This method resolves the node by name, creates an
-     * ns3::BridgeP4NetDevice with the configured attributes, adds the
+     * ns3::P4SwitchNetDevice with the configured attributes, adds the
      * device to the resolved node, and attaches the given net devices
      * as bridge ports.
      *

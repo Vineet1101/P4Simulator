@@ -432,7 +432,6 @@ private:
 
   bool m_NeedProcessHeader; //!< Identify if the device should take care of custom header
   CustomHeader m_header; //!< Custom header
-  uint16_t m_protocol; //!< Custom header
 
   NetDevice::ReceiveCallback m_rxCallback; //!< Receive callback
   NetDevice::PromiscReceiveCallback m_promiscCallback; //!< Receive callback
@@ -442,6 +441,17 @@ private:
   TracedCallback<> m_linkChangeCallbacks; //!< Callback for the link change event
 
   static const uint16_t DEFAULT_MTU = 1500; //!< Default MTU
+
+  // port range used to determine whether a packet should include the custom header.
+  // In ns-3, the same NetDevice may handle different types of packets.
+  // If the destination port in the UDP/TCP header falls within
+  // [CUSTOM_DST_PORT_MIN, CUSTOM_DST_PORT_MAX], the packet will be assigned a custom header.
+  uint16_t m_customDstPortMin;
+  uint16_t m_customDstPortMax;
+
+  // Protocol number used to identify the custom P4 header in nested packet parsing.
+  // The previous header's protocol field indicates that the next is a custom header
+  static constexpr uint16_t m_p4ProtocolNumber = 0x12;
 
   /**
    * \brief The Maximum Transmission Unit

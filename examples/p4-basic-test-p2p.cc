@@ -131,7 +131,6 @@ main (int argc, char *argv[])
 
   LogComponentEnable ("P4BasicTestP2P", LOG_LEVEL_INFO);
   // LogComponentEnable ("CustomP2PNetDevice", LOG_LEVEL_DEBUG);
-  // LogComponentEnable ("BridgeP4NetDevice", LOG_LEVEL_DEBUG);
 
   // ============================ parameters ============================
 

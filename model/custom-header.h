@@ -96,7 +96,7 @@ public:
 private:
   HeaderLayer m_layer; // OSI Layer for this header
   HeaderLayerOperator m_op; // Operator for this header
-  uint64_t m_protocol_number; // Protocol number
+  uint64_t m_protocol_index; // Protocol number
   std::vector<Field> m_fields; // Dynamic list of fields
 
   uint16_t m_offset_bytes; // Offset in bytes

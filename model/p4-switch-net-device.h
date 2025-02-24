@@ -18,15 +18,15 @@
  * Authors: Mingyu Ma <mingyu.ma@tu-dresden.de>
  */
 
-#ifndef BRIDGE_P4_NET_DEVICE_H
-#define BRIDGE_P4_NET_DEVICE_H
+#ifndef P4_SWITCH_NET_DEVICE
+#define P4_SWITCH_NET_DEVICE
 
 #include "ns3/mac48-address.h"
 #include "ns3/net-device.h"
 #include "ns3/nstime.h"
 #include "ns3/p4-bridge-channel.h"
-#include "ns3/p4-switch-core.h"
-#include "ns3/p4-psa-switch-core.h"
+#include "ns3/p4-core-v1model.h"
+#include "ns3/p4-core-psa.h"
 
 #include <map>
 #include <stdint.h>
@@ -35,25 +35,27 @@
 /**
  * \file
  * \ingroup bridge
- * ns3::BridgeP4NetDevice declaration.
+ * ns3::P4SwitchNetDevice declaration.
  */
 
 namespace ns3 {
 
+#define P4CHANNELCSMA 0
+#define P4CHANNELP2P 1
+
 class Node;
-class P4Switch;
-class PsaSwitch;
+class P4CoreV1model;
+class P4CorePsa;
 
 /**
- * \defgroup bridge Bridge P4 Network Device
+ * \defgroup P4 Switch Network Device
  *
- * \brief A Bridge Net Device with Programmable Data Plane, based on ns3::BridgeNetDevice
+ * \brief P4 Switch Net Device with Programmable Data Plane, based on ns3::BridgeNetDevice
  *
- * BridgeP4NetDevice is a subclass of NetDevice in the ns-3 domain and serves as
- * the network layer of a P4 target. It is compatible with other net devices
- * in ns-3.
+ * P4SwitchNetDevice is a subclass of NetDevice in the ns-3 domain and serves as
+ * the Ethernet of a P4 target. It is compatible with other net devices in ns-3.
  */
-class BridgeP4NetDevice : public NetDevice
+class P4SwitchNetDevice : public NetDevice
 {
 
 public:
@@ -63,18 +65,18 @@ public:
      */
   static TypeId GetTypeId ();
 
-  BridgeP4NetDevice ();
-  ~BridgeP4NetDevice () override;
+  P4SwitchNetDevice ();
+  ~P4SwitchNetDevice () override;
 
   // Delete copy constructor and assignment operator to avoid misuse
-  BridgeP4NetDevice (const BridgeP4NetDevice &) = delete;
-  BridgeP4NetDevice &operator= (const BridgeP4NetDevice &) = delete;
+  P4SwitchNetDevice (const P4SwitchNetDevice &) = delete;
+  P4SwitchNetDevice &operator= (const P4SwitchNetDevice &) = delete;
 
   /**
      * \brief Add a 'port' to a P4 bridge device
      * \param bridgePort the NetDevice to add
      *
-     * This method adds a new bridge port to a BridgeP4NetDevice, so that
+     * This method adds a new bridge port to a P4SwitchNetDevice, so that
      * the new bridge port NetDevice becomes part of the bridge and L2
      * frames start being forwarded to/from this NetDevice.
      *
@@ -138,6 +140,12 @@ public:
   Address GetAddress () const override;
   bool SetMtu (const uint16_t mtu) override;
   uint16_t GetMtu () const override;
+
+  void SetJsonPath (const std::string &jsonPath);
+  std::string GetJsonPath (void) const;
+  void SetFlowTablePath (const std::string &flowTablePath);
+  std::string GetFlowTablePath (void) const;
+
   bool IsLinkUp () const override;
   void AddLinkChangeCallback (Callback<void> callback) override;
   bool IsBroadcast () const override;
@@ -158,6 +166,8 @@ public:
   Address GetMulticast (Ipv6Address addr) const override;
 
 protected:
+  virtual void DoInitialize () override;
+
   void DoDispose () override;
 
   /**
@@ -180,23 +190,33 @@ protected:
   // Ptr<NetDevice> GetLearnedState(Mac48Address source);
 
 private:
-  bool SetSwitchType (const int switchType);
+  // Switch Init Configure and Information
+  std::string jsonPath_; //!< Path to the P4 JSON configuration file.
+  std::string flowTablePath_; //!< Path to the flow table file.
 
-  NetDevice::ReceiveCallback m_rxCallback; //!< receive callback
-  NetDevice::PromiscReceiveCallback m_promiscRxCallback; //!< promiscuous receive callback
+  // Switch Queue Info
+  size_t input_buffer_size_low;
+  size_t input_buffer_size_high;
+  size_t queue_buffer_size;
+  // size_t output_buffer_size;
+  uint64_t packet_rate;
 
+  // Switch Net Device Info
+  uint32_t m_channelType; //!< Channel type
   Mac48Address m_address; //!< MAC address of the NetDevice
   Ptr<Node> m_node; //!< node owning this NetDevice
   Ptr<P4BridgeChannel> m_channel; //!< virtual bridged channel
   std::vector<Ptr<NetDevice>> m_ports; //!< bridged ports
   uint32_t m_ifIndex; //!< Interface index
   uint16_t m_mtu; //!< MTU of the bridged NetDevice
-  int m_switch_type; //!< switch type
 
-  P4Switch *m_p4Switch; //!< P4 switch core
-  PsaSwitch *m_psaSwitch; //!< PSA switch core
+  P4CoreV1model *m_p4Switch; //!< P4 switch core
+  P4CorePsa *m_psaSwitch; //!< PSA switch core
+
+  NetDevice::ReceiveCallback m_rxCallback; //!< receive callback
+  NetDevice::PromiscReceiveCallback m_promiscRxCallback; //!< promiscuous receive callback
 };
 
 } // namespace ns3
 
-#endif /* BRIDGE_P4_NET_DEVICE_H */
+#endif /* P4_SWITCH_NET_DEVICE */

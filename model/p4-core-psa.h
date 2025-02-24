@@ -19,10 +19,10 @@
  *          Mingyu Ma <mingyu.ma@tu-dresden.de>
  */
 
-#ifndef P4_PSA_SWITCH_CORE_H
-#define P4_PSA_SWITCH_CORE_H
+#ifndef P4_CORE_PSA_H
+#define P4_CORE_PSA_H
 
-#include "ns3/bridge-p4-net-device.h"
+#include "ns3/p4-switch-net-device.h"
 #include "ns3/p4-queue.h"
 #include "ns3/delay-jitter-estimation.h"
 
@@ -42,31 +42,31 @@
 
 namespace ns3 {
 
-class BridgeP4NetDevice;
+class P4SwitchNetDevice;
 class InputBuffer;
 
 /**
  * @brief A P4 Pipeline Implementation to be wrapped in P4 Device
  *
- * The PsaSwitch uses the pipeline implementation provided by
+ * The P4CorePsa uses the pipeline implementation provided by
  * `Behavioral Model` (https://github.com/p4lang/behavioral-model).
  * Internal processing functions and the `switch` class are used.
- * However, PsaSwitch processes packets in a way adapted to ns-3.
+ * However, P4CorePsa processes packets in a way adapted to ns-3.
  *
- * PsaSwitch is initialized along with the P4 Device and exposes a public
+ * P4CorePsa is initialized along with the P4 Device and exposes a public
  * function called `ReceivePacket()` to handle incoming packets.
  */
-class PsaSwitch : public bm::Switch
+class P4CorePsa : public bm::Switch
 {
 public:
   // === Static Methods ===
   static TypeId GetTypeId (void);
 
   // === Constructor & Destructor ===
-  PsaSwitch (BridgeP4NetDevice *netDevice, bool enableSwap = false,
+  P4CorePsa (P4SwitchNetDevice *netDevice, bool enableSwap = false,
              port_t dropPort = SSWITCH_DROP_PORT,
              size_t queuesPerPort = SSWITCH_VIRTUAL_QUEUE_NUM); // by default, swapping is off
-  ~PsaSwitch ();
+  ~P4CorePsa ();
 
   // === Public Methods ===
   void RunCli (const std::string &commandsFile);
@@ -91,10 +91,10 @@ public:
   int SetAllEgressQueueRates (uint64_t ratePps);
 
   // Disabling copy and move operations
-  PsaSwitch (const PsaSwitch &) = delete;
-  PsaSwitch &operator= (const PsaSwitch &) = delete;
-  PsaSwitch (PsaSwitch &&) = delete;
-  PsaSwitch &&operator= (PsaSwitch &&) = delete;
+  P4CorePsa (const P4CorePsa &) = delete;
+  P4CorePsa &operator= (const P4CorePsa &) = delete;
+  P4CorePsa (P4CorePsa &&) = delete;
+  P4CorePsa &&operator= (P4CorePsa &&) = delete;
 
 protected:
   // Mirroring session configuration
@@ -153,7 +153,7 @@ private:
   static int thrift_port;
 
   int psa_switch_ID; //!< ID of the switch
-  BridgeP4NetDevice *bridge_net_device;
+  P4SwitchNetDevice *bridge_net_device;
   port_t drop_port; //!< Port to drop packets
   size_t nb_queues_per_port;
   bool with_queueing_metadata{true};
@@ -182,4 +182,4 @@ private:
 
 } // namespace ns3
 
-#endif // !P4_PSA_SWITCH_CORE_H
+#endif // !P4_CORE_PSA_H

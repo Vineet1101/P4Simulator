@@ -1,2 +1,95 @@
+# P4Sim: NS-3-Based P4 Simulation Environment
 
-[add_specific_folder_with_submodule_to_a_repository](https://www.reddit.com/r/git/comments/sme7k4/add_specific_folder_with_submodule_to_a_repository/)
+## Installation & Usage Guide
+
+It is recommended to use a **virtual machine with Vagrant** to simplify the installation and ensure compatibility.  
+
+## Virtual Machine as virtual env ##
+
+`p4sim` integrates an **NS-3-based P4 simulation environment** with virtual machine configuration files sourced via sparse checkout from the [P4Lang Tutorials repository](https://github.com/p4lang/tutorials/tree/master).  
+
+The `vm` directory contains Vagrant configurations and bootstrap scripts for Ubuntu-based virtual machines (**Ubuntu 24.04 recommended**). These pre-configured environments streamline the setup process, ensuring compatibility and reducing installation issues.  
+
+**Tested with:**  
+- **P4Lang Tutorials Commit:** `7273da1c2ac2fd05cea0a9dd0504184b8c955eae`  
+- **Date:** `2025-01-25`  
+
+## **Setup Instructions for ns-3 version 3.x - 3.35 (Build with `waf`)**  
+
+### **1. Build the Virtual Machine**  
+```bash
+# with vm-ubuntu-24.04/Vagrantfile or vm-ubuntu-20.04/Vagrantfile
+vagrant up dev
+```
+
+This will create a virtual machine with name "P4 Tutorial Development" with the date. 
+
+### **2. Clone the NS-3 Repository**  
+```bash
+cd
+mdkir workdir
+cd workdir
+git clone https://gitlab.com/nsnam/ns-3.git ns3.35
+cd ns3.35
+git checkout ns-3.35 
+```
+
+### **3. Clone & Integrate `p4sim` into NS-3**  
+```bash
+cd /home/p4/workdir/ns3.35/contrib/
+git clone https://github.com/your-repo/p4sim.git
+```
+
+### **4. Set Up the Environment**  
+```bash
+cd /home/p4/workdir/ns3.35/contrib/p4sim/ # p4sim root directory
+git checkout waf
+sudo ./set_pkg_config_env.sh
+```
+
+### **5. Patch for the ns-3 code**  
+```bash
+cd ../../ # in ns-3 root directory
+git apply ./contrib/p4sim/doc/changes.patch 
+```
+
+### **6. Configure & Build NS-3**  
+```bash
+# in ns-3 root directory
+./waf configure --enable-examples --enable-tests
+./waf build
+```
+
+### **7. Run a Simulation Example**  
+```bash
+./waf --run "exampleA"
+```
+
+---
+
+## **Notes**  
+- Ensure you have **Vagrant** and **VirtualBox** installed before running `vagrant up dev`.
+- The setup script (`set_pkg_config_env.sh`) configures the required environment variables for P4Sim.
+- **Ubuntu 24.04** is the recommended OS for the virtual machine.
+
+---
+
+## **Setup Instructions for ns-3 version 3.36 - 3.4x (Build with cmake)**
+
+# References
+
+[1] [add_specific_folder_with_submodule_to_a_repository](https://www.reddit.com/r/git/comments/sme7k4/add_specific_folder_with_submodule_to_a_repository/)
+[2] [P4Lang Tutorials repository](https://github.com/p4lang/tutorials/tree/master)
+
+# Appendix
+
+```bash
+# set_pkg_config_env.sh, the p4simulator module requires the first (bm)
+pkg-config --list-all | grep xxx
+    bm                             BMv2 - Behavioral Model
+    simple_switch                  simple switch - Behavioral Model Target Simple Switch
+    boost_system                   Boost System - Boost System
+
+# SPD log from BMv2 should be blocked, ns-3 has it's own logging system.
+
+```

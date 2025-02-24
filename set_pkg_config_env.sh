@@ -1,31 +1,34 @@
 #! /bin/bash
+
 echo "prefix=/usr/local
-exec_prefix=${prefix}
-libdir=${exec_prefix}/lib
+exec_prefix=\${prefix}
+libdir=\${exec_prefix}/lib
 includedir=/usr/local/include/bm
 
 Name: BMv2
 Description: Behavioral Model
 Version: 1.15.0
-Libs: -L${libdir} -lbmall
-Cflags: -I${includedir}" >/usr/local/lib/pkgconfig/bm.pc
+Libs: -L\${libdir} -lbmall -lbmpi -lbmv2 -lgmp
+Cflags: -I\${includedir}" >/usr/local/lib/pkgconfig/bm.pc
+
 echo "prefix=/usr/lib/
-exec_prefix=${prefix}
-libdir=${exec_prefix}
-includedir=/usr/local/include/bm
+exec_prefix=\${prefix}
+libdir=\${exec_prefix}
+includedir=/usr/include/boost
 
 Name: boost_system
 Description: Boost System
 Version: 1.83.0
-Libs: -L. -lboost_system
-Cflags: -I${includedir}" >/usr/local/lib/pkgconfig/boost_system.pc
+Libs: -L\${libdir} -lboost_system
+Cflags: -I\${includedir}" >/usr/local/lib/pkgconfig/boost_system.pc
+
 echo "prefix=/usr/local
-exec_prefix=${prefix}
-libdir=${exec_prefix}/lib
+exec_prefix=\${prefix}
+libdir=\${exec_prefix}/lib
 includedir=/usr/local/include/bm
 
 Name: simple switch
 Description: Behavioral Model Target Simple Switch
 Version: 1.15.0
-Libs: -L${libdir} -lsimpleswitch_thrift
-Cflags: -I${includedir}" >/usr/local/lib/pkgconfig/simple_switch.pc
+Libs: -L\${libdir} -lsimpleswitch_thrift
+Cflags: -I\${includedir}" >/usr/local/lib/pkgconfig/simple_switch.pc

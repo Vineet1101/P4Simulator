@@ -19,12 +19,12 @@
  *          Mingyu Ma <mingyu.ma@tu-dresden.de>
  */
 
-#ifndef P4_SWITCH_CORE_H
-#define P4_SWITCH_CORE_H
+#ifndef P4_CORE_V1MODEL_H
+#define P4_CORE_V1MODEL_H
 
-#include "ns3/bridge-p4-net-device.h"
 #include "ns3/p4-queue.h"
 #include "ns3/delay-jitter-estimation.h"
+#include "ns3/p4-switch-net-device.h"
 
 #include <map>
 #include <vector>
@@ -33,40 +33,37 @@
 #include <bm/bm_sim/simple_pre_lag.h>
 
 #define SSWITCH_PRIORITY_QUEUEING_SRC "intrinsic_metadata.priority"
-#define SSWITCH_INPUT_BUFFER_SIZE_LO 1024
-#define SSWITCH_INPUT_BUFFER_SIZE_HI 1024
-#define SSWITCH_QUEUE_BUFFER_SIZE 64
 #define SSWITCH_OUTPUT_BUFFER_SIZE 1024
 #define SSWITCH_DROP_PORT 511
 #define SSWITCH_VIRTUAL_QUEUE_NUM 8
 namespace ns3 {
 
-class BridgeP4NetDevice;
+class P4SwitchNetDevice;
 class InputBuffer;
 
 /**
  * @brief A P4 Pipeline Implementation to be wrapped in P4 Device
  *
- * The P4Switch uses the pipeline implementation provided by
+ * The P4CoreV1model uses the pipeline implementation provided by
  * `Behavioral Model` (https://github.com/p4lang/behavioral-model).
  * Internal processing functions and the `switch` class are used.
- * However, P4Switch processes packets in a way adapted to ns-3.
+ * However, P4CoreV1model processes packets in a way adapted to ns-3.
  *
- * P4Switch is initialized along with the P4 Device and exposes a public
+ * P4CoreV1model is initialized along with the P4 Device and exposes a public
  * function called `ReceivePacket()` to handle incoming packets.
  */
-class P4Switch : public bm::Switch
+class P4CoreV1model : public bm::Switch
 {
 public:
-  // === Static Methods ===
-  static TypeId GetTypeId (void);
-
   // === Constructor & Destructor ===
-  P4Switch (BridgeP4NetDevice *netDevice, bool enableSwap = false,
-            port_t dropPort = SSWITCH_DROP_PORT, size_t queuesPerPort = SSWITCH_VIRTUAL_QUEUE_NUM);
-  ~P4Switch ();
+  P4CoreV1model (P4SwitchNetDevice *netDevice, bool enableSwap, uint64_t packet_rate,
+                 size_t input_buffer_size_low, size_t input_buffer_size_high,
+                 size_t queue_buffer_size, port_t dropPort = SSWITCH_DROP_PORT,
+                 size_t queuesPerPort = SSWITCH_VIRTUAL_QUEUE_NUM);
+  ~P4CoreV1model ();
 
   // === Public Methods ===
+  void InitSwitchWithP4 (std::string jsonPath, std::string flowTablePath);
   void RunCli (const std::string &commandsFile);
   int InitFromCommandLineOptions (int argc, char *argv[]);
   int ReceivePacket (Ptr<Packet> packetIn, int inPort, uint16_t protocol,
@@ -80,6 +77,9 @@ public:
   void swap_notify_ () override;
   void reset_target_state_ () override;
 
+  // === Public Methods ===
+  void CalculateScheduleTime ();
+
   // Queue Configuration
   int SetEgressPriorityQueueDepth (size_t port, size_t priority, size_t depthPkts);
   int SetEgressQueueDepth (size_t port, size_t depthPkts);
@@ -88,11 +88,13 @@ public:
   int SetEgressQueueRate (size_t port, uint64_t ratePps);
   int SetAllEgressQueueRates (uint64_t ratePps);
 
+  void PrintSwitchConfig ();
+
   // Disabling copy and move operations
-  P4Switch (const P4Switch &) = delete;
-  P4Switch &operator= (const P4Switch &) = delete;
-  P4Switch (P4Switch &&) = delete;
-  P4Switch &&operator= (P4Switch &&) = delete;
+  P4CoreV1model (const P4CoreV1model &) = delete;
+  P4CoreV1model &operator= (const P4CoreV1model &) = delete;
+  P4CoreV1model (P4CoreV1model &&) = delete;
+  P4CoreV1model &&operator= (P4CoreV1model &&) = delete;
 
 protected:
   // Mirroring session configuration
@@ -147,9 +149,9 @@ protected:
                       int fieldListId);
 
 private:
-  static int thrift_port;
+  // static int thrift_port;
   int p4_switch_ID; //!< ID of the switch
-  BridgeP4NetDevice *bridge_net_device;
+  P4SwitchNetDevice *bridge_net_device;
   port_t drop_port; //!< Port to drop packets
   size_t nb_queues_per_port;
 
@@ -161,7 +163,9 @@ private:
 
   // Timers
   uint64_t GetTimeStamp ();
-  EventId egress_timer_event; //!< The timer event ID [Egress]
+
+  uint64_t packet_rate_pps; //!< Switch processing capability (unit: PPS (Packets Per Second))
+  EventId egress_timer_event; //!< The timer event ID for dequeue
   Time egress_time_reference; //!< Desired time between timer event triggers
   uint64_t start_timestamp; //!< Start time of the switch
 
@@ -180,4 +184,4 @@ private:
 
 } // namespace ns3
 
-#endif // !P4_SWITCH_CORE_H
+#endif // !P4_CORE_V1MODEL_H
