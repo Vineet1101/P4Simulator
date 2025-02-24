@@ -56,6 +56,12 @@ P4SwitchNetDevice::GetTypeId()
                 MakeUintegerAccessor(&P4SwitchNetDevice::SetMtu, &P4SwitchNetDevice::GetMtu),
                 MakeUintegerChecker<uint16_t>())
 
+            .AddAttribute("P4SwitchArch",
+                          "P4 switch architecture, v1model with 0, psa with 1, pna with 2.",
+                          UintegerValue(P4SWITCH_ARCH_V1MODEL),
+                          MakeUintegerAccessor(&P4SwitchNetDevice::m_switchArch),
+                          MakeUintegerChecker<uint32_t>())
+
             .AddAttribute("JsonPath",
                           "Path to the P4 JSON configuration file.",
                           StringValue("/path/to/default.json"),
@@ -126,16 +132,34 @@ P4SwitchNetDevice::DoInitialize()
 {
     NS_LOG_FUNCTION(this);
     NS_LOG_DEBUG("P4 architecture: v1model");
-    m_p4Switch = new P4CoreV1model(this,
-                                   false,
-                                   m_enableTracing,
-                                   switch_rate,
-                                   input_buffer_size_low,
-                                   input_buffer_size_high,
-                                   queue_buffer_size);
-    m_p4Switch->InitSwitchWithP4(jsonPath_, flowTablePath_);
-    m_p4Switch->start_and_return_();
 
+    switch (m_switchArch)
+    {
+    case P4SWITCH_ARCH_V1MODEL:
+        NS_LOG_DEBUG("P4 architecture: v1model");
+        m_p4Switch = new P4CoreV1model(this,
+                                       false,
+                                       m_enableTracing,
+                                       switch_rate,
+                                       input_buffer_size_low,
+                                       input_buffer_size_high,
+                                       queue_buffer_size);
+        m_p4Switch->InitSwitchWithP4(jsonPath_, flowTablePath_);
+        m_p4Switch->start_and_return_();
+        break;
+
+    case P4SWITCH_ARCH_PSA:
+        NS_LOG_DEBUG("P4 architecture: PSA");
+        m_psaSwitch = new P4CorePsa(this,
+                                    false,
+                                    m_enableTracing,
+                                    switch_rate,
+                                    input_buffer_size_low, // normal input queue size
+                                    queue_buffer_size);
+        m_psaSwitch->InitSwitchWithP4(jsonPath_, flowTablePath_);
+        m_psaSwitch->start_and_return_();
+        break;
+    }
     NetDevice::DoInitialize();
 }
 

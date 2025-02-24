@@ -44,6 +44,10 @@ namespace ns3
 #define P4CHANNELCSMA 0
 #define P4CHANNELP2P 1
 
+#define P4SWITCH_ARCH_V1MODEL 0
+#define P4SWITCH_ARCH_PSA 1
+#define P4NIC_ARCH_PNA 2
+
 class Node;
 class P4CoreV1model;
 class P4CorePsa;
@@ -212,6 +216,7 @@ class P4SwitchNetDevice : public NetDevice
   private:
     bool m_enableTracing; //!< Enable tracing
 
+    uint32_t m_switchArch; //!< Switch architecture
     // Switch Init Configure and Information
     std::string jsonPath_;      //!< Path to the P4 JSON configuration file.
     std::string flowTablePath_; //!< Path to the flow table file.
