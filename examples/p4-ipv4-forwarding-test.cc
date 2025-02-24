@@ -143,7 +143,7 @@ main (int argc, char *argv[])
 
   // ============================ parameters ============================
 
-  // ns3::PacketMetadata::Enable (); // 开启数据包元数据追踪
+  ns3::PacketMetadata::Enable (); // 开启数据包元数据追踪
 
   // ============================ parameters ============================
 

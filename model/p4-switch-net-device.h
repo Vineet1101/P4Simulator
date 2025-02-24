@@ -25,8 +25,8 @@
 #include "ns3/net-device.h"
 #include "ns3/nstime.h"
 #include "ns3/p4-bridge-channel.h"
-#include "ns3/p4-core-v1model.h"
 #include "ns3/p4-core-psa.h"
+#include "ns3/p4-core-v1model.h"
 
 #include <map>
 #include <stdint.h>
@@ -38,7 +38,8 @@
  * ns3::P4SwitchNetDevice declaration.
  */
 
-namespace ns3 {
+namespace ns3
+{
 
 #define P4CHANNELCSMA 0
 #define P4CHANNELP2P 1
@@ -57,22 +58,21 @@ class P4CorePsa;
  */
 class P4SwitchNetDevice : public NetDevice
 {
-
-public:
-  /**
+  public:
+    /**
      * \brief Get the type ID.
      * \return the object TypeId
      */
-  static TypeId GetTypeId ();
+    static TypeId GetTypeId();
 
-  P4SwitchNetDevice ();
-  ~P4SwitchNetDevice () override;
+    P4SwitchNetDevice();
+    ~P4SwitchNetDevice() override;
 
-  // Delete copy constructor and assignment operator to avoid misuse
-  P4SwitchNetDevice (const P4SwitchNetDevice &) = delete;
-  P4SwitchNetDevice &operator= (const P4SwitchNetDevice &) = delete;
+    // Delete copy constructor and assignment operator to avoid misuse
+    P4SwitchNetDevice(const P4SwitchNetDevice&) = delete;
+    P4SwitchNetDevice& operator=(const P4SwitchNetDevice&) = delete;
 
-  /**
+    /**
      * \brief Add a 'port' to a P4 bridge device
      * \param bridgePort the NetDevice to add
      *
@@ -85,92 +85,108 @@ public:
      * bridging node you must enable IP on the BridgeNetDevice itself,
      * never on its port netdevices.
      */
-  void AddBridgePort (Ptr<NetDevice> bridgePort);
+    void AddBridgePort(Ptr<NetDevice> bridgePort);
 
-  /**
+    /**
      * \brief Gets the number of bridged 'ports', i.e., the NetDevices currently bridged.
      *
      * \return the number of bridged ports.
      */
-  uint32_t GetNBridgePorts () const;
+    uint32_t GetNBridgePorts() const;
 
-  /**
+    /**
      * \brief Gets the number ID of a 'port' connected to P4 net device.
      * \param netdevice
      * \return the port number of the p4 bridge device
      */
-  uint32_t GetPortNumber (Ptr<NetDevice> port) const;
+    uint32_t GetPortNumber(Ptr<NetDevice> port) const;
 
-  /**
+    /**
      * \brief Gets the n-th bridged port.
      * \param n the port index
      * \return the n-th bridged NetDevice
      */
-  Ptr<NetDevice> GetBridgePort (uint32_t n) const;
+    Ptr<NetDevice> GetBridgePort(uint32_t n) const;
 
-  /**
-		* \brief Forwards a broadcast or a multicast packet
-		* \param incomingPort the packet incoming port
-		* \param packet the packet
-		* \param protocol the packet protocol (e.g., Ethertype)
-		* \param src the packet source
-		* \param dst the packet destination
-		*/
-  void ForwardBroadcast (Ptr<NetDevice> incomingPort, Ptr<const Packet> packet, uint16_t protocol,
-                         Mac48Address src, Mac48Address dst);
+    /**
+     * \brief Forwards a broadcast or a multicast packet
+     * \param incomingPort the packet incoming port
+     * \param packet the packet
+     * \param protocol the packet protocol (e.g., Ethertype)
+     * \param src the packet source
+     * \param dst the packet destination
+     */
+    void ForwardBroadcast(Ptr<NetDevice> incomingPort,
+                          Ptr<const Packet> packet,
+                          uint16_t protocol,
+                          Mac48Address src,
+                          Mac48Address dst);
 
-  /**
+    /**
+     * \brief This method sends a packet out to the destination port.
+     * Same with function SendNs3Packet.
+     * \param packetOut the packet need to be send out
+     * \param outPort the port index to send out
+     * \param protocol the packet protocol (e.g., Ethertype)
+     * \param destination the packet destination
+     */
+    void SendPacket(Ptr<Packet> packetOut,
+                    int outPort,
+                    uint16_t protocol,
+                    const Address& destination);
+
+    /**
      * \brief This method sends a packet out to the destination port.
      * \param packetOut the packet need to be send out
      * \param outPort the port index to send out
      * \param protocol the packet protocol (e.g., Ethertype)
      * \param destination the packet destination
      */
-  void SendPacket (Ptr<Packet> packetOut, int outPort, uint16_t protocol,
-                   const Address &destination);
+    void SendNs3Packet(Ptr<Packet> packetOut,
+                       int outPort,
+                       uint16_t protocol,
+                       const Address& destination);
 
-  void SendNs3Packet (Ptr<Packet> packetOut, int outPort, uint16_t protocol,
-                      const Address &destination);
+    // inherited from NetDevice base class.
+    void SetIfIndex(const uint32_t index) override;
+    uint32_t GetIfIndex() const override;
+    Ptr<Channel> GetChannel() const override;
+    void SetAddress(Address address) override;
+    Address GetAddress() const override;
+    bool SetMtu(const uint16_t mtu) override;
+    uint16_t GetMtu() const override;
 
-  // inherited from NetDevice base class.
-  void SetIfIndex (const uint32_t index) override;
-  uint32_t GetIfIndex () const override;
-  Ptr<Channel> GetChannel () const override;
-  void SetAddress (Address address) override;
-  Address GetAddress () const override;
-  bool SetMtu (const uint16_t mtu) override;
-  uint16_t GetMtu () const override;
+    void SetJsonPath(const std::string& jsonPath);
+    std::string GetJsonPath(void) const;
+    void SetFlowTablePath(const std::string& flowTablePath);
+    std::string GetFlowTablePath(void) const;
 
-  void SetJsonPath (const std::string &jsonPath);
-  std::string GetJsonPath (void) const;
-  void SetFlowTablePath (const std::string &flowTablePath);
-  std::string GetFlowTablePath (void) const;
+    bool IsLinkUp() const override;
+    void AddLinkChangeCallback(Callback<void> callback) override;
+    bool IsBroadcast() const override;
+    Address GetBroadcast() const override;
+    bool IsMulticast() const override;
+    Address GetMulticast(Ipv4Address multicastGroup) const override;
+    bool IsPointToPoint() const override;
+    bool IsBridge() const override;
+    bool Send(Ptr<Packet> packet, const Address& dest, uint16_t protocolNumber) override;
+    bool SendFrom(Ptr<Packet> packet,
+                  const Address& source,
+                  const Address& dest,
+                  uint16_t protocolNumber) override;
+    Ptr<Node> GetNode() const override;
+    void SetNode(Ptr<Node> node) override;
+    bool NeedsArp() const override;
+    void SetReceiveCallback(NetDevice::ReceiveCallback cb) override;
+    void SetPromiscReceiveCallback(NetDevice::PromiscReceiveCallback cb) override;
+    bool SupportsSendFrom() const override;
+    Address GetMulticast(Ipv6Address addr) const override;
 
-  bool IsLinkUp () const override;
-  void AddLinkChangeCallback (Callback<void> callback) override;
-  bool IsBroadcast () const override;
-  Address GetBroadcast () const override;
-  bool IsMulticast () const override;
-  Address GetMulticast (Ipv4Address multicastGroup) const override;
-  bool IsPointToPoint () const override;
-  bool IsBridge () const override;
-  bool Send (Ptr<Packet> packet, const Address &dest, uint16_t protocolNumber) override;
-  bool SendFrom (Ptr<Packet> packet, const Address &source, const Address &dest,
-                 uint16_t protocolNumber) override;
-  Ptr<Node> GetNode () const override;
-  void SetNode (Ptr<Node> node) override;
-  bool NeedsArp () const override;
-  void SetReceiveCallback (NetDevice::ReceiveCallback cb) override;
-  void SetPromiscReceiveCallback (NetDevice::PromiscReceiveCallback cb) override;
-  bool SupportsSendFrom () const override;
-  Address GetMulticast (Ipv6Address addr) const override;
+  protected:
+    virtual void DoInitialize() override;
+    void DoDispose() override;
 
-protected:
-  virtual void DoInitialize () override;
-
-  void DoDispose () override;
-
-  /**
+    /**
      * \brief Receives a packet from one bridged port.
      * \param device the originating port
      * \param packet the received packet
@@ -179,42 +195,48 @@ protected:
      * \param destination the packet destination
      * \param packetType the packet type (e.g., host, broadcast, etc.)
      */
-  void ReceiveFromDevice (Ptr<NetDevice> device, Ptr<const Packet> packet, uint16_t protocol,
-                          const Address &source, const Address &destination, PacketType packetType);
+    void ReceiveFromDevice(Ptr<NetDevice> device,
+                           Ptr<const Packet> packet,
+                           uint16_t protocol,
+                           const Address& source,
+                           const Address& destination,
+                           PacketType packetType);
 
-  // /**
-  //  * \brief Gets the port associated to a source address
-  //  * \param source the source address
-  //  * \returns the port the source is associated to, or NULL if no association is known.
-  //  */
-  // Ptr<NetDevice> GetLearnedState(Mac48Address source);
+    // /**
+    //  * \brief Gets the port associated to a source address
+    //  * \param source the source address
+    //  * \returns the port the source is associated to, or NULL if no association is known.
+    //  */
+    // Ptr<NetDevice> GetLearnedState(Mac48Address source);
 
-private:
-  // Switch Init Configure and Information
-  std::string jsonPath_; //!< Path to the P4 JSON configuration file.
-  std::string flowTablePath_; //!< Path to the flow table file.
+  private:
+    bool m_enableTracing; //!< Enable tracing
 
-  // Switch Queue Info
-  size_t input_buffer_size_low;
-  size_t input_buffer_size_high;
-  size_t queue_buffer_size;
-  // size_t output_buffer_size;
-  uint64_t packet_rate;
+    // Switch Init Configure and Information
+    std::string jsonPath_;      //!< Path to the P4 JSON configuration file.
+    std::string flowTablePath_; //!< Path to the flow table file.
 
-  // Switch Net Device Info
-  uint32_t m_channelType; //!< Channel type
-  Mac48Address m_address; //!< MAC address of the NetDevice
-  Ptr<Node> m_node; //!< node owning this NetDevice
-  Ptr<P4BridgeChannel> m_channel; //!< virtual bridged channel
-  std::vector<Ptr<NetDevice>> m_ports; //!< bridged ports
-  uint32_t m_ifIndex; //!< Interface index
-  uint16_t m_mtu; //!< MTU of the bridged NetDevice
+    // Switch Queue Info
+    size_t input_buffer_size_low;
+    size_t input_buffer_size_high;
+    size_t queue_buffer_size;
+    // size_t output_buffer_size;
+    uint64_t switch_rate;
 
-  P4CoreV1model *m_p4Switch; //!< P4 switch core
-  P4CorePsa *m_psaSwitch; //!< PSA switch core
+    // Switch Net Device Info
+    uint32_t m_channelType;              //!< Channel type
+    Mac48Address m_address;              //!< MAC address of the NetDevice
+    Ptr<Node> m_node;                    //!< node owning this NetDevice
+    Ptr<P4BridgeChannel> m_channel;      //!< virtual bridged channel
+    std::vector<Ptr<NetDevice>> m_ports; //!< bridged ports
+    uint32_t m_ifIndex;                  //!< Interface index
+    uint16_t m_mtu;                      //!< MTU of the bridged NetDevice
 
-  NetDevice::ReceiveCallback m_rxCallback; //!< receive callback
-  NetDevice::PromiscReceiveCallback m_promiscRxCallback; //!< promiscuous receive callback
+    P4CoreV1model* m_p4Switch; //!< P4 switch core
+    P4CorePsa* m_psaSwitch;    //!< PSA switch core
+
+    NetDevice::ReceiveCallback m_rxCallback;               //!< receive callback
+    NetDevice::PromiscReceiveCallback m_promiscRxCallback; //!< promiscuous receive callback
 };
 
 } // namespace ns3
