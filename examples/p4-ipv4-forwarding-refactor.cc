@@ -140,10 +140,10 @@ main (int argc, char *argv[])
   bool enableTracePcap = true;
 
   std::string p4JsonPath =
-      "/home/p4/workdir/ns3.35/contrib/p4sim/test/test_simple/test_simple.json";
+      "/home/p4/workdir/ns-3-dev-git/contrib/p4sim/test/test_simple/test_simple.json";
   std::string flowTablePath =
-      "/home/p4/workdir/ns3.35/contrib/p4sim/test/test_simple/flowtable_0.txt";
-  std::string topoInput = "/home/p4/workdir/ns3.35/contrib/p4sim/test/test_simple/topo.txt";
+      "/home/p4/workdir/ns-3-dev-git/contrib/p4sim/test/test_simple/flowtable_0.txt";
+  std::string topoInput = "/home/p4/workdir/ns-3-dev-git/contrib/p4sim/test/test_simple/topo.txt";
   std::string topoFormat ("CsmaTopo");
 
   // ============================  command line ============================

@@ -315,7 +315,8 @@ P4CoreV1model::RunCli (const std::string &commandsFile)
 
   // Run the CLI commands to populate table entries
   std::string cmd = "run_bmv2_CLI --thrift_port " + std::to_string (port) + " " + commandsFile;
-  std::system (cmd.c_str ());
+  int res = std::system (cmd.c_str ());
+  (void) res;
 }
 
 int
