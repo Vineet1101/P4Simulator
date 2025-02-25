@@ -199,6 +199,8 @@ class P4CoreV1model : public bm::Switch
     std::map<Address, int> m_addressMap;    //!< Map for fast lookup
     std::shared_ptr<bm::McSimplePreLAG> m_pre;
     std::unique_ptr<MirroringSessions> m_mirroringSessions;
+
+    bool m_firstPacket;
 };
 
 } // namespace ns3

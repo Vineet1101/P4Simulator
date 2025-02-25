@@ -141,9 +141,8 @@ main(int argc, char* argv[])
     bool enableTracePcap = true;
 
     std::string p4JsonPath =
-        "/home/p4/workdir/ns-3-dev-git/contrib/p4sim/test/test_simple/test_simple.json";
-    std::string flowTablePath =
-        "/home/p4/workdir/ns-3-dev-git/contrib/p4sim/test/test_simple/flowtable_0.txt";
+        "/home/p4/workdir/ns-3-dev-git/contrib/p4sim/test/simple_psa/simple_psa.json";
+    std::string flowTablePath = "";
     std::string topoInput = "/home/p4/workdir/ns-3-dev-git/contrib/p4sim/test/test_simple/topo.txt";
     std::string topoFormat("CsmaTopo");
 
@@ -272,6 +271,8 @@ main(int argc, char* argv[])
         p4SwitchHelper.SetDeviceAttribute("JsonPath", StringValue(p4JsonPath));
         p4SwitchHelper.SetDeviceAttribute("FlowTablePath", StringValue(flowTablePath));
         p4SwitchHelper.SetDeviceAttribute("ChannelType", UintegerValue(0));
+        p4SwitchHelper.SetDeviceAttribute("P4SwitchArch",
+                                          UintegerValue(1)); // v1model 0, psa 1, pna 2
         // ChannelType
         NS_LOG_INFO("*** P4 switch configuration: " << p4JsonPath << ", " << flowTablePath);
 

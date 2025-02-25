@@ -176,7 +176,8 @@ P4CoreV1model::P4CoreV1model(P4SwitchNetDevice* net_device,
                     nb_queues_per_port),
       output_buffer(SSWITCH_OUTPUT_BUFFER_SIZE),
       m_pre(new bm::McSimplePreLAG()),
-      m_mirroringSessions(new MirroringSessions())
+      m_mirroringSessions(new MirroringSessions()),
+      m_firstPacket(false)
 
 {
     NS_LOG_FUNCTION(this << " Switch ID Drop port: " << m_dropPort
@@ -236,33 +237,29 @@ P4CoreV1model::InitSwitchWithP4(std::string jsonPath, std::string flowTablePath)
 
     int status = 0; // Status flag for initialization
 
-    /**
-     * @brief NS3PIFOTM mode initializes the switch using a JSON file in jsonPath
-     * and populates the flow table entry in flowTablePath.
-     */
-    NS_LOG_INFO("Initializing P4CoreV1model with NS3PIFOTM mode.");
+    NS_LOG_INFO("Initializing P4CoreV1model.");
 
     static int p4_switch_ctrl_plane_thrift_port = 9090;
     m_thriftPort = p4_switch_ctrl_plane_thrift_port;
 
     bm::OptionsParser opt_parser;
     opt_parser.config_file_path = jsonPath;
-    opt_parser.debugger_addr =
-        "ipc:///tmp/bmv2-" + std::to_string(p4_switch_ctrl_plane_thrift_port) + "-debug.ipc";
-    opt_parser.notifications_addr = "ipc:///tmp/bmv2-" +
+    opt_parser.debugger_addr = "ipc:///tmp/bmv2-v1model-" +
+                               std::to_string(p4_switch_ctrl_plane_thrift_port) + "-debug.ipc";
+    opt_parser.notifications_addr = "ipc:///tmp/bmv2-v1model-" +
                                     std::to_string(p4_switch_ctrl_plane_thrift_port) +
                                     "-notifications.ipc";
     opt_parser.file_logger =
-        "/tmp/bmv2-" + std::to_string(p4_switch_ctrl_plane_thrift_port) + "-pipeline.log";
+        "/tmp/bmv2-v1model-" + std::to_string(p4_switch_ctrl_plane_thrift_port) + "-pipeline.log";
     opt_parser.thrift_port = p4_switch_ctrl_plane_thrift_port++;
-    opt_parser.console_logging = true;
+    opt_parser.console_logging = false;
 
     // Initialize the switch
     status = 0;
     status = init_from_options_parser(opt_parser);
     if (status != 0)
     {
-        NS_LOG_ERROR("Failed to initialize P4CoreV1model with NS3PIFOTM mode.");
+        NS_LOG_ERROR("Failed to initialize P4CoreV1model.");
         return; // Avoid exiting simulation
     }
 
@@ -281,15 +278,6 @@ P4CoreV1model::InitSwitchWithP4(std::string jsonPath, std::string flowTablePath)
     if (result != 0)
     {
         NS_LOG_ERROR("Error executing flow table population command: " << cmd);
-    }
-
-    // Note: Consider stopping the server if needed
-    // bm_runtime::stop_server();
-
-    if (status != 0)
-    {
-        NS_LOG_ERROR("P4CoreV1model initialization failed with status: " << status);
-        return;
     }
 
     NS_LOG_INFO("P4CoreV1model initialization completed successfully.");
@@ -376,15 +364,14 @@ void
 P4CoreV1model::SetEgressTimerEvent()
 {
     NS_LOG_FUNCTION("p4_switch has been triggered by the egress timer event");
-    static bool m_firstRun = false;
     bool checkflag = ProcessEgress(0);
     m_egressTimeEvent =
         Simulator::Schedule(m_egressTimeRef, &P4CoreV1model::SetEgressTimerEvent, this);
-    if (!m_firstRun && checkflag)
+    if (!m_firstPacket && checkflag)
     {
-        m_firstRun = true;
+        m_firstPacket = true;
     }
-    if (m_firstRun && !checkflag)
+    if (m_firstPacket && !checkflag)
     {
         NS_LOG_INFO("Egress timer event needs additional scheduling due to !checkflag.");
         Simulator::Schedule(Time(NanoSeconds(10)), &P4CoreV1model::ProcessEgress, this, 0);

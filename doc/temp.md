@@ -11,4 +11,11 @@
   NS_LOG_INFO ("*** Congestion bottleneck: "
                << congestion_bottleneck << " Mbps, packet size: " << pktSize
                << " Bytes, switch bottleneck: " << P4GlobalVar::g_switchBottleNeck << " pps");
+
+
+// build for psa
+p4c-bm2-psa simple_psa.p4 -o simple_psa.json
+
+
+
 ```

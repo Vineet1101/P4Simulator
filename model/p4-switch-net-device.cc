@@ -248,7 +248,16 @@ P4SwitchNetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
         NS_LOG_ERROR("Unsupported channel type.");
     }
 
-    m_p4Switch->ReceivePacket(ns3Packet, inPort, protocol, dst);
+    switch (m_switchArch)
+    {
+    case P4SWITCH_ARCH_V1MODEL:
+        m_p4Switch->ReceivePacket(ns3Packet, inPort, protocol, dst48);
+        break;
+
+    case P4SWITCH_ARCH_PSA:
+        m_psaSwitch->ReceivePacket(ns3Packet, inPort, protocol, dst48);
+        break;
+    }
 }
 
 uint32_t
