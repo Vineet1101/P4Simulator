@@ -259,8 +259,24 @@ P4TopologyReader::Read()
         CreateNodeIfNeeded(nodes, fromIndex, createdNodeNum);
         CreateNodeIfNeeded(nodes, toIndex, createdNodeNum);
 
+        // Add port count
+        uint32_t fromPort = m_portCounter[fromIndex]++;
+        uint32_t toPort = m_portCounter[toIndex]++;
+
         // Add the link
         AddLinkBetweenNodes(nodes, fromIndex, fromType, toIndex, toType, dataRate, delay);
+
+        // Save the link information
+        LinkInfo link_info;
+        link_info.fromIndex = fromIndex;
+        link_info.fromType = fromType;
+        link_info.toIndex = toIndex;
+        link_info.toType = toType;
+        link_info.dataRate = dataRate;
+        link_info.delay = delay;
+        link_info.fromPort = fromPort;
+        link_info.toPort = toPort;
+        m_links.push_back(link_info);
     }
 
     // Read switch network function information
@@ -277,6 +293,22 @@ P4TopologyReader::Read()
     fileStream.close();
     NS_LOG_INFO("P4 topology successfully read with " << createdNodeNum << " nodes created.");
     return true;
+}
+
+void
+P4TopologyReader::PrintTopology() const
+{
+    NS_LOG_INFO("==== P4 Topology Overview ====");
+    for (const auto& link : m_links)
+    {
+        std::string fromNode = (link.fromType == 's') ? "Switch" : "Host";
+        std::string toNode = (link.toType == 's') ? "Switch" : "Host";
+
+        std::cout << fromNode << " " << link.fromIndex << " Port " << link.fromPort << " Link to "
+                  << toNode << " " << link.toIndex << " Port " << link.toPort
+                  << " | DataRate: " << link.dataRate << ", Delay: " << link.delay << std::endl;
+    }
+    NS_LOG_INFO("==== End of Topology Overview ====");
 }
 
 // Helper: Add a link between two nodes

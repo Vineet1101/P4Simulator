@@ -254,6 +254,8 @@ class P4TopologyReader : public Object
      */
     void AddLink(Link link);
 
+    void PrintTopology() const;
+
     NodeContainer GetHosts(void) const
     {
         return m_hosts;
@@ -288,6 +290,21 @@ class P4TopologyReader : public Object
      * The container of the links between the nodes.
      */
     std::list<Link> m_linksList;
+
+    struct LinkInfo // Save topology information
+    {
+        unsigned int fromIndex;
+        char fromType;
+        unsigned int toIndex;
+        char toType;
+        std::string dataRate;
+        std::string delay;
+        uint32_t fromPort;
+        uint32_t toPort;
+    };
+
+    std::vector<LinkInfo> m_links;                  //!< Save all link information
+    std::map<unsigned int, uint32_t> m_portCounter; //!< Port counter for each node
 
   protected:
     NodeContainer m_hosts;
