@@ -27,6 +27,7 @@
 #include "ns3/p4-bridge-channel.h"
 #include "ns3/p4-core-psa.h"
 #include "ns3/p4-core-v1model.h"
+#include "ns3/p4-nic-pna.h"
 
 #include <map>
 #include <stdint.h>
@@ -51,6 +52,7 @@ namespace ns3
 class Node;
 class P4CoreV1model;
 class P4CorePsa;
+class P4PnaNic;
 
 /**
  * \defgroup P4 Switch Network Device
@@ -214,34 +216,36 @@ class P4SwitchNetDevice : public NetDevice
     // Ptr<NetDevice> GetLearnedState(Mac48Address source);
 
   private:
-    bool m_enableTracing; //!< Enable tracing
+    // === Basic configuration ===
+    bool m_enableTracing;  //!< Enable tracing
+    bool m_enableSwap;     //!< Enable swapping
+    uint32_t m_switchArch; //!< Switch architecture type
 
-    uint32_t m_switchArch; //!< Switch architecture
-    // Switch Init Configure and Information
-    std::string jsonPath_;      //!< Path to the P4 JSON configuration file.
-    std::string flowTablePath_; //!< Path to the flow table file.
+    // === P4 configuration and initialization ===
+    std::string m_jsonPath;      //!< Path to the P4 JSON configuration file.
+    std::string m_flowTablePath; //!< Path to the flow table file.
+    P4CoreV1model* m_p4Switch;   //!< P4 switch core
+    P4CorePsa* m_psaSwitch;      //!< PSA switch core
+    P4PnaNic* m_pnaNic;          //!< PNA NIC core
 
-    // Switch Queue Info
-    size_t input_buffer_size_low;
-    size_t input_buffer_size_high;
-    size_t queue_buffer_size;
-    // size_t output_buffer_size;
-    uint64_t switch_rate;
+    // === Buffer and queue configuration ===
+    size_t m_InputBufferSizeLow;  //!< Input buffer normal packets(low priority) size
+    size_t m_InputBufferSizeHigh; //!< Input buffer (high priority) size
+    size_t m_queueBufferSize;     //!< Queue buffer size
+    uint64_t m_switchRate;        //!< Switch rate, packet processing speed in switch (unit: pps)
 
-    // Switch Net Device Info
+    // === Network device information ===
     uint32_t m_channelType;              //!< Channel type
-    Mac48Address m_address;              //!< MAC address of the NetDevice
-    Ptr<Node> m_node;                    //!< node owning this NetDevice
-    Ptr<P4BridgeChannel> m_channel;      //!< virtual bridged channel
-    std::vector<Ptr<NetDevice>> m_ports; //!< bridged ports
+    Mac48Address m_address;              //!< MAC address of NetDevice
+    Ptr<Node> m_node;                    //!< Node that owns this NetDevice
+    Ptr<P4BridgeChannel> m_channel;      //!< Virtual bridge channel
+    std::vector<Ptr<NetDevice>> m_ports; //!< List of bridged ports
     uint32_t m_ifIndex;                  //!< Interface index
-    uint16_t m_mtu;                      //!< MTU of the bridged NetDevice
+    uint16_t m_mtu; //!< [Deprecated] MTU (maximum transmission unit) of NetDevice
 
-    P4CoreV1model* m_p4Switch; //!< P4 switch core
-    P4CorePsa* m_psaSwitch;    //!< PSA switch core
-
-    NetDevice::ReceiveCallback m_rxCallback;               //!< receive callback
-    NetDevice::PromiscReceiveCallback m_promiscRxCallback; //!< promiscuous receive callback
+    // === Callback function ===
+    NetDevice::ReceiveCallback m_rxCallback;               //!< Receive callback
+    NetDevice::PromiscReceiveCallback m_promiscRxCallback; //!< Promiscuous mode receive callback
 };
 
 } // namespace ns3

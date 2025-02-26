@@ -49,12 +49,17 @@ P4SwitchNetDevice::GetTypeId()
             .SetParent<NetDevice>()
             .SetGroupName("Bridge")
             .AddConstructor<P4SwitchNetDevice>()
-            .AddAttribute(
-                "Mtu",
-                "The MAC-level Maximum Transmission Unit",
-                UintegerValue(1500),
-                MakeUintegerAccessor(&P4SwitchNetDevice::SetMtu, &P4SwitchNetDevice::GetMtu),
-                MakeUintegerChecker<uint16_t>())
+            .AddAttribute("EnableTracing",
+                          "Enable tracing in the switch.",
+                          BooleanValue(false),
+                          MakeBooleanAccessor(&P4SwitchNetDevice::m_enableTracing),
+                          MakeBooleanChecker())
+
+            .AddAttribute("EnableSwap",
+                          "Enable swapping in the switch.",
+                          BooleanValue(false),
+                          MakeBooleanAccessor(&P4SwitchNetDevice::m_enableSwap),
+                          MakeBooleanChecker())
 
             .AddAttribute("P4SwitchArch",
                           "P4 switch architecture, v1model with 0, psa with 1, pna with 2.",
@@ -69,12 +74,6 @@ P4SwitchNetDevice::GetTypeId()
                                              &P4SwitchNetDevice::SetJsonPath),
                           MakeStringChecker())
 
-            .AddAttribute("EnableTracing",
-                          "Enable tracing in the switch.",
-                          BooleanValue(false),
-                          MakeBooleanAccessor(&P4SwitchNetDevice::m_enableTracing),
-                          MakeBooleanChecker())
-
             .AddAttribute("FlowTablePath",
                           "Path to the flow table file.",
                           StringValue("/path/to/flow_table.txt"),
@@ -82,35 +81,43 @@ P4SwitchNetDevice::GetTypeId()
                                              &P4SwitchNetDevice::SetFlowTablePath),
                           MakeStringChecker())
 
+            .AddAttribute("InputBufferSizeLow",
+                          "Low input buffer size for the switch queue.",
+                          UintegerValue(128),
+                          MakeUintegerAccessor(&P4SwitchNetDevice::m_InputBufferSizeLow),
+                          MakeUintegerChecker<size_t>())
+
+            .AddAttribute("InputBufferSizeHigh",
+                          "High input buffer size for the switch queue.",
+                          UintegerValue(128),
+                          MakeUintegerAccessor(&P4SwitchNetDevice::m_InputBufferSizeHigh),
+                          MakeUintegerChecker<size_t>())
+
+            .AddAttribute("QueueBufferSize",
+                          "Total buffer size for the switch queue.",
+                          UintegerValue(128),
+                          MakeUintegerAccessor(&P4SwitchNetDevice::m_queueBufferSize),
+                          MakeUintegerChecker<size_t>())
+
+            .AddAttribute("SwitchRate",
+                          "Packet processing speed in switch (unit: pps)",
+                          UintegerValue(1000),
+                          MakeUintegerAccessor(&P4SwitchNetDevice::m_switchRate),
+                          MakeUintegerChecker<uint64_t>())
+
             .AddAttribute("ChannelType",
                           "Channel type for the switch, csma with 0, p2p with 1.",
                           UintegerValue(0),
                           MakeUintegerAccessor(&P4SwitchNetDevice::m_channelType),
                           MakeUintegerChecker<uint32_t>())
 
-            .AddAttribute("InputBufferSizeLow",
-                          "Low input buffer size for the switch queue.",
-                          UintegerValue(128),
-                          MakeUintegerAccessor(&P4SwitchNetDevice::input_buffer_size_low),
-                          MakeUintegerChecker<size_t>())
+            .AddAttribute(
+                "Mtu",
+                "The MAC-level Maximum Transmission Unit",
+                UintegerValue(1500),
+                MakeUintegerAccessor(&P4SwitchNetDevice::SetMtu, &P4SwitchNetDevice::GetMtu),
+                MakeUintegerChecker<uint16_t>());
 
-            .AddAttribute("InputBufferSizeHigh",
-                          "High input buffer size for the switch queue.",
-                          UintegerValue(128),
-                          MakeUintegerAccessor(&P4SwitchNetDevice::input_buffer_size_high),
-                          MakeUintegerChecker<size_t>())
-
-            .AddAttribute("QueueBufferSize",
-                          "Total buffer size for the switch queue.",
-                          UintegerValue(128),
-                          MakeUintegerAccessor(&P4SwitchNetDevice::queue_buffer_size),
-                          MakeUintegerChecker<size_t>())
-
-            .AddAttribute("PacketRate",
-                          "Packet processing speed in switch (unit: pps)",
-                          UintegerValue(1000),
-                          MakeUintegerAccessor(&P4SwitchNetDevice::switch_rate),
-                          MakeUintegerChecker<uint64_t>());
     return tid;
 }
 
@@ -138,26 +145,32 @@ P4SwitchNetDevice::DoInitialize()
     case P4SWITCH_ARCH_V1MODEL:
         NS_LOG_DEBUG("P4 architecture: v1model");
         m_p4Switch = new P4CoreV1model(this,
-                                       false,
+                                       m_enableSwap,
                                        m_enableTracing,
-                                       switch_rate,
-                                       input_buffer_size_low,
-                                       input_buffer_size_high,
-                                       queue_buffer_size);
-        m_p4Switch->InitSwitchWithP4(jsonPath_, flowTablePath_);
+                                       m_switchRate,
+                                       m_InputBufferSizeLow,
+                                       m_InputBufferSizeHigh,
+                                       m_queueBufferSize);
+        m_p4Switch->InitSwitchWithP4(m_jsonPath, m_flowTablePath);
         m_p4Switch->start_and_return_();
         break;
 
     case P4SWITCH_ARCH_PSA:
         NS_LOG_DEBUG("P4 architecture: PSA");
         m_psaSwitch = new P4CorePsa(this,
-                                    false,
+                                    m_enableSwap,
                                     m_enableTracing,
-                                    switch_rate,
-                                    input_buffer_size_low, // normal input queue size
-                                    queue_buffer_size);
-        m_psaSwitch->InitSwitchWithP4(jsonPath_, flowTablePath_);
+                                    m_switchRate,
+                                    m_InputBufferSizeLow, // normal input queue size
+                                    m_queueBufferSize);
+        m_psaSwitch->InitSwitchWithP4(m_jsonPath, m_flowTablePath);
         m_psaSwitch->start_and_return_();
+        break;
+    case P4NIC_ARCH_PNA:
+        NS_LOG_DEBUG("P4 architecture: PNA");
+        m_pnaNic = new P4PnaNic(this, m_enableSwap);
+        m_pnaNic->InitSwitchWithP4(m_jsonPath, m_flowTablePath);
+        m_pnaNic->start_and_return_();
         break;
     }
     NetDevice::DoInitialize();
@@ -371,25 +384,25 @@ P4SwitchNetDevice::GetMtu() const
 void
 P4SwitchNetDevice::SetJsonPath(const std::string& jsonPath)
 {
-    jsonPath_ = jsonPath;
+    m_jsonPath = jsonPath;
 }
 
 std::string
 P4SwitchNetDevice::GetJsonPath(void) const
 {
-    return jsonPath_;
+    return m_jsonPath;
 }
 
 void
 P4SwitchNetDevice::SetFlowTablePath(const std::string& flowTablePath)
 {
-    flowTablePath_ = flowTablePath;
+    m_flowTablePath = flowTablePath;
 }
 
 std::string
 P4SwitchNetDevice::GetFlowTablePath(void) const
 {
-    return flowTablePath_;
+    return m_flowTablePath;
 }
 
 bool

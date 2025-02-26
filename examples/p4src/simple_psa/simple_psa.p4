@@ -12,6 +12,10 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+Taken from the P4 Language Consortium's P4_16 language specification
+document, which is licensed under the Apache License, Version 2.0.
+Org:https://github.com/p4lang/p4-spec/blob/main/p4-16/psa/examples/psa-example-hello-world.p4
 */
 
 #include <core.p4>

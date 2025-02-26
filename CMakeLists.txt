@@ -54,6 +54,7 @@ build_lib(
         model/p4-topology-reader.cc
         model/p4-core-v1model.cc
         model/p4-core-psa.cc
+        model/p4-nic-pna.cc
         model/p4-switch-net-device.cc
         model/custom-p2p-net-device.cc
         model/format-utils.cc
@@ -70,6 +71,7 @@ build_lib(
         model/p4-topology-reader.h
         model/p4-core-v1model.h
         model/p4-core-psa.h
+        model/p4-nic-pna.h
         model/p4-switch-net-device.h
         model/custom-p2p-net-device.h
         model/format-utils.h

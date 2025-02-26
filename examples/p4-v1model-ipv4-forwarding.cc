@@ -13,7 +13,7 @@
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("P4PsaIpv4Forwarding");
+NS_LOG_COMPONENT_DEFINE("P4V1modelIpv4Forwarding");
 
 unsigned long start = getTickCount();
 double global_start_time = 1.0;
@@ -132,7 +132,7 @@ PrintFinalThroughput()
 int
 main(int argc, char* argv[])
 {
-    LogComponentEnable("P4PsaIpv4Forwarding", LOG_LEVEL_INFO);
+    LogComponentEnable("P4V1modelIpv4Forwarding", LOG_LEVEL_INFO);
 
     // ============================ parameters ============================
 
@@ -147,12 +147,12 @@ main(int argc, char* argv[])
     std::string ns3_link_rate = "1000Mbps";
     bool enableTracePcap = true;
 
-    std::string p4JsonPath =
-        "/home/p4/workdir/ns-3-dev-git/contrib/p4sim/examples/p4src/simple_psa/simple_psa.json";
+    std::string p4JsonPath = "/home/p4/workdir/ns-3-dev-git/contrib/p4sim/examples/p4src/"
+                             "simple_v1model/simple_v1model.json";
     std::string flowTablePath =
-        ""; // ignore, because this p4 script "simple_psa.json" include the flow table configuration
+        "/home/p4/workdir/ns-3-dev-git/contrib/p4sim/examples/p4src/simple_v1model/flowtable_0.txt";
     std::string topoInput =
-        "/home/p4/workdir/ns-3-dev-git/contrib/p4sim/examples/p4src/simple_psa/topo.txt";
+        "/home/p4/workdir/ns-3-dev-git/contrib/p4sim/examples/p4src/simple_v1model/topo.txt";
     std::string topoFormat("CsmaTopo");
 
     // ============================  command line ============================
@@ -225,10 +225,12 @@ main(int argc, char* argv[])
 
     // ========================Print the Channel Type and NetDevice Type========================
 
+    // 安装网络协议栈
     InternetStackHelper internet;
     internet.Install(terminals);
     internet.Install(switchNode);
 
+    // 分配 IP 地址
     Ipv4AddressHelper ipv4;
     ipv4.SetBase("10.1.1.0", "255.255.255.0");
     std::vector<Ipv4InterfaceContainer> terminalInterfaces(hostNum);
@@ -268,13 +270,12 @@ main(int argc, char* argv[])
     // Bridge or P4 switch configuration
     if (model == 0)
     {
-        NS_LOG_INFO("Using P4switch model");
         P4Helper p4SwitchHelper;
         p4SwitchHelper.SetDeviceAttribute("JsonPath", StringValue(p4JsonPath));
         p4SwitchHelper.SetDeviceAttribute("FlowTablePath", StringValue(flowTablePath));
         p4SwitchHelper.SetDeviceAttribute("ChannelType", UintegerValue(0));
         p4SwitchHelper.SetDeviceAttribute("P4SwitchArch",
-                                          UintegerValue(1)); // v1model 0, psa 1, pna 2
+                                          UintegerValue(0)); // v1model 0, psa 1, pna 2
         // ChannelType
         NS_LOG_INFO("*** P4 switch configuration: " << p4JsonPath << ", " << flowTablePath);
 
@@ -285,7 +286,6 @@ main(int argc, char* argv[])
     }
     else
     {
-        NS_LOG_INFO("Using ns-3 bridge model");
         BridgeHelper bridge;
         for (unsigned int i = 0; i < switchNum; i++)
         {

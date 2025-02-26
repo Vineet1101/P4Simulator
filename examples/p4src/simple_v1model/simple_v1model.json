@@ -227,7 +227,7 @@
       "name" : "deparser",
       "id" : 0,
       "source_info" : {
-        "filename" : "test_simple.p4",
+        "filename" : "simple_v1model.p4",
         "line" : 212,
         "column" : 8,
         "source_fragment" : "MyDeparser"
@@ -244,7 +244,7 @@
       "name" : "calc",
       "id" : 0,
       "source_info" : {
-        "filename" : "test_simple.p4",
+        "filename" : "simple_v1model.p4",
         "line" : 190,
         "column" : 8,
         "source_fragment" : "update_checksum( ..."
@@ -405,7 +405,7 @@
             }
           ],
           "source_info" : {
-            "filename" : "test_simple.p4",
+            "filename" : "simple_v1model.p4",
             "line" : 124,
             "column" : 8,
             "source_fragment" : "standard_metadata.egress_spec = port"
@@ -424,7 +424,7 @@
             }
           ],
           "source_info" : {
-            "filename" : "test_simple.p4",
+            "filename" : "simple_v1model.p4",
             "line" : 125,
             "column" : 8,
             "source_fragment" : "standard_metadata.egress_port = port"
@@ -443,7 +443,7 @@
             }
           ],
           "source_info" : {
-            "filename" : "test_simple.p4",
+            "filename" : "simple_v1model.p4",
             "line" : 126,
             "column" : 8,
             "source_fragment" : "hdr.ethernet.srcAddr = hdr.ethernet.dstAddr"
@@ -462,7 +462,7 @@
             }
           ],
           "source_info" : {
-            "filename" : "test_simple.p4",
+            "filename" : "simple_v1model.p4",
             "line" : 127,
             "column" : 8,
             "source_fragment" : "hdr.ethernet.dstAddr = dstAddr"
@@ -504,7 +504,7 @@
             }
           ],
           "source_info" : {
-            "filename" : "test_simple.p4",
+            "filename" : "simple_v1model.p4",
             "line" : 128,
             "column" : 8,
             "source_fragment" : "hdr.ipv4.ttl = hdr.ipv4.ttl - 1"
@@ -535,7 +535,7 @@
             }
           ],
           "source_info" : {
-            "filename" : "test_simple.p4",
+            "filename" : "simple_v1model.p4",
             "line" : 132,
             "column" : 8,
             "source_fragment" : "standard_metadata.egress_spec = port"
@@ -554,7 +554,7 @@
             }
           ],
           "source_info" : {
-            "filename" : "test_simple.p4",
+            "filename" : "simple_v1model.p4",
             "line" : 133,
             "column" : 8,
             "source_fragment" : "standard_metadata.egress_port = port"
@@ -568,7 +568,7 @@
       "name" : "ingress",
       "id" : 0,
       "source_info" : {
-        "filename" : "test_simple.p4",
+        "filename" : "simple_v1model.p4",
         "line" : 110,
         "column" : 8,
         "source_fragment" : "MyIngress"
@@ -579,7 +579,7 @@
           "name" : "MyIngress.ipv4_nhop",
           "id" : 0,
           "source_info" : {
-            "filename" : "test_simple.p4",
+            "filename" : "simple_v1model.p4",
             "line" : 136,
             "column" : 10,
             "source_fragment" : "ipv4_nhop"
@@ -617,7 +617,7 @@
           "name" : "MyIngress.arp_simple",
           "id" : 1,
           "source_info" : {
-            "filename" : "test_simple.p4",
+            "filename" : "simple_v1model.p4",
             "line" : 149,
             "column" : 10,
             "source_fragment" : "arp_simple"
@@ -658,7 +658,7 @@
           "name" : "node_2",
           "id" : 0,
           "source_info" : {
-            "filename" : "test_simple.p4",
+            "filename" : "simple_v1model.p4",
             "line" : 161,
             "column" : 12,
             "source_fragment" : "hdr.ipv4.isValid() && hdr.ipv4.ttl > 8w0 || hdr.arp.isValid()"
@@ -718,7 +718,7 @@
           "name" : "node_3",
           "id" : 1,
           "source_info" : {
-            "filename" : "test_simple.p4",
+            "filename" : "simple_v1model.p4",
             "line" : 162,
             "column" : 16,
             "source_fragment" : "hdr.ipv4.isValid() && hdr.ipv4.ttl > 8w0"
@@ -761,7 +761,7 @@
           "name" : "node_5",
           "id" : 2,
           "source_info" : {
-            "filename" : "test_simple.p4",
+            "filename" : "simple_v1model.p4",
             "line" : 165,
             "column" : 20,
             "source_fragment" : "hdr.arp.isValid()"
@@ -786,7 +786,7 @@
       "name" : "egress",
       "id" : 1,
       "source_info" : {
-        "filename" : "test_simple.p4",
+        "filename" : "simple_v1model.p4",
         "line" : 178,
         "column" : 8,
         "source_fragment" : "MyEgress"
@@ -802,7 +802,7 @@
       "name" : "cksum",
       "id" : 0,
       "source_info" : {
-        "filename" : "test_simple.p4",
+        "filename" : "simple_v1model.p4",
         "line" : 190,
         "column" : 8,
         "source_fragment" : "update_checksum( ..."
@@ -865,7 +865,7 @@
       ["standard_metadata", "priority"]
     ]
   ],
-  "program" : "./test_simple.p4i",
+  "program" : "./simple_v1model.p4i",
   "__meta__" : {
     "version" : [2, 23],
     "compiler" : "https://github.com/p4lang/p4c"
