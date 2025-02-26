@@ -36,6 +36,18 @@ build_lib_example(
     ${libnetwork}
 )
 
+# 4 hosts 4 switches topology [Firewall]
+build_lib_example(
+  NAME p4-firewall
+  SOURCE_FILES p4-firewall.cc
+  LIBRARIES_TO_LINK
+    ${libp4sim}
+    ${libinternet}
+    ${libapplications}
+    ${libnetwork}
+    ${libcsma}
+)
+
 # [ ================= PSA Arch ================= ]
 
 # simple 2 hosts 1 switch topology [ipv4 forwarding]

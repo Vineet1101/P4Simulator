@@ -1,7 +1,8 @@
-# 0 "basic_tunnel.p4"
+# 0 "firewall.p4"
 # 0 "<built-in>"
 # 0 "<command-line>"
-# 1 "basic_tunnel.p4"
+# 1 "firewall.p4"
+// SPDX-License-Identifier: Apache-2.0
 /* -*- P4_16 -*- */
 # 1 "/usr/local/share/p4c/p4include/core.p4" 1
 /*
@@ -97,7 +98,7 @@ extern bool static_assert(bool check, string message);
 
 /// Like the above but using a default message.
 extern bool static_assert(bool check);
-# 3 "basic_tunnel.p4" 2
+# 4 "firewall.p4" 2
 # 1 "/usr/local/share/p4c/p4include/v1model.p4" 1
 /*
 Copyright 2013-present Barefoot Networks, Inc.
@@ -883,15 +884,20 @@ package V1Switch<H, M>(Parser<H, M> p,
                        ComputeChecksum<H, M> ck,
                        Deparser<H> dep
                        );
-# 4 "basic_tunnel.p4" 2
+# 5 "firewall.p4" 2
 
 // check https://github.com/p4lang/p4c/issues/1828 for the reason of this
 // we define "mark_to_drop2" for this
 
 
+/* CONSTANTS */
+
 const bit<16> TYPE_ARP = 0x806;
 const bit<16> TYPE_IPV4 = 0x800;
-const bit<16> TYPE_MYTUNNEL = 0x1212;
+const bit<8> TYPE_TCP = 6;
+
+
+
 
 /*************************************************************************
 *********************** H E A D E R S  ***********************************
@@ -905,11 +911,6 @@ header ethernet_t {
     macAddr_t dstAddr;
     macAddr_t srcAddr;
     bit<16> etherType;
-}
-
-header myTunnel_t {
-    bit<16> proto_id;
-    bit<16> dst_id;
 }
 
 header arp_t {
@@ -939,6 +940,26 @@ header ipv4_t {
     ip4Addr_t dstAddr;
 }
 
+header tcp_t{
+    bit<16> srcPort;
+    bit<16> dstPort;
+    bit<32> seqNo;
+    bit<32> ackNo;
+    bit<4> dataOffset;
+    bit<4> res;
+    bit<1> cwr;
+    bit<1> ece;
+    bit<1> urg;
+    bit<1> ack;
+    bit<1> psh;
+    bit<1> rst;
+    bit<1> syn;
+    bit<1> fin;
+    bit<16> window;
+    bit<16> checksum;
+    bit<16> urgentPtr;
+}
+
 struct metadata {
     /* empty */
 }
@@ -946,8 +967,8 @@ struct metadata {
 struct headers {
     ethernet_t ethernet;
     arp_t arp;
-    myTunnel_t myTunnel;
     ipv4_t ipv4;
+    tcp_t tcp;
 }
 
 /*************************************************************************
@@ -967,8 +988,7 @@ parser MyParser(packet_in packet,
         packet.extract(hdr.ethernet);
         transition select(hdr.ethernet.etherType) {
             TYPE_ARP : parse_arp;
-            TYPE_MYTUNNEL : parse_myTunnel;
-            TYPE_IPV4 : parse_ipv4;
+            TYPE_IPV4: parse_ipv4;
             default: accept;
         }
     }
@@ -978,19 +998,18 @@ parser MyParser(packet_in packet,
         transition accept;
     }
 
-    state parse_myTunnel {
-        packet.extract(hdr.myTunnel);
-        transition select(hdr.myTunnel.proto_id) {
-            TYPE_IPV4: parse_ipv4;
+    state parse_ipv4 {
+        packet.extract(hdr.ipv4);
+        transition select(hdr.ipv4.protocol){
+            TYPE_TCP: tcp;
             default: accept;
         }
     }
 
-    state parse_ipv4 {
-        packet.extract(hdr.ipv4);
-        transition accept;
+    state tcp {
+       packet.extract(hdr.tcp);
+       transition accept;
     }
-
 }
 
 /*************************************************************************
@@ -1010,6 +1029,12 @@ control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
 
+    register<bit<1>>(4096) bloom_filter_1;
+    register<bit<1>>(4096) bloom_filter_2;
+    bit<32> reg_pos_one; bit<32> reg_pos_two;
+    bit<1> reg_val_one; bit<1> reg_val_two;
+    bit<1> direction;
+
     action mark_to_drop2(inout standard_metadata_t stdmata) {
         stdmata.egress_spec = 511;
         stdmata.mcast_grp = 0;
@@ -1019,17 +1044,31 @@ control MyIngress(inout headers hdr,
         mark_to_drop2(standard_metadata);
     }
 
-    // ========================
+    action compute_hashes(ip4Addr_t ipAddr1, ip4Addr_t ipAddr2, bit<16> port1, bit<16> port2){
+       //Get register position
+       hash(reg_pos_one, HashAlgorithm.crc16, (bit<32>)0, {ipAddr1,
+                                                           ipAddr2,
+                                                           port1,
+                                                           port2,
+                                                           hdr.ipv4.protocol},
+                                                           (bit<32>)4096);
+
+       hash(reg_pos_two, HashAlgorithm.crc32, (bit<32>)0, {ipAddr1,
+                                                           ipAddr2,
+                                                           port1,
+                                                           port2,
+                                                           hdr.ipv4.protocol},
+                                                           (bit<32>)4096);
+    }
 
     action ipv4_forward(macAddr_t dstAddr, egressSpec_t port) {
         standard_metadata.egress_spec = port;
-        standard_metadata.egress_port = port;
         hdr.ethernet.srcAddr = hdr.ethernet.dstAddr;
         hdr.ethernet.dstAddr = dstAddr;
         hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
     }
 
-    table ipv4_nhop {
+    table ipv4_exact {
         key = {
             hdr.ipv4.dstAddr: exact;
         }
@@ -1042,33 +1081,35 @@ control MyIngress(inout headers hdr,
         default_action = drop();
     }
 
-    action set_arp_nhop(egressSpec_t port) {
-        standard_metadata.egress_spec = port;
-        standard_metadata.egress_port = port;
+    action set_direction(bit<1> dir) {
+        direction = dir;
     }
 
-    table arp_simple {
-        actions = {
-            set_arp_nhop;
-            drop;
+    action arp_forward(macAddr_t dstAddr, egressSpec_t port) {
+        standard_metadata.egress_spec = port;
+        hdr.ethernet.srcAddr = hdr.ethernet.dstAddr;
+        hdr.ethernet.dstAddr = dstAddr;
+    }
+
+    table check_ports {
+        key = {
+            standard_metadata.ingress_port: exact;
+            standard_metadata.egress_spec: exact;
         }
+        actions = {
+            set_direction;
+            NoAction;
+        }
+        size = 1024;
+        default_action = NoAction();
+    }
+
+    table arp_table {
         key = {
             hdr.arp.dstIp: exact;
         }
-        size = 1024;
-    }
-
-    action myTunnel_forward(egressSpec_t port) {
-        standard_metadata.egress_spec = port;
-        standard_metadata.egress_port = port;
-    }
-
-    table myTunnel_exact {
-        key = {
-            hdr.myTunnel.dst_id: exact;
-        }
         actions = {
-            myTunnel_forward;
+            arp_forward;
             drop;
         }
         size = 1024;
@@ -1076,17 +1117,44 @@ control MyIngress(inout headers hdr,
     }
 
     apply {
-        if (hdr.ipv4.isValid() && hdr.ipv4.ttl > 8w0 ) {
-            ipv4_nhop.apply();
+        if (hdr.ipv4.isValid()){
+            ipv4_exact.apply();
+            if (hdr.tcp.isValid()){
+                direction = 0; // default
+                if (check_ports.apply().hit) {
+                    // test and set the bloom filter
+                    if (direction == 0) {
+                        compute_hashes(hdr.ipv4.srcAddr, hdr.ipv4.dstAddr, hdr.tcp.srcPort, hdr.tcp.dstPort);
+                    }
+                    else {
+                        compute_hashes(hdr.ipv4.dstAddr, hdr.ipv4.srcAddr, hdr.tcp.dstPort, hdr.tcp.srcPort);
+                    }
+                    // Packet comes from internal network
+                    if (direction == 0){
+                        // If there is a syn we update the bloom filter and add the entry
+                        if (hdr.tcp.syn == 1){
+                            bloom_filter_1.write(reg_pos_one, 1);
+                            bloom_filter_2.write(reg_pos_two, 1);
+                        }
+                    }
+                    // Packet comes from outside
+                    else if (direction == 1){
+                        // Read bloom filter cells to check if there are 1's
+                        bloom_filter_1.read(reg_val_one, reg_pos_one);
+                        bloom_filter_2.read(reg_val_two, reg_pos_two);
+                        // only allow flow to pass if both entries are set
+                        if (reg_val_one != 1 || reg_val_two != 1){
+                            drop();
+                        }
+                    }
+                }
+            }
         }
-
-        if (hdr.arp.isValid()) {
-            arp_simple.apply();
-        }
-
-        if (hdr.myTunnel.isValid()) {
-            // process tunneled packets
-            myTunnel_exact.apply();
+        else if (hdr.arp.isValid()){
+            // ARP packets are always allowed
+            // (ns-3 need arp to work, just let all arp goes first, and test with ipv4 packets.
+            // if arp not reach, there will not be any ipv4 packets for transmit.)
+            arp_table.apply();
         }
     }
 }
@@ -1108,7 +1176,7 @@ control MyEgress(inout headers hdr,
 control MyComputeChecksum(inout headers hdr, inout metadata meta) {
      apply {
         update_checksum(
-        hdr.ipv4.isValid(),
+            hdr.ipv4.isValid(),
             { hdr.ipv4.version,
               hdr.ipv4.ihl,
               hdr.ipv4.diffserv,
@@ -1132,9 +1200,8 @@ control MyComputeChecksum(inout headers hdr, inout metadata meta) {
 control MyDeparser(packet_out packet, in headers hdr) {
     apply {
         packet.emit(hdr.ethernet);
-        packet.emit(hdr.arp);
-        packet.emit(hdr.myTunnel);
         packet.emit(hdr.ipv4);
+        packet.emit(hdr.tcp);
     }
 }
 
