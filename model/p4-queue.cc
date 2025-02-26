@@ -12,7 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Author: Antonin Bas (antonin@barefootnetworks.com)
+ * Author: Antonin Bas <antonin@barefootnetworks.com>
  */
 
 #include "p4-queue.h"

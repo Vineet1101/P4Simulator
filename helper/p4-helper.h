@@ -1,11 +1,32 @@
+/*
+ * Copyright (c) 2025 TU Dresden
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ * Authors: Mingyu Ma <mingyu.ma@tu-dresden.de>
+ */
+
 #ifndef P4_HELPER_H
 #define P4_HELPER_H
 
 #include "ns3/net-device-container.h"
 #include "ns3/object-factory.h"
+
 #include <string>
 
-namespace ns3 {
+namespace ns3
+{
 
 /**
  * \ingroup p4sim
@@ -19,16 +40,16 @@ namespace ns3 {
  */
 class P4Helper
 {
-public:
-  /**
+  public:
+    /**
      * \brief Construct a P4Helper object.
      *
      * This initializes the internal object factory for creating
      * ns3::P4SwitchNetDevice instances.
      */
-  P4Helper ();
+    P4Helper();
 
-  /**
+    /**
      * \brief Set an attribute on the P4 bridge device.
      *
      * This method configures attributes for the bridge devices created by this
@@ -38,9 +59,9 @@ public:
      * \param name The name of the attribute to set.
      * \param value The value of the attribute to set.
      */
-  void SetDeviceAttribute (const std::string &name, const AttributeValue &value);
+    void SetDeviceAttribute(const std::string& name, const AttributeValue& value);
 
-  /**
+    /**
      * \brief Install a P4 bridge device on a given node.
      *
      * This method creates an ns3::P4SwitchNetDevice with the configured
@@ -51,9 +72,9 @@ public:
      * \param c Container of NetDevices to add as bridge ports.
      * \return A container holding the created bridge device.
      */
-  NetDeviceContainer Install (Ptr<Node> node, const NetDeviceContainer &c) const;
+    NetDeviceContainer Install(Ptr<Node> node, const NetDeviceContainer& c) const;
 
-  /**
+    /**
      * \brief Install a P4 bridge device on a named node.
      *
      * This method resolves the node by name, creates an
@@ -65,10 +86,10 @@ public:
      * \param c Container of NetDevices to add as bridge ports.
      * \return A container holding the created bridge device.
      */
-  NetDeviceContainer Install (const std::string &nodeName, const NetDeviceContainer &c) const;
+    NetDeviceContainer Install(const std::string& nodeName, const NetDeviceContainer& c) const;
 
-private:
-  ObjectFactory m_deviceFactory; //!< Factory for creating P4 bridge devices.
+  private:
+    ObjectFactory m_deviceFactory; //!< Factory for creating P4 bridge devices.
 };
 
 } // namespace ns3

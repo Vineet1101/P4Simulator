@@ -1,42 +1,44 @@
-#include "ns3/p4-bridge-channel.h"
 #include "ns3/log.h"
+#include "ns3/p4-bridge-channel.h"
 
-namespace ns3 {
+namespace ns3
+{
 
-NS_LOG_COMPONENT_DEFINE ("P4BridgeChannel");
+NS_LOG_COMPONENT_DEFINE("P4BridgeChannel");
 
-NS_OBJECT_ENSURE_REGISTERED (P4BridgeChannel);
+NS_OBJECT_ENSURE_REGISTERED(P4BridgeChannel);
 
 TypeId
-P4BridgeChannel::GetTypeId ()
+P4BridgeChannel::GetTypeId()
 {
-  static TypeId tid = TypeId ("ns3::P4BridgeChannel")
-                          .SetParent<BridgeChannel> ()
-                          .SetGroupName ("Bridge")
-                          .AddConstructor<P4BridgeChannel> ();
-  return tid;
+    static TypeId tid = TypeId("ns3::P4BridgeChannel")
+                            .SetParent<BridgeChannel>()
+                            .SetGroupName("Bridge")
+                            .AddConstructor<P4BridgeChannel>();
+    return tid;
 }
 
-P4BridgeChannel::P4BridgeChannel () : BridgeChannel () // Initialize base class
+P4BridgeChannel::P4BridgeChannel()
+    : BridgeChannel() // Initialize base class
 {
-  NS_LOG_INFO ("P4BridgeChannel created.");
+    NS_LOG_INFO("P4BridgeChannel created.");
 }
 
-P4BridgeChannel::~P4BridgeChannel ()
+P4BridgeChannel::~P4BridgeChannel()
 {
-  NS_LOG_INFO ("P4BridgeChannel destroyed.");
+    NS_LOG_INFO("P4BridgeChannel destroyed.");
 }
 
 std::size_t
-P4BridgeChannel::GetNDevices () const
+P4BridgeChannel::GetNDevices() const
 {
-  return BridgeChannel::GetNDevices (); // Use base class functionality
+    return BridgeChannel::GetNDevices(); // Use base class functionality
 }
 
 Ptr<NetDevice>
-P4BridgeChannel::GetDevice (std::size_t i) const
+P4BridgeChannel::GetDevice(std::size_t i) const
 {
-  return BridgeChannel::GetDevice (i); // Use base class functionality
+    return BridgeChannel::GetDevice(i); // Use base class functionality
 }
 
 // void P4BridgeChannel::InstallP4Rule(uint32_t ruleId, const std::string& ruleData)

@@ -12,7 +12,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Rupesh Chiluka (rchiluka@marvell.com)
+ * Author: Rupesh Chiluka <rchiluka@marvell.com>
+ * Modified: Mingyu Ma <mingyu.ma@tu-dresden.de>
  */
 
 #include "ns3/log.h"

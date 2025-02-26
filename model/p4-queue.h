@@ -12,7 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Author: Antonin Bas (antonin@barefootnetworks.com)
+ * Author: Antonin Bas <antonin@barefootnetworks.com>
  */
 
 #ifndef P4_QUEUE_H
@@ -135,9 +135,10 @@ class InputBuffer
 };
 
 /**
- * @brief A simple priority queueing logic for ns-3 p4simulator.
+ * @brief This code is taken from
+ * https://github.com/p4lang/behavioral-model/blob/main/include/bm/bm_sim/queueing.h#L489
+ * In ns-3 replace the real-time with ns-3 virtual simulator time.
  *
- * [from bmv2 author]
  * This class is slightly more advanced than QueueingLogicRL. The difference
  * between the 2 is that this one offers the ability to set several priority
  * queues for each logical queue. Priority queues are numbered from `0` to

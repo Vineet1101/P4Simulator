@@ -1,11 +1,30 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
+/*
+ * Copyright (c) 2025 TU Dresden
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ * Authors: Mingyu Ma <mingyu.ma@tu-dresden.de>
+ */
+
 #ifndef FORMAT_UTILS_H
 #define FORMAT_UTILS_H
 
-#include <string>
 #include <cstdint>
+#include <string>
 
-namespace ns3 {
+namespace ns3
+{
 
 /**
  * @brief Convert an integer to a string.
@@ -14,11 +33,11 @@ namespace ns3 {
  * @return A dynamically allocated C-string containing the integer representation.
  *         Caller is responsible for deleting the returned string.
  */
-char *IntToStr (int num);
+char* IntToStr(int num);
 
 /**
  * @brief Convert a string to an unsigned integer.
- * 
+ *
  * Supports:
  * - Hexadecimal strings prefixed with "0x" (e.g., "0x12a").
  * - Binary strings prefixed with "0b" (e.g., "0b110").
@@ -28,7 +47,7 @@ char *IntToStr (int num);
  * @return The unsigned integer value.
  * @throws std::invalid_argument if the string contains invalid characters.
  */
-unsigned int StrToInt (const std::string &str);
+unsigned int StrToInt(const std::string& str);
 
 /**
  * @brief Convert a string to a double-precision floating-point value.
@@ -39,7 +58,7 @@ unsigned int StrToInt (const std::string &str);
  * @return The double value.
  * @throws std::invalid_argument if the string contains invalid characters.
  */
-double StrToDouble (const std::string &str);
+double StrToDouble(const std::string& str);
 
 /**
  * @brief Convert a single hexadecimal character to its integer value.
@@ -48,7 +67,7 @@ double StrToDouble (const std::string &str);
  * @return The integer value of the hexadecimal character.
  * @throws std::invalid_argument if the character is not a valid hexadecimal digit.
  */
-int HexCharToInt (char c);
+int HexCharToInt(char c);
 
 /**
  * @brief Convert a hexadecimal string to a binary byte string.
@@ -64,7 +83,7 @@ int HexCharToInt (char c);
  * @return A binary string.
  * @throws std::invalid_argument if the string contains invalid characters.
  */
-std::string HexStrToBytes (const std::string &str);
+std::string HexStrToBytes(const std::string& str);
 
 /**
  * @brief Convert a truncated hexadecimal string to a binary byte string based on bit width.
@@ -81,7 +100,7 @@ std::string HexStrToBytes (const std::string &str);
  * @return A truncated binary string.
  * @throws std::invalid_argument if the string contains invalid characters.
  */
-std::string HexStrToBytes (const std::string &str, unsigned int bitWidth);
+std::string HexStrToBytes(const std::string& str, unsigned int bitWidth);
 
 /**
  * @brief Convert an IPv4 address string to a binary byte string.
@@ -94,7 +113,7 @@ std::string HexStrToBytes (const std::string &str, unsigned int bitWidth);
  * @return A binary string with 4 bytes.
  * @throws std::invalid_argument if the string format is invalid.
  */
-std::string IpStrToBytes (const std::string &str);
+std::string IpStrToBytes(const std::string& str);
 
 /**
  * @brief Convert a truncated IPv4 address string to a binary byte string based on bit width.
@@ -108,7 +127,7 @@ std::string IpStrToBytes (const std::string &str);
  * @return A truncated binary string.
  * @throws std::invalid_argument if the string format is invalid.
  */
-std::string IpStrToBytes (const std::string &str, unsigned int bitWidth);
+std::string IpStrToBytes(const std::string& str, unsigned int bitWidth);
 
 /**
  * @brief Convert an unsigned integer to a decimal string.
@@ -120,7 +139,7 @@ std::string IpStrToBytes (const std::string &str, unsigned int bitWidth);
  * @param num Input unsigned integer.
  * @return A decimal string representation of the number.
  */
-std::string UintToString (unsigned int num);
+std::string UintToString(unsigned int num);
 
 /**
  * @brief Convert a 32-bit unsigned integer representing an IPv4 address to a hexadecimal string.
@@ -132,7 +151,7 @@ std::string UintToString (unsigned int num);
  * @param ip 32-bit unsigned integer IPv4 address.
  * @return A hexadecimal string representation of the IP address.
  */
-std::string Uint32IpToHex (unsigned int ip);
+std::string Uint32IpToHex(unsigned int ip);
 
 /**
  * @brief Convert an integer string into a binary byte string based on bit width.
@@ -146,7 +165,7 @@ std::string Uint32IpToHex (unsigned int ip);
  * @return A binary string representation.
  * @throws std::invalid_argument if the string contains invalid characters.
  */
-std::string IntToBytes (const std::string &inputStr, int bitWidth);
+std::string IntToBytes(const std::string& inputStr, int bitWidth);
 
 /**
  * @brief Parse a parameter string and convert it to a binary byte string based on bit width.
@@ -162,9 +181,9 @@ std::string IntToBytes (const std::string &inputStr, int bitWidth);
  * @return A binary string representation.
  * @throws std::invalid_argument if the string format is invalid.
  */
-std::string ParseParam (std::string &inputStr, unsigned int bitWidth);
+std::string ParseParam(std::string& inputStr, unsigned int bitWidth);
 
-uint64_t getTickCount (); // Get current time (ms)
+uint64_t getTickCount(); // Get current time (ms)
 
 } // namespace ns3
 

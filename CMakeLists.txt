@@ -60,7 +60,6 @@ build_lib(
         model/format-utils.cc
         model/switch-api.cc
         helper/p4-helper.cc
-        helper/p4-exception-handle.cc
         helper/p4-topology-reader-helper.cc
         helper/p4-p2p-helper.cc
     HEADER_FILES # equivalent to headers.source
@@ -78,7 +77,6 @@ build_lib(
         model/switch-api.h
         model/register_access.h
         helper/p4-helper.h
-        helper/p4-exception-handle.h
         helper/p4-topology-reader-helper.h
         helper/p4-p2p-helper.h
     LIBRARIES_TO_LINK 
