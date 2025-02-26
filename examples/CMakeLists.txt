@@ -25,6 +25,17 @@ build_lib_example(
     ${libcsma}
 )
 
+# 3 hosts 3 switches topology [tunnel]
+build_lib_example(
+  NAME p4-basic-tunnel
+  SOURCE_FILES p4-basic-tunnel.cc
+  LIBRARIES_TO_LINK
+    ${libp4sim}
+    ${libinternet}
+    ${libapplications}
+    ${libnetwork}
+)
+
 # [ ================= PSA Arch ================= ]
 
 # simple 2 hosts 1 switch topology [ipv4 forwarding]
@@ -39,5 +50,26 @@ build_lib_example(
     ${libcsma}
 )
 
+# [ ================= NO P4 ================= ]
 
+# simple 2 hosts sending with custom header [p2p]
+build_lib_example(
+  NAME p4-p2p-custom-header-test
+  SOURCE_FILES p4-p2p-custom-header-test.cc
+  LIBRARIES_TO_LINK
+    ${libp4sim}
+    ${libinternet}
+    ${libapplications}
+    ${libnetwork}
+)
+
+# [ ================= Test ================= ]
+
+# custom header test
+build_lib_example(
+  NAME p4-custom-header-test
+  SOURCE_FILES p4-custom-header-test.cc
+  LIBRARIES_TO_LINK
+    ${libp4sim}
+)
 

@@ -451,8 +451,9 @@ CustomP2PNetDevice::AddHeader(Ptr<Packet> p,
 {
     NS_LOG_FUNCTION(p << source << dest << protocolNumber);
 
-    // std::cout << "***Netdevice: Sending: before adding the custom header " << std::endl;
-    // p->Print (std::cout);
+    // // @PrintHD
+    // std::cout << "*** [Sender] before adding the custom header and Eth header " << std::endl;
+    // p->Print(std::cout);
     // std::cout << " " << std::endl;
 
     // ADD the Ethernet header with "new" MAC address
@@ -466,17 +467,13 @@ CustomP2PNetDevice::AddHeader(Ptr<Packet> p,
     // uint16_t ttt = eeh_header.GetLengthType ();
     // NS_LOG_DEBUG ("*** Ethernet protocolNumber: " << std::hex << "0x" << ttt << std::dec);
 
-    // NS_LOG_DEBUG ("Sending: before adding the ethernet header and custom header");
-    // p->Print (std::cout);
-    // std::cout << " " << std::endl;
-
     uint16_t dst_port = GetDstPort(p);
 
     if ((dst_port < m_customDstPortMin) || (dst_port > m_customDstPortMax))
     {
-        // NS_LOG_DEBUG ("Sending: after adding the ethernet header (not add custom header)");
-        // p->EnablePrinting ();
-        // p->Print (std::cout);
+        // // @PrintHD
+        // std::cout << "*** [Sender] After adding Eth header (No custom header) " << std::endl;
+        // p->Print(std::cout);
         // std::cout << " " << std::endl;
 
         // not in the range, so we don't add the custom header
@@ -506,8 +503,9 @@ CustomP2PNetDevice::AddHeader(Ptr<Packet> p,
         NS_LOG_WARN("Unknown layer for the custom header");
     }
 
-    // std::cout << "***Netdevice: Sending: after adding the custom header " << std::endl;
-    // p->Print (std::cout);
+    // // @PrintHD
+    // std::cout << "*** [Sender] After adding custom header " << std::endl;
+    // p->Print(std::cout);
     // std::cout << " " << std::endl;
 
     NS_LOG_DEBUG("Finish adding header, packet total length " << p->GetSize());
@@ -534,8 +532,10 @@ CustomP2PNetDevice::RestoreOriginalHeaders(Ptr<Packet> p)
     // Restore the original headers
     // for the switch port net-device, no need to processing the header.
 
-    // NS_LOG_DEBUG ("*** Custom header detected, start parsering the custom header");
-    // p->Print (std::cout);
+    // // @PrintHD
+    // std::cout << "*** [Receiver] Custom header detected, start parsering the custom header"
+    //           << std::endl;
+    // p->Print(std::cout);
     // std::cout << " " << std::endl;
 
     EthernetHeader eeh_hd;
@@ -626,9 +626,10 @@ CustomP2PNetDevice::RestoreOriginalHeaders(Ptr<Packet> p)
         }
     }
 
-    // p->Print (std::cout);
+    // // @PrintHD
+    // std::cout << "[Receiver] After reverse parsing to normal packet: " << std::endl;
+    // p->Print(std::cout);
     // std::cout << " " << std::endl;
-    // PrintPacketHeaders (p);
 }
 
 void

@@ -257,7 +257,6 @@ class CustomP2PNetDevice : public NetDevice
                            Mac48Address dest,
                            uint16_t protocolNumber);
 
-    void PrintPacketHeaders(Ptr<Packet> p);
     /**
      * Removes, from a packet of data, all headers and trailers that
      * relate to the protocol implemented by the agent
