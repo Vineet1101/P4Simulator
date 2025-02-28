@@ -165,11 +165,20 @@ P4SwitchNetDevice::DoInitialize()
         m_psaSwitch->InitSwitchWithP4(m_jsonPath, m_flowTablePath);
         m_psaSwitch->start_and_return_();
         break;
+
     case P4NIC_ARCH_PNA:
         NS_LOG_DEBUG("P4 architecture: PNA");
         m_pnaNic = new P4PnaNic(this, m_enableSwap);
         m_pnaNic->InitSwitchWithP4(m_jsonPath, m_flowTablePath);
         m_pnaNic->start_and_return_();
+        break;
+
+    case P4SWITCH_ARCH_PIPELINE:
+
+        NS_LOG_DEBUG("P4 architecture: Pipeline");
+        m_p4Pipeline = new P4CorePipeline(this, m_enableSwap, m_enableTracing);
+        m_p4Pipeline->InitSwitchWithP4(m_jsonPath, m_flowTablePath);
+        m_p4Pipeline->start_and_return_();
         break;
     }
     NetDevice::DoInitialize();
@@ -268,6 +277,14 @@ P4SwitchNetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
 
     case P4SWITCH_ARCH_PSA:
         m_psaSwitch->ReceivePacket(ns3Packet, inPort, protocol, dst48);
+        break;
+
+    case P4NIC_ARCH_PNA:
+        m_pnaNic->ReceivePacket(ns3Packet, inPort, protocol, dst48);
+        break;
+
+    case P4SWITCH_ARCH_PIPELINE:
+        m_p4Pipeline->P4ProcessingPipeline(ns3Packet, inPort, protocol, dst48);
         break;
     }
 }

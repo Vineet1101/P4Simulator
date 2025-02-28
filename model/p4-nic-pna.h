@@ -53,6 +53,11 @@ class P4PnaNic : public bm::Switch
 
     uint64_t GetTimeStamp();
 
+    int ReceivePacket(Ptr<Packet> packetIn,
+                      int inPort,
+                      uint16_t protocol,
+                      const Address& destination);
+
     Ptr<Packet> ConvertToNs3Packet(std::unique_ptr<bm::Packet>&& bmPacket);
 
     int GetAddressIndex(const Address& destination);
@@ -83,11 +88,6 @@ class P4PnaNic : public bm::Switch
         NET_TO_HOST,
         HOST_TO_NET,
     };
-
-    int ReceivePacket(Ptr<Packet> packetIn,
-                      int inPort,
-                      uint16_t protocol,
-                      const Address& destination);
 
   private:
     int m_thriftPort;

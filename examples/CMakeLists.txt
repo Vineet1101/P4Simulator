@@ -13,6 +13,18 @@ build_lib_example(
     ${libcsma}
 )
 
+# simple 3 hosts 3 router line topology [ipv4 L3 forwarding]
+build_lib_example(
+  NAME p4-l3-router
+  SOURCE_FILES p4-l3-router.cc
+  LIBRARIES_TO_LINK
+    ${libp4sim}
+    ${libinternet}
+    ${libapplications}
+    ${libnetwork}
+    ${libcsma}
+)
+
 # 4 hosts 4 switches topology [ipv4 forwarding]
 build_lib_example(
   NAME p4-basic-example
@@ -85,3 +97,26 @@ build_lib_example(
     ${libp4sim}
 )
 
+# network test
+build_lib_example(
+  NAME net-test
+  SOURCE_FILES net-test.cc
+  LIBRARIES_TO_LINK
+    ${libp4sim}
+    ${libinternet}
+    ${libapplications}
+    ${libnetwork}
+    ${libcsma}
+)
+
+# network test
+build_lib_example(
+  NAME routing-test
+  SOURCE_FILES routing-test.cc
+  LIBRARIES_TO_LINK
+    ${libp4sim}
+    ${libinternet}
+    ${libapplications}
+    ${libnetwork}
+    ${libcsma}
+)

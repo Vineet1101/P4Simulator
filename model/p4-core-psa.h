@@ -19,7 +19,6 @@
 #ifndef P4_CORE_PSA_H
 #define P4_CORE_PSA_H
 
-#include "ns3/delay-jitter-estimation.h"
 #include "ns3/p4-queue.h"
 #include "ns3/p4-switch-net-device.h"
 

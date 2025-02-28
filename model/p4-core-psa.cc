@@ -12,7 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Authors: Antonin Bas<antonin@barefootnetworks.com>
+ * Author: Antonin Bas<antonin@barefootnetworks.com>
  * Modified: Mingyu Ma<mingyu.ma@tu-dresden.de>
  */
 
@@ -33,8 +33,6 @@
 #include <bm/bm_sim/parser.h>
 #include <bm/bm_sim/phv.h>
 #include <bm/bm_sim/tables.h>
-// #include <bm/bm_sim/switch.h>
-// #include <bm/bm_sim/core/primitives.h>
 
 NS_LOG_COMPONENT_DEFINE("P4CorePsa");
 

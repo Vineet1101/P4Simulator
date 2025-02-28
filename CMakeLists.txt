@@ -53,6 +53,7 @@ build_lib(
         model/custom-header.cc
         model/p4-topology-reader.cc
         model/p4-core-v1model.cc
+        model/p4-core-pipeline.cc
         model/p4-core-psa.cc
         model/p4-nic-pna.cc
         model/p4-switch-net-device.cc
@@ -68,7 +69,9 @@ build_lib(
         model/p4-p2p-channel.h
         model/custom-header.h
         model/p4-topology-reader.h
+        model/p4-switch-core.h
         model/p4-core-v1model.h
+        model/p4-core-pipeline.h
         model/p4-core-psa.h
         model/p4-nic-pna.h
         model/p4-switch-net-device.h

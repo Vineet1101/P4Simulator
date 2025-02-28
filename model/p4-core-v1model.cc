@@ -45,7 +45,6 @@
 #include <bm/bm_sim/options_parse.h>
 #include <bm/bm_sim/parser.h>
 #include <bm/bm_sim/phv.h>
-#include <bm/bm_sim/switch.h>
 #include <bm/bm_sim/tables.h>
 
 NS_LOG_COMPONENT_DEFINE("P4CoreV1model");

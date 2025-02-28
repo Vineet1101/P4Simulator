@@ -24,6 +24,7 @@
 #include "ns3/net-device.h"
 #include "ns3/nstime.h"
 #include "ns3/p4-bridge-channel.h"
+#include "ns3/p4-core-pipeline.h"
 #include "ns3/p4-core-psa.h"
 #include "ns3/p4-core-v1model.h"
 #include "ns3/p4-nic-pna.h"
@@ -47,11 +48,13 @@ namespace ns3
 #define P4SWITCH_ARCH_V1MODEL 0
 #define P4SWITCH_ARCH_PSA 1
 #define P4NIC_ARCH_PNA 2
+#define P4SWITCH_ARCH_PIPELINE 3
 
 class Node;
 class P4CoreV1model;
 class P4CorePsa;
 class P4PnaNic;
+class P4CorePipeline;
 
 /**
  * \defgroup P4 Switch Network Device
@@ -221,11 +224,12 @@ class P4SwitchNetDevice : public NetDevice
     uint32_t m_switchArch; //!< Switch architecture type
 
     // === P4 configuration and initialization ===
-    std::string m_jsonPath;      //!< Path to the P4 JSON configuration file.
-    std::string m_flowTablePath; //!< Path to the flow table file.
-    P4CoreV1model* m_p4Switch;   //!< P4 switch core
-    P4CorePsa* m_psaSwitch;      //!< PSA switch core
-    P4PnaNic* m_pnaNic;          //!< PNA NIC core
+    std::string m_jsonPath;       //!< Path to the P4 JSON configuration file.
+    std::string m_flowTablePath;  //!< Path to the flow table file.
+    P4CoreV1model* m_p4Switch;    //!< P4 switch core
+    P4CorePipeline* m_p4Pipeline; //!< P4 pipeline core
+    P4CorePsa* m_psaSwitch;       //!< PSA switch core
+    P4PnaNic* m_pnaNic;           //!< PNA NIC core
 
     // === Buffer and queue configuration ===
     size_t m_InputBufferSizeLow;  //!< Input buffer normal packets(low priority) size

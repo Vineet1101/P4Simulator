@@ -7,14 +7,12 @@
 // we define "mark_to_drop2" for this
 #define BMV2_V1MODEL_SPECIAL_DROP_PORT  511
 
-/* CONSTANTS */
-
 const bit<16> TYPE_ARP = 0x806;
-const bit<16> TYPE_IPV4 = 0x800;
-const bit<8>  TYPE_TCP  = 6;
+const bit<16> TYPE_IPV4  = 0x800;
+const bit<16> TYPE_PROBE = 0x812;
 
-#define BLOOM_FILTER_ENTRIES 4096
-#define BLOOM_FILTER_BIT_WIDTH 1
+#define MAX_HOPS 10
+#define MAX_PORTS 8
 
 /*************************************************************************
 *********************** H E A D E R S  ***********************************
@@ -23,6 +21,8 @@ const bit<8>  TYPE_TCP  = 6;
 typedef bit<9>  egressSpec_t;
 typedef bit<48> macAddr_t;
 typedef bit<32> ip4Addr_t;
+
+typedef bit<48> time_t;
 
 header ethernet_t {
     macAddr_t dstAddr;
@@ -57,35 +57,44 @@ header ipv4_t {
     ip4Addr_t dstAddr;
 }
 
-header tcp_t{
-    bit<16> srcPort;
-    bit<16> dstPort;
-    bit<32> seqNo;
-    bit<32> ackNo;
-    bit<4>  dataOffset;
-    bit<4>  res;
-    bit<1>  cwr;
-    bit<1>  ece;
-    bit<1>  urg;
-    bit<1>  ack;
-    bit<1>  psh;
-    bit<1>  rst;
-    bit<1>  syn;
-    bit<1>  fin;
-    bit<16> window;
-    bit<16> checksum;
-    bit<16> urgentPtr;
+// Top-level probe header, indicates how many hops this probe
+// packet has traversed so far.
+header probe_t {
+    bit<8> hop_cnt;
+}
+
+// The data added to the probe by each switch at each hop.
+header probe_data_t {
+    bit<1>    bos;
+    bit<7>    swid;
+    bit<8>    port;
+    bit<32>   byte_cnt;
+    time_t    last_time;
+    time_t    cur_time;
+}
+
+// Indicates the egress port the switch should send this probe
+// packet out of. There is one of these headers for each hop.
+header probe_fwd_t {
+    bit<8>   egress_spec;
+}
+
+struct parser_metadata_t {
+    bit<8>  remaining;
 }
 
 struct metadata {
-    /* empty */
+    bit<8> egress_spec;
+    parser_metadata_t parser_metadata;
 }
 
 struct headers {
-    ethernet_t   ethernet;
-    arp_t        arp;
-    ipv4_t       ipv4;
-    tcp_t        tcp;
+    ethernet_t              ethernet;
+    arp_t                   arp;
+    ipv4_t                  ipv4;
+    probe_t                 probe;
+    probe_data_t[MAX_HOPS]  probe_data;
+    probe_fwd_t[MAX_HOPS]   probe_fwd;
 }
 
 /*************************************************************************
@@ -104,28 +113,49 @@ parser MyParser(packet_in packet,
     state parse_ethernet {
         packet.extract(hdr.ethernet);
         transition select(hdr.ethernet.etherType) {
-            TYPE_ARP : parse_arp;
+            TYPE_ARP: parse_arp;
             TYPE_IPV4: parse_ipv4;
-            default: accept;
-        }
-    }
-    
-    state parse_arp {
-        packet.extract(hdr.arp);
-        transition accept;
-    }
-    
-    state parse_ipv4 {
-        packet.extract(hdr.ipv4);
-        transition select(hdr.ipv4.protocol){
-            TYPE_TCP: tcp;
+            TYPE_PROBE: parse_probe;
             default: accept;
         }
     }
 
-    state tcp {
-       packet.extract(hdr.tcp);
-       transition accept;
+    state parse_arp {
+        packet.extract(hdr.arp);
+        transition accept;
+    }
+
+    state parse_ipv4 {
+        packet.extract(hdr.ipv4);
+        transition accept;
+    }
+
+    state parse_probe {
+        packet.extract(hdr.probe);
+        meta.parser_metadata.remaining = hdr.probe.hop_cnt + 1;
+        transition select(hdr.probe.hop_cnt) {
+            0: parse_probe_fwd;
+            default: parse_probe_data;
+        }
+    }
+
+    state parse_probe_data {
+        packet.extract(hdr.probe_data.next);
+        transition select(hdr.probe_data.last.bos) {
+            1: parse_probe_fwd;
+            default: parse_probe_data;
+        }
+    }
+
+    state parse_probe_fwd {
+        packet.extract(hdr.probe_fwd.next);
+        meta.parser_metadata.remaining = meta.parser_metadata.remaining - 1;
+        // extract the forwarding data
+        meta.egress_spec = hdr.probe_fwd.last.egress_spec;
+        transition select(meta.parser_metadata.remaining) {
+            0: accept;
+            default: parse_probe_fwd;
+        }
     }
 }
 
@@ -146,12 +176,6 @@ control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
 
-    register<bit<BLOOM_FILTER_BIT_WIDTH>>(BLOOM_FILTER_ENTRIES) bloom_filter_1;
-    register<bit<BLOOM_FILTER_BIT_WIDTH>>(BLOOM_FILTER_ENTRIES) bloom_filter_2;
-    bit<32> reg_pos_one; bit<32> reg_pos_two;
-    bit<1> reg_val_one; bit<1> reg_val_two;
-    bit<1> direction;
-
     action mark_to_drop2(inout standard_metadata_t stdmata) {
         stdmata.egress_spec = BMV2_V1MODEL_SPECIAL_DROP_PORT;
         stdmata.mcast_grp = 0;
@@ -161,22 +185,6 @@ control MyIngress(inout headers hdr,
         mark_to_drop2(standard_metadata);
     }
 
-    action compute_hashes(ip4Addr_t ipAddr1, ip4Addr_t ipAddr2, bit<16> port1, bit<16> port2){
-       //Get register position
-       hash(reg_pos_one, HashAlgorithm.crc16, (bit<32>)0, {ipAddr1,
-                                                           ipAddr2,
-                                                           port1,
-                                                           port2,
-                                                           hdr.ipv4.protocol},
-                                                           (bit<32>)BLOOM_FILTER_ENTRIES);
-
-       hash(reg_pos_two, HashAlgorithm.crc32, (bit<32>)0, {ipAddr1,
-                                                           ipAddr2,
-                                                           port1,
-                                                           port2,
-                                                           hdr.ipv4.protocol},
-                                                           (bit<32>)BLOOM_FILTER_ENTRIES);
-    }
 
     action ipv4_forward(macAddr_t dstAddr, egressSpec_t port) {
         standard_metadata.egress_spec = port;
@@ -184,10 +192,16 @@ control MyIngress(inout headers hdr,
         hdr.ethernet.dstAddr = dstAddr;
         hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
     }
+    
+    action arp_forward(macAddr_t dstAddr, egressSpec_t port) {
+        standard_metadata.egress_spec = port;
+        hdr.ethernet.srcAddr = hdr.ethernet.dstAddr;
+        hdr.ethernet.dstAddr = dstAddr;
+    }
 
-    table ipv4_exact {
+    table ipv4_lpm {
         key = {
-            hdr.ipv4.dstAddr: exact;
+            hdr.ipv4.dstAddr: lpm;
         }
         actions = {
             ipv4_forward;
@@ -197,30 +211,7 @@ control MyIngress(inout headers hdr,
         size = 1024;
         default_action = drop();
     }
-
-    action set_direction(bit<1> dir) {
-        direction = dir;
-    }
-
-    action arp_forward(macAddr_t dstAddr, egressSpec_t port) {
-        standard_metadata.egress_spec = port;
-        hdr.ethernet.srcAddr = hdr.ethernet.dstAddr;
-        hdr.ethernet.dstAddr = dstAddr;
-    }
-
-    table check_ports {
-        key = {
-            standard_metadata.ingress_port: exact;
-            standard_metadata.egress_spec: exact;
-        }
-        actions = {
-            set_direction;
-            NoAction;
-        }
-        size = 1024;
-        default_action = NoAction();
-    }
-
+    
     table arp_table {
         key = {
             hdr.arp.dstIp: exact;
@@ -234,40 +225,14 @@ control MyIngress(inout headers hdr,
     }
 
     apply {
-        if (hdr.ipv4.isValid()){
-            ipv4_exact.apply();
-            if (hdr.tcp.isValid()){
-                direction = 0; // default
-                if (check_ports.apply().hit) {
-                    // test and set the bloom filter
-                    if (direction == 0) {
-                        compute_hashes(hdr.ipv4.srcAddr, hdr.ipv4.dstAddr, hdr.tcp.srcPort, hdr.tcp.dstPort);
-                    }
-                    else {
-                        compute_hashes(hdr.ipv4.dstAddr, hdr.ipv4.srcAddr, hdr.tcp.dstPort, hdr.tcp.srcPort);
-                    }
-                    // Packet comes from internal network
-                    if (direction == 0){
-                        // If there is a syn we update the bloom filter and add the entry
-                        if (hdr.tcp.syn == 1){
-                            bloom_filter_1.write(reg_pos_one, 1);
-                            bloom_filter_2.write(reg_pos_two, 1);
-                        }
-                    }
-                    // Packet comes from outside
-                    else if (direction == 1){
-                        // Read bloom filter cells to check if there are 1's
-                        bloom_filter_1.read(reg_val_one, reg_pos_one);
-                        bloom_filter_2.read(reg_val_two, reg_pos_two);
-                        // only allow flow to pass if both entries are set
-                        if (reg_val_one != 1 || reg_val_two != 1){
-                            drop();
-                        }
-                    }
-                }
-            }
+        if (hdr.ipv4.isValid()) {
+            ipv4_lpm.apply();
         }
-        else if (hdr.arp.isValid()){
+        else if (hdr.probe.isValid()) {
+            standard_metadata.egress_spec = (bit<9>)meta.egress_spec;
+            hdr.probe.hop_cnt = hdr.probe.hop_cnt + 1;
+        }
+        else if (hdr.arp.isValid()) {
             // ARP packets are always allowed
             // (ns-3 need arp to work, just let all arp goes first, and test with ipv4 packets.
             // if arp not reach, there will not be any ipv4 packets for transmit.)
@@ -277,17 +242,67 @@ control MyIngress(inout headers hdr,
 }
 
 /*************************************************************************
-****************  E G R E S S   P R O C E S S I N G   *******************
+****************  E G R E S S   P R O C E S S I N G   ********************
 *************************************************************************/
 
 control MyEgress(inout headers hdr,
                  inout metadata meta,
                  inout standard_metadata_t standard_metadata) {
-    apply {  }
+
+    // count the number of bytes seen since the last probe
+    register<bit<32>>(MAX_PORTS) byte_cnt_reg;
+    // remember the time of the last probe
+    register<time_t>(MAX_PORTS) last_time_reg;
+
+    action set_swid(bit<7> swid) {
+        hdr.probe_data[0].swid = swid;
+    }
+
+    table swid {
+        actions = {
+            set_swid;
+            NoAction;
+        }
+        default_action = NoAction();
+    }
+
+    apply {
+        bit<32> byte_cnt;
+        bit<32> new_byte_cnt;
+        time_t last_time;
+        time_t cur_time = standard_metadata.egress_global_timestamp;
+        // increment byte cnt for this packet's port
+        byte_cnt_reg.read(byte_cnt, (bit<32>)standard_metadata.egress_port);
+        byte_cnt = byte_cnt + standard_metadata.packet_length;
+        // reset the byte count when a probe packet passes through
+        new_byte_cnt = (hdr.probe.isValid()) ? 0 : byte_cnt;
+        byte_cnt_reg.write((bit<32>)standard_metadata.egress_port, new_byte_cnt);
+
+        if (hdr.probe.isValid()) {
+            // fill out probe fields
+            hdr.probe_data.push_front(1);
+            hdr.probe_data[0].setValid();
+            if (hdr.probe.hop_cnt == 1) {
+                hdr.probe_data[0].bos = 1;
+            }
+            else {
+                hdr.probe_data[0].bos = 0;
+            }
+            // set switch ID field
+            swid.apply();
+            hdr.probe_data[0].port = (bit<8>)standard_metadata.egress_port;
+            hdr.probe_data[0].byte_cnt = byte_cnt;
+            // read / update the last_time_reg
+            last_time_reg.read(last_time, (bit<32>)standard_metadata.egress_port);
+            last_time_reg.write((bit<32>)standard_metadata.egress_port, cur_time);
+            hdr.probe_data[0].last_time = last_time;
+            hdr.probe_data[0].cur_time = cur_time;
+        }
+    }
 }
 
 /*************************************************************************
-*************   C H E C K S U M    C O M P U T A T I O N   **************
+*************   C H E C K S U M    C O M P U T A T I O N   ***************
 *************************************************************************/
 
 control MyComputeChecksum(inout headers  hdr, inout metadata meta) {
@@ -319,7 +334,9 @@ control MyDeparser(packet_out packet, in headers hdr) {
         packet.emit(hdr.ethernet);
         packet.emit(hdr.arp);
         packet.emit(hdr.ipv4);
-        packet.emit(hdr.tcp);
+        packet.emit(hdr.probe);
+        packet.emit(hdr.probe_data);
+        packet.emit(hdr.probe_fwd);
     }
 }
 
