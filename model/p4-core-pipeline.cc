@@ -233,6 +233,12 @@ P4CorePipeline::swap_notify_()
     NS_LOG_FUNCTION("p4_switch has been notified of a config swap");
 }
 
+void
+P4CorePipeline::reset_target_state_()
+{
+    NS_LOG_DEBUG("Resetting target-specific state, not supported.");
+}
+
 int
 P4CorePipeline::P4ProcessingPipeline(Ptr<Packet> packetIn,
                                      int inPort,
