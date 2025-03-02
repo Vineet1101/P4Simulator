@@ -1,3 +1,39 @@
+/*
+ * Copyright (c) 2025 TU Dresden
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ * Authors: Mingyu Ma <mingyu.ma@tu-dresden.de>
+ */
+
+#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_OFF
+
+#ifdef Mutex
+#undef Mutex
+#endif
+
+// Undefine conflicting macro if it exists
+#ifdef registry_t
+#undef registry_t
+#endif
+
+#include <bm/spdlog/spdlog.h>
+#undef LOG_INFO
+#undef LOG_ERROR
+#undef LOG_DEBUG
+
+#include "ns3/log.h"
 #include "ns3/p4-switch-core.h"
 #include "ns3/p4-switch-net-device.h"
 #include "ns3/register_access.h"
@@ -6,18 +42,84 @@
 #include <bm/bm_sim/options_parse.h>
 #include <fstream>
 
+NS_LOG_COMPONENT_DEFINE("P4SwitchCore");
+
 namespace ns3
 {
+
+class P4SwitchCore::MirroringSessions
+{
+  public:
+    bool add_session(int mirror_id, const MirroringSessionConfig& config)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        if (0 <= mirror_id && mirror_id <= RegisterAccess::MAX_MIRROR_SESSION_ID)
+        {
+            sessions_map[mirror_id] = config;
+            NS_LOG_INFO("Session added with mirror_id=" << mirror_id);
+            return true;
+        }
+        else
+        {
+            NS_LOG_ERROR("mirror_id out of range. No session added.");
+            return false;
+        }
+    }
+
+    bool delete_session(int mirror_id)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        if (0 <= mirror_id && mirror_id <= RegisterAccess::MAX_MIRROR_SESSION_ID)
+        {
+            bool erased = sessions_map.erase(mirror_id) == 1;
+            if (erased)
+            {
+                NS_LOG_INFO("Session deleted with mirror_id=" << mirror_id);
+            }
+            else
+            {
+                NS_LOG_WARN("No session found for mirror_id=" << mirror_id);
+            }
+            return erased;
+        }
+        else
+        {
+            NS_LOG_ERROR("mirror_id out of range. No session deleted.");
+            return false;
+        }
+    }
+
+    bool get_session(int mirror_id, MirroringSessionConfig* config) const
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        auto it = sessions_map.find(mirror_id);
+        if (it == sessions_map.end())
+        {
+            NS_LOG_WARN("No session found for mirror_id=" << mirror_id);
+            return false;
+        }
+        *config = it->second;
+        NS_LOG_INFO("Session retrieved for mirror_id=" << mirror_id);
+        return true;
+    }
+
+  private:
+    mutable std::mutex mutex;
+    std::unordered_map<int, MirroringSessionConfig> sessions_map;
+};
 
 // P4SwitchCore.cpp
 P4SwitchCore::P4SwitchCore(P4SwitchNetDevice* netDevice,
                            bool enableSwap,
                            bool enableTracing,
-                           port_t dropPort)
+                           const std::string thriftCommand,
+                           uint32_t dropPort)
     : bm::Switch(enableSwap),
       m_switchNetDevice(netDevice),
       m_enableTracing(enableTracing),
       m_dropPort(dropPort),
+      m_startTimestamp(Simulator::Now().GetNanoSeconds()),
+      m_thriftCommand(thriftCommand),
       m_pre(new bm::McSimplePreLAG()),
       m_mirroringSessions(new MirroringSessions())
 {
@@ -163,7 +265,7 @@ P4SwitchCore::GetAddressIndex(const Address& destination)
 int
 P4SwitchCore::receive_(uint32_t port_num, const char* buffer, int len)
 {
-    NS_LOG_FUNCTION("Deprecated function.");
+    NS_LOG_FUNCTION("Deprecated function, using ReceivePacket instead.");
     return 0;
 }
 
@@ -185,67 +287,6 @@ P4SwitchCore::reset_target_state_()
     NS_LOG_DEBUG("Resetting simple_switch target-specific state");
     get_component<bm::McSimplePreLAG>()->reset_state();
 }
-
-class P4SwitchCore::MirroringSessions
-{
-  public:
-    bool add_session(int mirror_id, const MirroringSessionConfig& config)
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-        if (0 <= mirror_id && mirror_id <= RegisterAccess::MAX_MIRROR_SESSION_ID)
-        {
-            sessions_map[mirror_id] = config;
-            NS_LOG_INFO("Session added with mirror_id=" << mirror_id);
-            return true;
-        }
-        else
-        {
-            NS_LOG_ERROR("mirror_id out of range. No session added.");
-            return false;
-        }
-    }
-
-    bool delete_session(int mirror_id)
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-        if (0 <= mirror_id && mirror_id <= RegisterAccess::MAX_MIRROR_SESSION_ID)
-        {
-            bool erased = sessions_map.erase(mirror_id) == 1;
-            if (erased)
-            {
-                NS_LOG_INFO("Session deleted with mirror_id=" << mirror_id);
-            }
-            else
-            {
-                NS_LOG_WARN("No session found for mirror_id=" << mirror_id);
-            }
-            return erased;
-        }
-        else
-        {
-            NS_LOG_ERROR("mirror_id out of range. No session deleted.");
-            return false;
-        }
-    }
-
-    bool get_session(int mirror_id, MirroringSessionConfig* config) const
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-        auto it = sessions_map.find(mirror_id);
-        if (it == sessions_map.end())
-        {
-            NS_LOG_WARN("No session found for mirror_id=" << mirror_id);
-            return false;
-        }
-        *config = it->second;
-        NS_LOG_INFO("Session retrieved for mirror_id=" << mirror_id);
-        return true;
-    }
-
-  private:
-    mutable std::mutex mutex;
-    std::unordered_map<int, MirroringSessionConfig> sessions_map;
-};
 
 bool
 P4SwitchCore::AddMirroringSession(int mirror_id, const MirroringSessionConfig& config)

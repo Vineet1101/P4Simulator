@@ -52,6 +52,7 @@ build_lib(
         model/p4-p2p-channel.cc
         model/custom-header.cc
         model/p4-topology-reader.cc
+        model/p4-switch-core.cc
         model/p4-core-v1model.cc
         model/p4-core-pipeline.cc
         model/p4-core-psa.cc

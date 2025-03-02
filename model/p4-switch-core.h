@@ -1,17 +1,18 @@
-/* Copyright 2013-present Barefoot Networks, Inc.
- * Copyright 2021 VMware, Inc.
+/*
+ * Copyright (c) 2025 TU Dresden
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Authors: Mingyu Ma <mingyu.ma@tu-dresden.de>
  */
@@ -28,25 +29,29 @@
 #include <map>
 #include <vector>
 
-#define SSWITCH_PRIORITY_QUEUEING_SRC "intrinsic_metadata.priority"
-#define SSWITCH_OUTPUT_BUFFER_SIZE 1024
 #define SSWITCH_DROP_PORT 511
-#define SSWITCH_VIRTUAL_QUEUE_NUM 8
 
 namespace ns3
 {
 
 class P4SwitchNetDevice;
-class InputBuffer;
 
 class P4SwitchCore : public bm::Switch
 {
   public:
-    // === Constructor & Destructor ===
+    /**
+     * @brief Construct a new P4SwitchCore object
+     * @param netDevice the P4 switch net device
+     * @param enableSwap enable swap
+     * @param enableTracing enable tracing
+     * @param thriftCommand thrift command string
+     * @param dropPort the drop port (default: SSWITCH_DROP_PORT)
+     */
     P4SwitchCore(P4SwitchNetDevice* netDevice,
                  bool enableSwap,
                  bool enableTracing,
-                 port_t dropPort = SSWITCH_DROP_PORT);
+                 const std::string thriftCommand,
+                 uint32_t dropPort = SSWITCH_DROP_PORT);
 
     virtual ~P4SwitchCore() = default;
 
@@ -92,8 +97,6 @@ class P4SwitchCore : public bm::Switch
                               uint16_t protocol,
                               const Address& destination) = 0;
 
-    void SetEgressTimerEvent();
-
     /**
      * @brief Convert a bm packet to ns-3 packet
      *
@@ -122,14 +125,28 @@ class P4SwitchCore : public bm::Switch
      */
     uint64_t GetTimeStamp();
 
-    void PrintSwitchConfig();
-
-    void CalculatePacketsPerSecond();
-
     // === override ===
+    /**
+     * @brief [Deprecated] Receive a packet from the network, using ReceivePacket instead.
+     * @param port_num the port number
+     * @param buffer the buffer
+     * @param len the length of the buffer
+     */
     int receive_(uint32_t port_num, const char* buffer, int len) override;
+
+    /**
+     * @brief Call this function after initialization of the switch to start the switch
+     */
     void start_and_return_() override;
+
+    /**
+     *  @brief Notify the switch of a configuration swap
+     */
     void swap_notify_() override;
+
+    /**
+     * @brief Reset the target-specific state of the switch
+     */
     void reset_target_state_() override;
 
     // Disabling copy and move operations
@@ -139,10 +156,15 @@ class P4SwitchCore : public bm::Switch
     P4SwitchCore&& operator=(P4SwitchCore&&) = delete;
 
   protected:
-    // Mirroring session configuration
+    /**
+     * @brief Configuration for a mirroring session
+     * @details The configuration includes the egress port and the multicast group ID. The egress
+     * port is the port where the cloned packet is sent to. The multicast group ID is the ID of the
+     * multicast group where the cloned packet is sent to.
+     */
     struct MirroringSessionConfig
     {
-        port_t egress_port;
+        uint32_t egress_port;
         bool egress_port_valid;
         unsigned int mgid;
         bool mgid_valid;
@@ -171,21 +193,6 @@ class P4SwitchCore : public bm::Switch
      */
     bool GetMirroringSession(int mirrorId, MirroringSessionConfig* config) const;
 
-    struct EgressThreadMapper
-    {
-        explicit EgressThreadMapper(size_t nb_threads)
-            : nb_threads(nb_threads)
-        {
-        }
-
-        size_t operator()(size_t egress_port) const
-        {
-            return egress_port % nb_threads;
-        }
-
-        size_t nb_threads;
-    };
-
     /**
      * @brief Different types of packet instances
      * @details The packet instance type is used to determine the processing
@@ -213,7 +220,12 @@ class P4SwitchCore : public bm::Switch
      */
     virtual void HandleIngressPipeline() = 0;
 
-    void Enqueue(port_t egress_port, std::unique_ptr<bm::Packet>&& packet);
+    /**
+     * @brief Enqueue a packet to the switch queue buffer
+     * @param egress_port the egress port
+     * @param packet the packet to enqueue
+     */
+    virtual void Enqueue(uint32_t egress_port, std::unique_ptr<bm::Packet>&& packet) = 0;
 
     /**
      * @brief Egress processing pipeline
@@ -239,30 +251,24 @@ class P4SwitchCore : public bm::Switch
     int GetAddressIndex(const Address& destination);
 
   private:
-    class MirroringSessions;
-    P4SwitchNetDevice* m_switchNetDevice;
+    class MirroringSessions;              //!< Mirroring sessions for clone .etc
+    P4SwitchNetDevice* m_switchNetDevice; //!< Pointer to the switch net device
 
-    bool m_enableTracing;
-    uint64_t m_packetId; // Packet ID
+    bool m_enableTracing;                //!< Enable tracing
+    bool m_enableQueueingMetadata{true}; //!< Enable queueing metadata
+    int m_p4SwitchId;                    //!< ID of the switch
+    int m_thriftPort;                    //!< Thrift port for the switch (default 9090)
+    size_t m_nbQueuesPerPort;            //!< Number of queues per port (default 8)
+    uint32_t m_dropPort;                 //!< Port to drop packets
+    uint64_t m_packetId;                 //!< Packet ID
+    uint64_t m_startTimestamp;           //!< Start time of the switch
+    std::string m_thriftCommand;         //!< Thrift command
 
-    int m_p4SwitchId; //!< ID of the switch
-    int m_thriftPort;
-
-    std::string m_thriftCommand;
-
-    port_t m_dropPort; //!< Port to drop packets
-    size_t m_nbQueuesPerPort;
-    bool m_enableQueueingMetadata{true};
-    static constexpr size_t m_nbEgressThreads = 1u; // 4u default in bmv2
-
-    uint64_t m_startTimestamp; //!< Start time of the switch
-
-    // Miscellaneous
-    bm::TargetParserBasic* m_argParser;     //!< Structure of parsers
-    std::vector<Address> m_destinationList; //!< List of addresses (O(log n) search)
-    std::map<Address, int> m_addressMap;    //!< Map for fast lookup
-    std::shared_ptr<bm::McSimplePreLAG> m_pre;
-    std::unique_ptr<MirroringSessions> m_mirroringSessions;
+    bm::TargetParserBasic* m_argParser;                     //!< Structure of parsers
+    std::vector<Address> m_destinationList;                 //!< List of addresses (O(log n) search)
+    std::map<Address, int> m_addressMap;                    //!< Map for fast lookup
+    std::shared_ptr<bm::McSimplePreLAG> m_pre;              //!< Multicast pre-LAG
+    std::unique_ptr<MirroringSessions> m_mirroringSessions; //!< Mirroring sessions
 };
 
 } // namespace ns3
