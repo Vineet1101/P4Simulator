@@ -29,7 +29,6 @@
 #include <map>
 #include <vector>
 
-#define SSWITCH_PRIORITY_QUEUEING_SRC "intrinsic_metadata.priority"
 #define SSWITCH_OUTPUT_BUFFER_SIZE 1024
 #define SSWITCH_DROP_PORT 511
 #define SSWITCH_VIRTUAL_QUEUE_NUM 8
@@ -148,7 +147,6 @@ class P4CoreV1model : public bm::Switch
     void ProcessIngress();
     void Enqueue(port_t egress_port, std::unique_ptr<bm::Packet>&& packet);
     bool ProcessEgress(size_t workerId);
-    void TransmitEvent();
     void MulticastPacket(bm::Packet* packet, unsigned int mgid);
 
     // Utility Methods

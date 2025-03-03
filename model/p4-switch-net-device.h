@@ -24,10 +24,6 @@
 #include "ns3/net-device.h"
 #include "ns3/nstime.h"
 #include "ns3/p4-bridge-channel.h"
-#include "ns3/p4-core-pipeline.h"
-#include "ns3/p4-core-psa.h"
-#include "ns3/p4-core-v1model.h"
-#include "ns3/p4-nic-pna.h"
 
 #include <map>
 #include <stdint.h>
@@ -51,7 +47,8 @@ namespace ns3
 #define P4SWITCH_ARCH_PIPELINE 3
 
 class Node;
-class P4CoreV1model;
+// class P4CoreV1model;
+class P4CoreV1modelDev;
 class P4CorePsa;
 class P4PnaNic;
 class P4CorePipeline;
@@ -224,9 +221,10 @@ class P4SwitchNetDevice : public NetDevice
     uint32_t m_switchArch; //!< Switch architecture type
 
     // === P4 configuration and initialization ===
-    std::string m_jsonPath;       //!< Path to the P4 JSON configuration file.
-    std::string m_flowTablePath;  //!< Path to the flow table file.
-    P4CoreV1model* m_p4Switch;    //!< P4 switch core
+    std::string m_jsonPath;      //!< Path to the P4 JSON configuration file.
+    std::string m_flowTablePath; //!< Path to the flow table file.
+    P4CoreV1modelDev* m_devP4Switch;
+    // P4CoreV1model* m_p4Switch;    //!< P4 switch core
     P4CorePipeline* m_p4Pipeline; //!< P4 pipeline core
     P4CorePsa* m_psaSwitch;       //!< PSA switch core
     P4PnaNic* m_pnaNic;           //!< PNA NIC core

@@ -20,7 +20,6 @@
 #ifndef P4_SWITCH_CORE_H
 #define P4_SWITCH_CORE_H
 
-#include "ns3/p4-queue.h"
 #include "ns3/p4-switch-net-device.h"
 
 #include <bm/bm_sim/packet.h>
@@ -50,10 +49,26 @@ class P4SwitchCore : public bm::Switch
     P4SwitchCore(P4SwitchNetDevice* netDevice,
                  bool enableSwap,
                  bool enableTracing,
-                 const std::string thriftCommand,
                  uint32_t dropPort = SSWITCH_DROP_PORT);
 
-    virtual ~P4SwitchCore() = default;
+    ~P4SwitchCore();
+
+    /**
+     * @brief Different types of packet instances
+     * @details The packet instance type is used to determine the processing
+     * pipeline of the packet. PKT_INSTANCE_TYPE_NORMAL usually will have
+     * lower priority than other types.
+     */
+    enum PktInstanceType
+    {
+        PKT_INSTANCE_TYPE_NORMAL,
+        PKT_INSTANCE_TYPE_INGRESS_CLONE,
+        PKT_INSTANCE_TYPE_EGRESS_CLONE,
+        PKT_INSTANCE_TYPE_COALESCED,
+        PKT_INSTANCE_TYPE_RECIRC,
+        PKT_INSTANCE_TYPE_REPLICATION,
+        PKT_INSTANCE_TYPE_RESUBMIT,
+    };
 
     /**
      * @brief Initialize the switch with the P4 program
@@ -101,7 +116,7 @@ class P4SwitchCore : public bm::Switch
      * @brief Convert a bm packet to ns-3 packet
      *
      * @param bmPacket the bm packet
-     * @return Ptr<Packet> the ns-3 packet
+     * @return Ptr<Packet> the ns-3 packetclear
      */
     Ptr<Packet> ConvertToNs3Packet(std::unique_ptr<bm::Packet>&& bmPacket);
 
@@ -194,23 +209,6 @@ class P4SwitchCore : public bm::Switch
     bool GetMirroringSession(int mirrorId, MirroringSessionConfig* config) const;
 
     /**
-     * @brief Different types of packet instances
-     * @details The packet instance type is used to determine the processing
-     * pipeline of the packet. PKT_INSTANCE_TYPE_NORMAL usually will have
-     * lower priority than other types.
-     */
-    enum PktInstanceType
-    {
-        PKT_INSTANCE_TYPE_NORMAL,
-        PKT_INSTANCE_TYPE_INGRESS_CLONE,
-        PKT_INSTANCE_TYPE_EGRESS_CLONE,
-        PKT_INSTANCE_TYPE_COALESCED,
-        PKT_INSTANCE_TYPE_RECIRC,
-        PKT_INSTANCE_TYPE_REPLICATION,
-        PKT_INSTANCE_TYPE_RESUBMIT,
-    };
-
-    /**
      * @brief Check the queueing metadata
      */
     void CheckQueueingMetadata();
@@ -250,24 +248,23 @@ class P4SwitchCore : public bm::Switch
      */
     int GetAddressIndex(const Address& destination);
 
+    int m_p4SwitchId;                          //!< ID of the switch
+    P4SwitchNetDevice* m_switchNetDevice;      //!< Pointer to the switch net device
+    bool m_enableTracing;                      //!< Enable tracing
+    bool m_enableQueueingMetadata{false};      //!< Enable queueing metadata
+    uint32_t m_dropPort;                       //!< Port to drop packets
+    std::string m_thriftCommand;               //!< Thrift command
+    std::shared_ptr<bm::McSimplePreLAG> m_pre; //!< Multicast pre-LAG
+
+    std::vector<Address> m_destinationList; //!< List of addresses (O(log n) search)
+    std::map<Address, int> m_addressMap;    //!< Map for fast lookup
   private:
-    class MirroringSessions;              //!< Mirroring sessions for clone .etc
-    P4SwitchNetDevice* m_switchNetDevice; //!< Pointer to the switch net device
-
-    bool m_enableTracing;                //!< Enable tracing
-    bool m_enableQueueingMetadata{true}; //!< Enable queueing metadata
-    int m_p4SwitchId;                    //!< ID of the switch
-    int m_thriftPort;                    //!< Thrift port for the switch (default 9090)
-    size_t m_nbQueuesPerPort;            //!< Number of queues per port (default 8)
-    uint32_t m_dropPort;                 //!< Port to drop packets
-    uint64_t m_packetId;                 //!< Packet ID
-    uint64_t m_startTimestamp;           //!< Start time of the switch
-    std::string m_thriftCommand;         //!< Thrift command
-
-    bm::TargetParserBasic* m_argParser;                     //!< Structure of parsers
-    std::vector<Address> m_destinationList;                 //!< List of addresses (O(log n) search)
-    std::map<Address, int> m_addressMap;                    //!< Map for fast lookup
-    std::shared_ptr<bm::McSimplePreLAG> m_pre;              //!< Multicast pre-LAG
+    class MirroringSessions;            //!< Mirroring sessions for clone .etc
+    int m_thriftPort;                   //!< Thrift port for the switch (default 9090)
+    size_t m_nbQueuesPerPort;           //!< Number of queues per port (default 8)
+    uint64_t m_packetId;                //!< Packet ID
+    uint64_t m_startTimestamp;          //!< Start time of the switch
+    bm::TargetParserBasic* m_argParser; //!< Structure of parsers
     std::unique_ptr<MirroringSessions> m_mirroringSessions; //!< Mirroring sessions
 };
 

@@ -481,8 +481,8 @@ P4CorePsa::Enqueue(port_t egress_port, std::unique_ptr<bm::Packet>&& packet)
 
     bm::PHV* phv = packet->get_phv();
 
-    auto priority = phv->has_field(SSWITCH_PRIORITY_QUEUEING_SRC)
-                        ? phv->get_field(SSWITCH_PRIORITY_QUEUEING_SRC).get<size_t>()
+    auto priority = phv->has_field("intrinsic_metadata.priority")
+                        ? phv->get_field("intrinsic_metadata.priority").get<size_t>()
                         : 0u;
     if (priority >= m_nbQueuesPerPort)
     {

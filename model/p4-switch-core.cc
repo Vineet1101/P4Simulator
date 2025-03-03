@@ -37,6 +37,7 @@
 #include "ns3/p4-switch-core.h"
 #include "ns3/p4-switch-net-device.h"
 #include "ns3/register_access.h"
+#include "ns3/simulator.h"
 
 #include <bm/bm_runtime/bm_runtime.h>
 #include <bm/bm_sim/options_parse.h>
@@ -112,18 +113,22 @@ class P4SwitchCore::MirroringSessions
 P4SwitchCore::P4SwitchCore(P4SwitchNetDevice* netDevice,
                            bool enableSwap,
                            bool enableTracing,
-                           const std::string thriftCommand,
                            uint32_t dropPort)
     : bm::Switch(enableSwap),
       m_switchNetDevice(netDevice),
       m_enableTracing(enableTracing),
       m_dropPort(dropPort),
-      m_startTimestamp(Simulator::Now().GetNanoSeconds()),
-      m_thriftCommand(thriftCommand),
       m_pre(new bm::McSimplePreLAG()),
+      m_startTimestamp(Simulator::Now().GetNanoSeconds()),
       m_mirroringSessions(new MirroringSessions())
 {
-    NS_LOG_INFO("P4SwitchCore initialized with Drop Port: " << dropPort);
+    static int switch_id = 1;
+    m_p4SwitchId = switch_id++;
+    NS_LOG_INFO("Initialized P4 Switch with ID: " << m_p4SwitchId);
+}
+
+P4SwitchCore::~P4SwitchCore()
+{
 }
 
 void

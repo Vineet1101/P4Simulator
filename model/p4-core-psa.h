@@ -29,7 +29,6 @@
 // #include <bm/bm_sim/counters.h>
 #include <bm/bm_sim/simple_pre_lag.h>
 
-#define SSWITCH_PRIORITY_QUEUEING_SRC "intrinsic_metadata.priority"
 #define SSWITCH_OUTPUT_BUFFER_SIZE 1024
 #define SSWITCH_DROP_PORT 511 // @TODO this port should be same with Netdevice
 #define SSWITCH_VIRTUAL_QUEUE_NUM 8
