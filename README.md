@@ -16,3 +16,23 @@ See `vm-env.md`.
 ## Simulation Script: ##
 
 ## Results Subdirectory ##
+
+## Doxygen Documents ##
+
+```bash
+# install the doxygen, check the version
+sudo apt update
+sudo apt install doxygen graphviz dia
+doxygen --version
+# after install, reconfigure ns-3
+./ns3 configure --enable-tests --enable-examples --enable-python-bindings
+./ns3 build
+./ns3 docs doxygen
+# the doc will gene in ./doc/html/index.html
+xdg-open build/doxygen/html/index.html
+
+# PS: if using vm, could using the http server, add port forwarding in Vritualbox config.
+# like port 127.0.0.1:2233 -> 8080
+python3 -m http.server --directory ./doc/html 8080 # set in vm (remote)
+http://127.0.0.1:2233 # open in local host
+```
