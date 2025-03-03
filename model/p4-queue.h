@@ -18,8 +18,6 @@
 #ifndef P4_QUEUE_H
 #define P4_QUEUE_H
 
-#include "ns3/object.h"
-#include "ns3/random-variable-stream.h"
 #include "ns3/simulator.h"
 
 #include <bm/bm_sim/packet.h>

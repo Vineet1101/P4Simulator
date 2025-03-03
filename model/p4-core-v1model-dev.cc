@@ -1,3 +1,22 @@
+/* Copyright 2013-present Barefoot Networks, Inc.
+ * Copyright 2021 VMware, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Authors: Antonin Bas <antonin@barefootnetworks.com>
+ * Modified: Mingyu Ma <mingyu.ma@tu-dresden.de>
+ */
+
 #include "ns3/p4-core-v1model-dev.h"
 #include "ns3/p4-switch-net-device.h"
 #include "ns3/register_access.h"
@@ -65,14 +84,9 @@ P4CoreV1modelDev::P4CoreV1modelDev(P4SwitchNetDevice* net_device,
       output_buffer(64),
       m_firstPacket(false)
 {
-    // NS_LOG_FUNCTION(this << " Switch ID Drop port: " << m_dropPort
-    //                      << " Queues per port: " << m_nbQueuesPerPort);
-    // NS_LOG_DEBUG("Creating P4CoreV1modelDev with drop port "
-    //              << m_dropPort << " and " << m_nbQueuesPerPort << " queues per port");
-
     // configure for the switch v1model
-    m_thriftCommand = "simple_switch_CLI";
-    m_enableQueueingMetadata = true;
+    m_thriftCommand = "simple_switch_CLI"; // default thrift command for v1model
+    m_enableQueueingMetadata = true;       // enable queueing metadata for v1model
 
     if (m_enableTracing)
     {
@@ -95,7 +109,7 @@ P4CoreV1modelDev::P4CoreV1modelDev(P4SwitchNetDevice* net_device,
     force_arith_header("queueing_metadata");
     force_arith_header("intrinsic_metadata");
 
-    CalculateScheduleTime(); // 计算调度时间
+    CalculateScheduleTime(); // calculate the time interval for processing one packet
 }
 
 P4CoreV1modelDev::~P4CoreV1modelDev()

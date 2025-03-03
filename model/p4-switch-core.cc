@@ -209,13 +209,19 @@ P4SwitchCore::ExecuteCliCommands(const std::string& commandsFile)
 
     // Construct the CLI command
     std::ostringstream cmdStream;
-    cmdStream << m_thriftCommand << " --thrift-port " << port << " " << commandsFile;
+    cmdStream << m_thriftCommand << " --thrift-port " << port << " < " << commandsFile
+              << " > /dev/null 2>&1";
     std::string cmd = cmdStream.str();
 
     NS_LOG_DEBUG("Executing CLI command: " << cmd);
 
     // Run the CLI command to populate table entries
     int result = std::system(cmd.c_str());
+    if (result != 0)
+    {
+        NS_LOG_WARN("CLI command returned non-zero exit code: " << result);
+    }
+
     return result;
 }
 

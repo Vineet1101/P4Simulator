@@ -162,6 +162,7 @@ int
 main(int argc, char* argv[])
 {
     LogComponentEnable("P4V1modelIpv4Forwarding", LOG_LEVEL_INFO);
+    // LogComponentEnable("P4SwitchCore", LOG_LEVEL_DEBUG);
 
     // ============================ parameters ============================
 

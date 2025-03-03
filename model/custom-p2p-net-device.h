@@ -25,7 +25,6 @@
 #include "ns3/custom-header.h"
 #include "ns3/data-rate.h"
 #include "ns3/ethernet-header.h"
-#include "ns3/mac48-address.h"
 #include "ns3/net-device.h"
 #include "ns3/node.h"
 #include "ns3/nstime.h"

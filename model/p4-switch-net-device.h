@@ -20,9 +20,7 @@
 #ifndef P4_SWITCH_NET_DEVICE
 #define P4_SWITCH_NET_DEVICE
 
-#include "ns3/mac48-address.h"
 #include "ns3/net-device.h"
-#include "ns3/nstime.h"
 #include "ns3/p4-bridge-channel.h"
 
 #include <map>
