@@ -24,7 +24,7 @@
 #include "ns3/node.h"
 #include "ns3/p4-core-pipeline.h"
 #include "ns3/p4-core-psa.h"
-#include "ns3/p4-core-v1model-dev.h"
+#include "ns3/p4-core-v1model.h"
 #include "ns3/p4-nic-pna.h"
 #include "ns3/p4-switch-net-device.h"
 #include "ns3/packet.h"
@@ -142,26 +142,16 @@ P4SwitchNetDevice::DoInitialize()
     {
     case P4SWITCH_ARCH_V1MODEL:
         NS_LOG_DEBUG("P4 architecture: v1model");
-        m_devP4Switch = new P4CoreV1modelDev(this,
-                                             m_enableSwap,
-                                             m_enableTracing,
-                                             m_switchRate,
-                                             m_InputBufferSizeLow,
-                                             m_InputBufferSizeHigh,
-                                             m_queueBufferSize);
-        m_devP4Switch->InitializeSwitchFromP4Json(m_jsonPath);
-        m_devP4Switch->LoadFlowTableToSwitch(m_flowTablePath);
-        // m_devP4Switch->InitSwitchWithP4(m_jsonPath, m_flowTablePath);
-        m_devP4Switch->start_and_return_();
-        // m_p4Switch = new P4CoreV1model(this,
-        //                                m_enableSwap,
-        //                                m_enableTracing,
-        //                                m_switchRate,
-        //                                m_InputBufferSizeLow,
-        //                                m_InputBufferSizeHigh,
-        //                                m_queueBufferSize);
-        // m_p4Switch->InitSwitchWithP4(m_jsonPath, m_flowTablePath);
-        // m_p4Switch->start_and_return_();
+        m_v1modelSwitch = new P4CoreV1model(this,
+                                            m_enableSwap,
+                                            m_enableTracing,
+                                            m_switchRate,
+                                            m_InputBufferSizeLow,
+                                            m_InputBufferSizeHigh,
+                                            m_queueBufferSize);
+        m_v1modelSwitch->InitializeSwitchFromP4Json(m_jsonPath);
+        m_v1modelSwitch->LoadFlowTableToSwitch(m_flowTablePath);
+        m_v1modelSwitch->start_and_return_();
         break;
 
     case P4SWITCH_ARCH_PSA:
@@ -172,14 +162,16 @@ P4SwitchNetDevice::DoInitialize()
                                     m_switchRate,
                                     m_InputBufferSizeLow, // normal input queue size
                                     m_queueBufferSize);
-        m_psaSwitch->InitSwitchWithP4(m_jsonPath, m_flowTablePath);
+        m_psaSwitch->InitializeSwitchFromP4Json(m_jsonPath);
+        m_psaSwitch->LoadFlowTableToSwitch(m_flowTablePath);
         m_psaSwitch->start_and_return_();
         break;
 
     case P4NIC_ARCH_PNA:
         NS_LOG_DEBUG("P4 architecture: PNA");
         m_pnaNic = new P4PnaNic(this, m_enableSwap);
-        m_pnaNic->InitSwitchWithP4(m_jsonPath, m_flowTablePath);
+        m_pnaNic->InitializeSwitchFromP4Json(m_jsonPath);
+        // m_pnaNic->LoadFlowTableToSwitch(m_flowTablePath); // Now not supported
         m_pnaNic->start_and_return_();
         break;
 
@@ -283,7 +275,7 @@ P4SwitchNetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
     {
     case P4SWITCH_ARCH_V1MODEL:
         // m_p4Switch->ReceivePacket(ns3Packet, inPort, protocol, dst48);
-        m_devP4Switch->ReceivePacket(ns3Packet, inPort, protocol, dst48);
+        m_v1modelSwitch->ReceivePacket(ns3Packet, inPort, protocol, dst48);
         break;
 
     case P4SWITCH_ARCH_PSA:

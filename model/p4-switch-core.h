@@ -54,23 +54,6 @@ class P4SwitchCore : public bm::Switch
     ~P4SwitchCore();
 
     /**
-     * @brief Different types of packet instances
-     * @details The packet instance type is used to determine the processing
-     * pipeline of the packet. PKT_INSTANCE_TYPE_NORMAL usually will have
-     * lower priority than other types.
-     */
-    enum PktInstanceType
-    {
-        PKT_INSTANCE_TYPE_NORMAL,
-        PKT_INSTANCE_TYPE_INGRESS_CLONE,
-        PKT_INSTANCE_TYPE_EGRESS_CLONE,
-        PKT_INSTANCE_TYPE_COALESCED,
-        PKT_INSTANCE_TYPE_RECIRC,
-        PKT_INSTANCE_TYPE_REPLICATION,
-        PKT_INSTANCE_TYPE_RESUBMIT,
-    };
-
-    /**
      * @brief Initialize the switch with the P4 program
      * @param jsonPath the path to the JSON file
      * @return void

@@ -17,12 +17,37 @@
  * Modified: Mingyu Ma <mingyu.ma@tu-dresden.de>
  */
 
-#include "ns3/p4-core-v1model-dev.h"
-#include "ns3/p4-switch-net-device.h"
+#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_OFF
+
+#ifdef Mutex
+#undef Mutex
+#endif
+
+// Undefine conflicting macro if it exists
+#ifdef registry_t
+#undef registry_t
+#endif
+
+#include <bm/spdlog/spdlog.h>
+#undef LOG_INFO
+#undef LOG_ERROR
+#undef LOG_DEBUG
+
+#include "ns3/ethernet-header.h"
+#include "ns3/log.h"
+#include "ns3/p4-core-v1model.h"
 #include "ns3/register_access.h"
 #include "ns3/simulator.h"
+#include "ns3/socket.h"
 
-NS_LOG_COMPONENT_DEFINE("P4CoreV1modelDev");
+#include <bm/bm_runtime/bm_runtime.h>
+#include <bm/bm_sim/core/primitives.h>
+#include <bm/bm_sim/options_parse.h>
+#include <bm/bm_sim/parser.h>
+#include <bm/bm_sim/phv.h>
+#include <bm/bm_sim/tables.h>
+
+NS_LOG_COMPONENT_DEFINE("P4CoreV1model");
 
 namespace ns3
 {
@@ -30,7 +55,7 @@ namespace ns3
 namespace
 {
 
-struct hash_ex_v1model_dev
+struct hash_ex_v1model
 {
     uint32_t operator()(const char* buf, size_t s) const
     {
@@ -49,7 +74,7 @@ struct hash_ex_v1model_dev
     }
 };
 
-struct bmv2_hash_v1model_dev
+struct bmv2_hash_v1model
 {
     uint64_t operator()(const char* buf, size_t s) const
     {
@@ -61,33 +86,103 @@ struct bmv2_hash_v1model_dev
 
 // if REGISTER_HASH calls placed in the anonymous namespace, some compiler can
 // give an unused variable warning
-REGISTER_HASH(hash_ex_v1model_dev);
-REGISTER_HASH(bmv2_hash_v1model_dev);
+REGISTER_HASH(hash_ex_v1model);
+REGISTER_HASH(bmv2_hash_v1model);
 
-P4CoreV1modelDev::P4CoreV1modelDev(P4SwitchNetDevice* net_device,
-                                   bool enable_swap,
-                                   bool enableTracing,
-                                   uint64_t packet_rate,
-                                   size_t input_buffer_size_low,
-                                   size_t input_buffer_size_high,
-                                   size_t queue_buffer_size,
-                                   size_t nb_queues_per_port)
-    : P4SwitchCore(net_device, enable_swap, enableTracing),
-      m_packetId(0),
-      m_switchRate(packet_rate),
+class P4CoreV1model::MirroringSessions
+{
+  public:
+    bool add_session(int mirror_id, const MirroringSessionConfig& config)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        if (0 <= mirror_id && mirror_id <= RegisterAccess::MAX_MIRROR_SESSION_ID)
+        {
+            sessions_map[mirror_id] = config;
+            NS_LOG_INFO("Session added with mirror_id=" << mirror_id);
+            return true;
+        }
+        else
+        {
+            NS_LOG_ERROR("mirror_id out of range. No session added.");
+            return false;
+        }
+    }
+
+    bool delete_session(int mirror_id)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        if (0 <= mirror_id && mirror_id <= RegisterAccess::MAX_MIRROR_SESSION_ID)
+        {
+            bool erased = sessions_map.erase(mirror_id) == 1;
+            if (erased)
+            {
+                NS_LOG_INFO("Session deleted with mirror_id=" << mirror_id);
+            }
+            else
+            {
+                NS_LOG_WARN("No session found for mirror_id=" << mirror_id);
+            }
+            return erased;
+        }
+        else
+        {
+            NS_LOG_ERROR("mirror_id out of range. No session deleted.");
+            return false;
+        }
+    }
+
+    bool get_session(int mirror_id, MirroringSessionConfig* config) const
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        auto it = sessions_map.find(mirror_id);
+        if (it == sessions_map.end())
+        {
+            NS_LOG_WARN("No session found for mirror_id=" << mirror_id);
+            return false;
+        }
+        *config = it->second;
+        NS_LOG_INFO("Session retrieved for mirror_id=" << mirror_id);
+        return true;
+    }
+
+  private:
+    mutable std::mutex mutex;
+    std::unordered_map<int, MirroringSessionConfig> sessions_map;
+};
+
+P4CoreV1model::P4CoreV1model(P4SwitchNetDevice* net_device,
+                             bool enable_swap,
+                             bool enableTracing,
+                             uint64_t packet_rate,
+                             size_t input_buffer_size_low,
+                             size_t input_buffer_size_high,
+                             size_t queue_buffer_size,
+                             port_t drop_port,
+                             size_t nb_queues_per_port)
+    : bm::Switch(enable_swap),
+      m_enableTracing(enableTracing),
+      m_dropPort(drop_port),
       m_nbQueuesPerPort(nb_queues_per_port),
-      input_buffer(std::make_unique<InputBuffer>(input_buffer_size_low, input_buffer_size_high)),
+      m_switchRate(packet_rate),
+      m_startTimestamp(Simulator::Now().GetNanoSeconds()),
+      input_buffer(new InputBuffer(input_buffer_size_low /* normal capacity */,
+                                   input_buffer_size_high /* resubmit/recirc capacity */)),
       egress_buffer(m_nbEgressThreads,
                     queue_buffer_size,
                     EgressThreadMapper(m_nbEgressThreads),
                     nb_queues_per_port),
-      output_buffer(64),
+      output_buffer(SSWITCH_OUTPUT_BUFFER_SIZE),
+      m_pre(new bm::McSimplePreLAG()),
+      m_mirroringSessions(new MirroringSessions()),
       m_firstPacket(false)
-{
-    // configure for the switch v1model
-    m_thriftCommand = "simple_switch_CLI"; // default thrift command for v1model
-    m_enableQueueingMetadata = true;       // enable queueing metadata for v1model
 
+{
+    NS_LOG_FUNCTION(this << " Switch ID Drop port: " << m_dropPort
+                         << " Queues per port: " << m_nbQueuesPerPort);
+    NS_LOG_DEBUG("Creating P4CoreV1model with drop port "
+                 << m_dropPort << " and " << m_nbQueuesPerPort << " queues per port");
+
+    m_packetId = 0;
     if (m_enableTracing)
     {
         m_packetsPerTimeInterval = 0;
@@ -96,7 +191,6 @@ P4CoreV1modelDev::P4CoreV1modelDev(P4SwitchNetDevice* net_device,
         m_timeInterval = Time::FromInteger(1, Time::S); // 1 second per interval
     }
 
-    m_pre = std::make_shared<bm::McSimplePreLAG>();
     add_component<bm::McSimplePreLAG>(m_pre);
 
     add_required_field("standard_metadata", "ingress_port");
@@ -109,33 +203,140 @@ P4CoreV1modelDev::P4CoreV1modelDev(P4SwitchNetDevice* net_device,
     force_arith_header("queueing_metadata");
     force_arith_header("intrinsic_metadata");
 
-    CalculateScheduleTime(); // calculate the time interval for processing one packet
+    static int switch_id = 1;
+    m_p4SwitchId = switch_id++;
+    NS_LOG_INFO("Init P4 Switch with ID: " << m_p4SwitchId);
+
+    m_switchNetDevice = net_device;
+
+    CalculateScheduleTime();
 }
 
-P4CoreV1modelDev::~P4CoreV1modelDev()
+P4CoreV1model::~P4CoreV1model()
 {
-    NS_LOG_FUNCTION(this << " Destructing P4CoreV1modelDev...");
-
-    if (input_buffer)
-    {
-        input_buffer->push_front(InputBuffer::PacketType::SENTINEL, nullptr);
-    }
-
+    input_buffer->push_front(InputBuffer::PacketType::SENTINEL, nullptr);
     for (size_t i = 0; i < m_nbEgressThreads; i++)
     {
+        // The push_front call is called inside a while loop because there is no
+        // guarantee that the sentinel was enqueued otherwise. It should not be an
+        // issue because at this stage the ingress thread has been sent a signal to
+        // stop, and only egress clones can be sent to the buffer.
         while (egress_buffer.push_front(i, 0, nullptr) == 0)
-        {
             continue;
-        }
     }
-
     output_buffer.push_front(nullptr);
-
-    NS_LOG_INFO("P4CoreV1modelDev destroyed successfully.");
 }
 
 void
-P4CoreV1modelDev::start_and_return_()
+P4CoreV1model::InitSwitchWithP4(std::string jsonPath, std::string flowTablePath)
+{
+    NS_LOG_FUNCTION(this); // Log function entry
+
+    int status = 0; // Status flag for initialization
+
+    NS_LOG_INFO("Initializing P4CoreV1model.");
+
+    static int p4_switch_ctrl_plane_thrift_port = 9090;
+    m_thriftPort = p4_switch_ctrl_plane_thrift_port;
+
+    bm::OptionsParser opt_parser;
+    opt_parser.config_file_path = jsonPath;
+    opt_parser.debugger_addr = "ipc:///tmp/bmv2-v1model-" +
+                               std::to_string(p4_switch_ctrl_plane_thrift_port) + "-debug.ipc";
+    opt_parser.notifications_addr = "ipc:///tmp/bmv2-v1model-" +
+                                    std::to_string(p4_switch_ctrl_plane_thrift_port) +
+                                    "-notifications.ipc";
+    opt_parser.file_logger =
+        "/tmp/bmv2-v1model-" + std::to_string(p4_switch_ctrl_plane_thrift_port) + "-pipeline.log";
+    opt_parser.thrift_port = p4_switch_ctrl_plane_thrift_port++;
+    opt_parser.console_logging = false;
+
+    // Initialize the switch
+    status = 0;
+    status = init_from_options_parser(opt_parser);
+    if (status != 0)
+    {
+        NS_LOG_ERROR("Failed to initialize P4CoreV1model.");
+        return; // Avoid exiting simulation
+    }
+
+    // Start the runtime server
+    int port = get_runtime_port();
+    bm_runtime::start_server(this, port);
+
+    // Execute CLI command to populate the flow table
+    std::string cmd = "simple_switch_CLI --thrift-port " + std::to_string(port) + " < " +
+                      flowTablePath + " > /dev/null 2>&1";
+
+    int result = std::system(cmd.c_str());
+
+    // sleep for 2 second to avoid the server not ready
+    sleep(2);
+    if (result != 0)
+    {
+        NS_LOG_ERROR("Error executing flow table population command: " << cmd);
+    }
+
+    NS_LOG_INFO("P4CoreV1model initialization completed successfully.");
+}
+
+int
+P4CoreV1model::InitFromCommandLineOptions(int argc, char* argv[])
+{
+    bm::OptionsParser parser;
+    parser.parse(argc, argv, m_argParser);
+
+    // create a dummy transport
+    std::shared_ptr<bm::TransportIface> transport =
+        std::shared_ptr<bm::TransportIface>(bm::TransportIface::make_dummy());
+
+    int status = 0;
+    if (parser.no_p4)
+        // with out p4-json, acctually the switch will wait for the
+        // configuration(p4-json) before work
+        status = init_objects_empty(parser.device_id, transport);
+    else
+        // load p4 configuration files xxxx.json to switch
+        status = init_objects(parser.config_file_path, parser.device_id, transport);
+    return status;
+}
+
+void
+P4CoreV1model::RunCli(const std::string& commandsFile)
+{
+    NS_LOG_FUNCTION(this << " Switch ID: " << m_p4SwitchId << " Running CLI commands from "
+                         << commandsFile);
+
+    int port = get_runtime_port();
+    bm_runtime::start_server(this, port);
+    // start_and_return ();
+    NS_LOG_DEBUG("Switch ID: " << m_p4SwitchId << " Waiting for the runtime server to start");
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+
+    // Run the CLI commands to populate table entries
+    std::string cmd = "run_bmv2_CLI --thrift_port " + std::to_string(port) + " " + commandsFile;
+    int res = std::system(cmd.c_str());
+    (void)res;
+}
+
+int
+P4CoreV1model::receive_(uint32_t port_num, const char* buffer, int len)
+{
+    NS_LOG_FUNCTION(this << " Switch ID: " << m_p4SwitchId << " Port: " << port_num
+                         << " Len: " << len);
+    return 0;
+}
+
+void
+P4CoreV1model::EnableTracing()
+{
+    NS_LOG_FUNCTION(this << " Switch ID: " << m_p4SwitchId);
+    NS_LOG_INFO("Enabling tracing in all P4 Switches.");
+    m_enableTracing = true;
+}
+
+void
+P4CoreV1model::start_and_return_()
 {
     NS_LOG_FUNCTION("Switch ID: " << m_p4SwitchId << " start");
     CheckQueueingMetadata();
@@ -146,23 +347,23 @@ P4CoreV1modelDev::start_and_return_()
                                    << " Scheduling initial timer event using m_egressTimeRef = "
                                    << m_egressTimeRef.GetNanoSeconds() << " ns");
         m_egressTimeEvent =
-            Simulator::Schedule(m_egressTimeRef, &P4CoreV1modelDev::SetEgressTimerEvent, this);
+            Simulator::Schedule(m_egressTimeRef, &P4CoreV1model::SetEgressTimerEvent, this);
     }
 
     if (m_enableTracing)
     {
         NS_LOG_INFO("Enabling tracing in P4 Switch ID: " << m_p4SwitchId);
-        Simulator::Schedule(m_timeInterval, &P4CoreV1modelDev::CalculatePacketsPerSecond, this);
+        Simulator::Schedule(m_timeInterval, &P4CoreV1model::CalculatePacketsPerSecond, this);
     }
 }
 
 void
-P4CoreV1modelDev::SetEgressTimerEvent()
+P4CoreV1model::SetEgressTimerEvent()
 {
     NS_LOG_FUNCTION("p4_switch has been triggered by the egress timer event");
-    bool checkflag = HandleEgressPipeline(0);
+    bool checkflag = ProcessEgress(0);
     m_egressTimeEvent =
-        Simulator::Schedule(m_egressTimeRef, &P4CoreV1modelDev::SetEgressTimerEvent, this);
+        Simulator::Schedule(m_egressTimeRef, &P4CoreV1model::SetEgressTimerEvent, this);
     if (!m_firstPacket && checkflag)
     {
         m_firstPacket = true;
@@ -170,18 +371,97 @@ P4CoreV1modelDev::SetEgressTimerEvent()
     if (m_firstPacket && !checkflag)
     {
         NS_LOG_INFO("Egress timer event needs additional scheduling due to !checkflag.");
-        Simulator::Schedule(Time(NanoSeconds(10)),
-                            &P4CoreV1modelDev::HandleEgressPipeline,
-                            this,
-                            0);
+        Simulator::Schedule(Time(NanoSeconds(10)), &P4CoreV1model::ProcessEgress, this, 0);
     }
 }
 
+void
+P4CoreV1model::CalculatePacketsPerSecond()
+{
+    NS_LOG_FUNCTION(this);
+    m_packetsPerTimeInterval = m_packetId - m_packetsPerTimeInterval;
+    m_totalPakcketsNum += m_packetsPerTimeInterval;
+    m_packetId = 0;
+
+    m_totalPacketRate = m_bitsPerTimeInterval;
+    m_bitsPerTimeInterval = 0;
+
+    NS_LOG_INFO("Packets per time interval: " << m_packetsPerTimeInterval << " [pps]");
+    NS_LOG_INFO("Total packets: " << m_totalPakcketsNum << " [pps]");
+    NS_LOG_INFO("Total packet rate: " << m_totalPacketRate << " [bps]");
+
+    Simulator::Schedule(m_timeInterval, &P4CoreV1model::CalculatePacketsPerSecond, this);
+}
+
+uint64_t
+P4CoreV1model::GetTimeStamp()
+{
+    return Simulator::Now().GetNanoSeconds() - m_startTimestamp;
+}
+
+void
+P4CoreV1model::swap_notify_()
+{
+    NS_LOG_FUNCTION("p4_switch has been notified of a config swap");
+    CheckQueueingMetadata();
+}
+
+void
+P4CoreV1model::CheckQueueingMetadata()
+{
+    // TODO(antonin): add qid in required fields
+    bool enq_timestamp_e = field_exists("queueing_metadata", "enq_timestamp");
+    bool enq_qdepth_e = field_exists("queueing_metadata", "enq_qdepth");
+    bool deq_timedelta_e = field_exists("queueing_metadata", "deq_timedelta");
+    bool deq_qdepth_e = field_exists("queueing_metadata", "deq_qdepth");
+    if (enq_timestamp_e || enq_qdepth_e || deq_timedelta_e || deq_qdepth_e)
+    {
+        if (enq_timestamp_e && enq_qdepth_e && deq_timedelta_e && deq_qdepth_e)
+        {
+            m_enableQueueingMetadata = true;
+            return;
+        }
+        else
+        {
+            NS_LOG_WARN("Switch ID: " << m_p4SwitchId
+                                      << " Your JSON input defines some but not all "
+                                         "queueing metadata fields");
+        }
+    }
+    else
+    {
+        NS_LOG_WARN(
+            "Switch ID: " << m_p4SwitchId
+                          << " Your JSON input does not define any queueing metadata fields");
+    }
+    m_enableQueueingMetadata = false;
+}
+
+void
+P4CoreV1model::reset_target_state_()
+{
+    NS_LOG_DEBUG("Resetting simple_switch target-specific state");
+    get_component<bm::McSimplePreLAG>()->reset_state();
+}
+
+void
+P4CoreV1model::CalculateScheduleTime()
+{
+    m_egressTimeEvent = EventId();
+
+    uint64_t bottleneck_ns = 1e9 / m_switchRate;
+    egress_buffer.set_rate_for_all(m_switchRate);
+    m_egressTimeRef = Time::FromDouble(bottleneck_ns, Time::NS);
+
+    NS_LOG_DEBUG("Switch ID: " << m_p4SwitchId << " Egress time reference set to " << bottleneck_ns
+                               << " ns (" << m_egressTimeRef.GetNanoSeconds() << " [ns])");
+}
+
 int
-P4CoreV1modelDev::ReceivePacket(Ptr<Packet> packetIn,
-                                int inPort,
-                                uint16_t protocol,
-                                const Address& destination)
+P4CoreV1model::ReceivePacket(Ptr<Packet> packetIn,
+                             int inPort,
+                             uint16_t protocol,
+                             const Address& destination)
 {
     NS_LOG_FUNCTION(this);
 
@@ -227,14 +507,42 @@ P4CoreV1modelDev::ReceivePacket(Ptr<Packet> packetIn,
     }
 
     input_buffer->push_front(InputBuffer::PacketType::NORMAL, std::move(bm_packet));
-    HandleIngressPipeline();
-    NS_LOG_DEBUG("Packet received by P4CoreV1modelDev, Port: "
+    ProcessIngress();
+    NS_LOG_DEBUG("Packet received by P4CoreV1model, Port: "
                  << inPort << ", Packet ID: " << m_packetId << ", Size: " << len << " bytes");
     return 0;
 }
 
 void
-P4CoreV1modelDev::HandleIngressPipeline()
+P4CoreV1model::Enqueue(port_t egress_port, std::unique_ptr<bm::Packet>&& packet)
+{
+    packet->set_egress_port(egress_port);
+
+    bm::PHV* phv = packet->get_phv();
+
+    if (m_enableQueueingMetadata)
+    {
+        phv->get_field("queueing_metadata.enq_timestamp").set(GetTimeStamp());
+        phv->get_field("queueing_metadata.enq_qdepth").set(egress_buffer.size(egress_port));
+    }
+
+    size_t priority = phv->has_field("intrinsic_metadata.priority")
+                          ? phv->get_field("intrinsic_metadata.priority").get<size_t>()
+                          : 0u;
+    if (priority >= m_nbQueuesPerPort)
+    {
+        NS_LOG_ERROR("Priority out of range, dropping packet");
+        return;
+    }
+
+    egress_buffer.push_front(egress_port, m_nbQueuesPerPort - 1 - priority, std::move(packet));
+
+    NS_LOG_DEBUG("Packet enqueued in P4QueueDisc, Port: " << egress_port
+                                                          << ", Priority: " << priority);
+}
+
+void
+P4CoreV1model::ProcessIngress()
 {
     NS_LOG_FUNCTION(this);
 
@@ -380,7 +688,7 @@ P4CoreV1modelDev::HandleIngressPipeline()
         phv_copy->get_field("standard_metadata.packet_length").set(ingress_packet_size);
 
         input_buffer->push_front(InputBuffer::PacketType::RESUBMIT, std::move(bm_packet_copy));
-        HandleIngressPipeline();
+        ProcessIngress();
         return;
     }
 
@@ -407,49 +715,18 @@ P4CoreV1modelDev::HandleIngressPipeline()
     auto& f_instance_type = phv->get_field("standard_metadata.instance_type");
     f_instance_type.set(PKT_INSTANCE_TYPE_NORMAL);
 
-    NS_LOG_DEBUG("Packet ID: " << bm_packet->get_packet_id()
-                               << ", Size: " << bm_packet->get_data_size()
-                               << " bytes, Egress Port: " << egress_port);
     Enqueue(egress_port, std::move(bm_packet));
 }
 
-void
-P4CoreV1modelDev::Enqueue(uint32_t egress_port, std::unique_ptr<bm::Packet>&& packet)
-{
-    packet->set_egress_port(egress_port);
-
-    bm::PHV* phv = packet->get_phv();
-
-    if (m_enableQueueingMetadata)
-    {
-        phv->get_field("queueing_metadata.enq_timestamp").set(GetTimeStamp());
-        phv->get_field("queueing_metadata.enq_qdepth").set(egress_buffer.size(egress_port));
-    }
-
-    size_t priority = phv->has_field("intrinsic_metadata.priority")
-                          ? phv->get_field("intrinsic_metadata.priority").get<size_t>()
-                          : 0u;
-    if (priority >= m_nbQueuesPerPort)
-    {
-        NS_LOG_ERROR("Priority out of range, dropping packet");
-        return;
-    }
-
-    egress_buffer.push_front(egress_port, m_nbQueuesPerPort - 1 - priority, std::move(packet));
-
-    NS_LOG_DEBUG("Packet enqueued in queue buffer with Port: " << egress_port
-                                                               << ", Priority: " << priority);
-}
-
 bool
-P4CoreV1modelDev::HandleEgressPipeline(size_t workerId)
+P4CoreV1model::ProcessEgress(size_t worker_id)
 {
-    NS_LOG_FUNCTION("HandleEgressPipeline");
+    NS_LOG_FUNCTION("Dequeue packet from QueueBuffer");
     std::unique_ptr<bm::Packet> bm_packet;
     size_t port;
     size_t priority;
 
-    int queue_number = SSWITCH_VIRTUAL_QUEUE_NUM_V1MODEL_DEV;
+    int queue_number = SSWITCH_VIRTUAL_QUEUE_NUM;
 
     for (int i = 0; i < queue_number; i++)
     {
@@ -463,7 +740,7 @@ P4CoreV1modelDev::HandleEgressPipeline(size_t workerId)
         }
     }
 
-    egress_buffer.pop_back(workerId, &port, &priority, &bm_packet);
+    egress_buffer.pop_back(worker_id, &port, &priority, &bm_packet);
     if (bm_packet == nullptr)
         return false;
 
@@ -597,27 +874,36 @@ P4CoreV1modelDev::HandleEgressPipeline(size_t workerId)
     int addr_index = RegisterAccess::get_ns_address(bm_packet.get());
 
     Ptr<Packet> ns_packet = this->ConvertToNs3Packet(std::move(bm_packet));
-    NS_LOG_DEBUG("Sending packet to NS-3 stack, Packet ID: " << ns_packet->GetUid() << ", Size: "
-                                                             << ns_packet->GetSize() << " bytes");
     m_switchNetDevice->SendNs3Packet(ns_packet, port, protocol, m_destinationList[addr_index]);
     return true;
 }
 
-void
-P4CoreV1modelDev::CalculateScheduleTime()
+Ptr<Packet>
+P4CoreV1model::ConvertToNs3Packet(std::unique_ptr<bm::Packet>&& bm_packet)
 {
-    m_egressTimeEvent = EventId();
+    // Create a new ns3::Packet using the data buffer
+    char* bm_buf = bm_packet.get()->data();
+    size_t len = bm_packet.get()->get_data_size();
+    Ptr<Packet> ns_packet = Create<Packet>((uint8_t*)(bm_buf), len);
 
-    uint64_t bottleneck_ns = 1e9 / m_switchRate;
-    egress_buffer.set_rate_for_all(m_switchRate);
-    m_egressTimeRef = Time::FromDouble(bottleneck_ns, Time::NS);
-
-    NS_LOG_DEBUG("Switch ID: " << m_p4SwitchId << " Egress time reference set to " << bottleneck_ns
-                               << " ns (" << m_egressTimeRef.GetNanoSeconds() << " [ns])");
+    return ns_packet;
 }
 
 void
-P4CoreV1modelDev::MulticastPacket(bm::Packet* packet, unsigned int mgid)
+P4CoreV1model::CopyFieldList(const std::unique_ptr<bm::Packet>& packet,
+                             const std::unique_ptr<bm::Packet>& packet_copy,
+                             PktInstanceType copy_type,
+                             int field_list_id)
+{
+    bm::PHV* phv_copy = packet_copy->get_phv();
+    phv_copy->reset_metadata();
+    bm::FieldList* field_list = this->get_field_list(field_list_id);
+    field_list->copy_fields_between_phvs(phv_copy, packet->get_phv());
+    phv_copy->get_field("standard_metadata.instance_type").set(copy_type);
+}
+
+void
+P4CoreV1model::MulticastPacket(bm::Packet* packet, unsigned int mgid)
 {
     NS_LOG_FUNCTION(this);
     auto* phv = packet->get_phv();
@@ -636,35 +922,95 @@ P4CoreV1modelDev::MulticastPacket(bm::Packet* packet, unsigned int mgid)
     }
 }
 
-void
-P4CoreV1modelDev::CalculatePacketsPerSecond()
+bool
+P4CoreV1model::AddMirroringSession(int mirror_id, const MirroringSessionConfig& config)
 {
-    NS_LOG_FUNCTION(this);
-    m_packetsPerTimeInterval = m_packetId - m_packetsPerTimeInterval;
-    m_totalPakcketsNum += m_packetsPerTimeInterval;
-    m_packetId = 0;
+    return m_mirroringSessions->add_session(mirror_id, config);
+}
 
-    m_totalPacketRate = m_bitsPerTimeInterval;
-    m_bitsPerTimeInterval = 0;
+bool
+P4CoreV1model::DeleteMirroringSession(int mirror_id)
+{
+    return m_mirroringSessions->delete_session(mirror_id);
+}
 
-    NS_LOG_INFO("Packets per time interval: " << m_packetsPerTimeInterval << " [pps]");
-    NS_LOG_INFO("Total packets: " << m_totalPakcketsNum << " [pps]");
-    NS_LOG_INFO("Total packet rate: " << m_totalPacketRate << " [bps]");
+bool
+P4CoreV1model::GetMirroringSession(int mirror_id, MirroringSessionConfig* config) const
+{
+    return m_mirroringSessions->get_session(mirror_id, config);
+}
 
-    Simulator::Schedule(m_timeInterval, &P4CoreV1modelDev::CalculatePacketsPerSecond, this);
+int
+P4CoreV1model::SetEgressPriorityQueueDepth(size_t port, size_t priority, const size_t depth_pkts)
+{
+    egress_buffer.set_capacity(port, priority, depth_pkts);
+    return 0;
+}
+
+int
+P4CoreV1model::SetEgressQueueDepth(size_t port, const size_t depth_pkts)
+{
+    egress_buffer.set_capacity(port, depth_pkts);
+    return 0;
+}
+
+int
+P4CoreV1model::SetAllEgressQueueDepths(const size_t depth_pkts)
+{
+    egress_buffer.set_capacity_for_all(depth_pkts);
+    return 0;
+}
+
+int
+P4CoreV1model::SetEgressPriorityQueueRate(size_t port, size_t priority, const uint64_t rate_pps)
+{
+    egress_buffer.set_rate(port, priority, rate_pps);
+    return 0;
+}
+
+int
+P4CoreV1model::SetEgressQueueRate(size_t port, const uint64_t rate_pps)
+{
+    egress_buffer.set_rate(port, rate_pps);
+    return 0;
+}
+
+int
+P4CoreV1model::SetAllEgressQueueRates(const uint64_t rate_pps)
+{
+    egress_buffer.set_rate_for_all(rate_pps);
+    return 0;
+}
+
+int
+P4CoreV1model::GetAddressIndex(const Address& destination)
+{
+    auto it = m_addressMap.find(destination);
+    if (it != m_addressMap.end())
+    {
+        return it->second;
+    }
+    else
+    {
+        int new_index = m_destinationList.size();
+        m_destinationList.push_back(destination);
+        m_addressMap[destination] = new_index;
+        return new_index;
+    }
 }
 
 void
-P4CoreV1modelDev::CopyFieldList(const std::unique_ptr<bm::Packet>& packet,
-                                const std::unique_ptr<bm::Packet>& packetCopy,
-                                PktInstanceType copyType,
-                                int fieldListId)
+P4CoreV1model::PrintSwitchConfig()
 {
-    bm::PHV* phv_copy = packetCopy->get_phv();
-    phv_copy->reset_metadata();
-    bm::FieldList* field_list = this->get_field_list(fieldListId);
-    field_list->copy_fields_between_phvs(phv_copy, packet->get_phv());
-    phv_copy->get_field("standard_metadata.instance_type").set(copyType);
+    std::cout << "\n========== Switch Configuration ==========\n";
+    std::cout << "Thrift Port:             " << get_runtime_port() << "\n";
+    std::cout << "Switch ID:               " << m_p4SwitchId << "\n";
+    std::cout << "Drop Port:               " << static_cast<int>(m_dropPort) << "\n";
+    std::cout << "Queues Per Port:         " << m_nbQueuesPerPort << "\n";
+    std::cout << "Queueing Metadata:       " << (m_enableQueueingMetadata ? "Enabled" : "Disabled")
+              << "\n";
+    std::cout << "Packet Processing Rate:  " << m_switchRate << " PPS\n";
+    std::cout << "Start Timestamp:         " << m_startTimestamp << "\n";
 }
 
 } // namespace ns3

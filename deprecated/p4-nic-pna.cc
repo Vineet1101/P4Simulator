@@ -16,25 +16,34 @@
  * Modified: Mingyu Ma <mingyu.ma@tu-dresden.de>
  */
 
+#include "ns3/log.h"
 #include "ns3/p4-nic-pna.h"
-#include "ns3/p4-switch-net-device.h"
 #include "ns3/register_access.h"
 #include "ns3/simulator.h"
+
+#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_OFF
+#include <bm/spdlog/spdlog.h>
+#undef LOG_INFO
+#undef LOG_ERROR
+#undef LOG_DEBUG
+
+#include <bm/bm_runtime/bm_runtime.h>
+#include <bm/bm_sim/options_parse.h>
+#include <bm/bm_sim/parser.h>
+#include <bm/bm_sim/tables.h>
 
 NS_LOG_COMPONENT_DEFINE("P4CorePna");
 
 namespace ns3
 {
 
-P4PnaNic::P4PnaNic(P4SwitchNetDevice* net_device, bool enable_swap)
-    : P4SwitchCore(net_device, enable_swap, false),
-      m_packetId(0),
-      input_buffer(1024)
-{
-    // configure for the switch pna
-    m_thriftCommand = "";             // default thrift command for pna
-    m_enableQueueingMetadata = false; // enable queueing metadata for pna
+uint64_t P4PnaNic::packet_id = 0;
 
+P4PnaNic::P4PnaNic(P4SwitchNetDevice* net_device, bool enable_swap)
+    : bm::Switch(enable_swap),
+      input_buffer(1024),
+      start_timestamp(Simulator::Now().GetNanoSeconds())
+{
     add_required_field("pna_main_parser_input_metadata", "recirculated");
     add_required_field("pna_main_parser_input_metadata", "input_port");
 
@@ -49,11 +58,32 @@ P4PnaNic::P4PnaNic(P4SwitchNetDevice* net_device, bool enable_swap)
     force_arith_header("pna_main_parser_input_metadata");
     force_arith_header("pna_main_input_metadata");
     force_arith_header("pna_main_output_metadata");
+
+    m_packetId = 0;
+
+    static int switch_id = 1;
+    m_p4SwitchId = switch_id++;
+    NS_LOG_INFO("Init P4 Switch with ID: " << m_p4SwitchId);
+
+    m_switchNetDevice = net_device;
 }
 
 P4PnaNic::~P4PnaNic()
 {
     input_buffer.push_front(nullptr);
+}
+
+void
+P4PnaNic::reset_target_state_()
+{
+    NS_LOG_FUNCTION(this);
+    get_component<bm::McSimplePreLAG>()->reset_state();
+}
+
+uint64_t
+P4PnaNic::GetTimeStamp()
+{
+    return Simulator::Now().GetNanoSeconds() - start_timestamp;
 }
 
 bool
@@ -114,7 +144,7 @@ P4PnaNic::ReceivePacket(Ptr<Packet> packetIn,
     // be more than enough
     bm::PacketBuffer buffer(len + 512, (char*)pkt_buffer, len);
     std::unique_ptr<bm::Packet> bm_packet =
-        new_packet_ptr(inPort, m_packetId++, len, std::move(buffer));
+        new_packet_ptr(inPort, packet_id++, len, std::move(buffer));
     delete[] pkt_buffer;
 
     bm::PHV* phv = bm_packet->get_phv();
@@ -154,34 +184,93 @@ P4PnaNic::start_and_return_()
     NS_LOG_FUNCTION(this);
 }
 
-void
-P4PnaNic::reset_target_state_()
+Ptr<Packet>
+P4PnaNic::ConvertToNs3Packet(std::unique_ptr<bm::Packet>&& bm_packet)
 {
-    NS_LOG_FUNCTION(this);
-    get_component<bm::McSimplePreLAG>()->reset_state();
+    // Create a new ns3::Packet using the data buffer
+    char* bm_buf = bm_packet.get()->data();
+    size_t len = bm_packet.get()->get_data_size();
+    Ptr<Packet> ns_packet = Create<Packet>((uint8_t*)(bm_buf), len);
+
+    return ns_packet;
+}
+
+int
+P4PnaNic::GetAddressIndex(const Address& destination)
+{
+    auto it = m_addressMap.find(destination);
+    if (it != m_addressMap.end())
+    {
+        return it->second;
+    }
+    else
+    {
+        int new_index = m_destinationList.size();
+        m_destinationList.push_back(destination);
+        m_addressMap[destination] = new_index;
+        return new_index;
+    }
 }
 
 void
-P4PnaNic::HandleIngressPipeline()
+P4PnaNic::InitSwitchWithP4(std::string jsonPath, std::string flowTablePath)
 {
-    NS_LOG_FUNCTION(this);
-    NS_LOG_DEBUG(
-        "Dummy functions for handling ingress pipeline, use main_processing_pipeline instead");
-}
+    NS_LOG_FUNCTION(this); // Log function entry
 
-bool
-P4PnaNic::HandleEgressPipeline(size_t workerId)
-{
-    NS_LOG_FUNCTION(this);
-    NS_LOG_DEBUG(
-        "Dummy functions for handling egress pipeline, use main_processing_pipeline instead");
-    return false;
-}
+    int status = 0; // Status flag for initialization
 
-void
-P4PnaNic::Enqueue(uint32_t egress_port, std::unique_ptr<bm::Packet>&& packet)
-{
-    NS_LOG_WARN("NO inter queue buffer in PNA, use main_processing_pipeline instead");
+    /**
+     * @brief NS3PIFOTM mode initializes the switch using a JSON file in jsonPath
+     * and populates the flow table entry in flowTablePath.
+     */
+    NS_LOG_INFO("Initializing p4 PNA with options parser.");
+
+    static int p4_switch_ctrl_plane_thrift_port = 9090;
+    m_thriftPort = p4_switch_ctrl_plane_thrift_port;
+
+    bm::OptionsParser opt_parser;
+
+    opt_parser.config_file_path = jsonPath;
+    opt_parser.debugger_addr =
+        "ipc:///tmp/bmv2-pna-" + std::to_string(p4_switch_ctrl_plane_thrift_port) + "-debug.ipc";
+    opt_parser.notifications_addr = "ipc:///tmp/bmv2-pna-" +
+                                    std::to_string(p4_switch_ctrl_plane_thrift_port) +
+                                    "-notifications.ipc";
+    opt_parser.file_logger =
+        "/tmp/bmv2-pna-" + std::to_string(p4_switch_ctrl_plane_thrift_port) + "-pipeline.log";
+    opt_parser.thrift_port = p4_switch_ctrl_plane_thrift_port++;
+    opt_parser.console_logging = false;
+
+    status = 0;
+    status = init_from_options_parser(opt_parser);
+    if (status != 0)
+    {
+        NS_LOG_ERROR("Failed to initialize p4 PNA with options parser.");
+        return; // Avoid exiting simulation
+    }
+
+    if (flowTablePath != "")
+    {
+        NS_LOG_WARN("Flow table path now is not supported in PNA ARCH.");
+        // // Start the runtime server
+        // int port = get_runtime_port();
+        // bm_runtime::start_server(this, port);
+
+        // // Execute CLI command to populate the flow table
+        // std::string cmd = "psa_switch_CLI --thrift-port " + std::to_string(port) + " < " +
+        //                   flowTablePath + " > /dev/null 2>&1";
+        // int result = std::system(cmd.c_str());
+
+        // // sleep for 2 second to avoid the server not ready
+        // sleep(2);
+
+        // if (result != 0)
+        // {
+        //     NS_LOG_ERROR("Error executing flow table population command: " << cmd);
+        // }
+    }
+
+    NS_LOG_INFO("P4 PNA initialization completed successfully.");
 }
 
 } // namespace ns3

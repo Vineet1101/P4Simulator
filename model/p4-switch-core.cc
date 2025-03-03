@@ -194,6 +194,12 @@ P4SwitchCore::ExecuteCliCommands(const std::string& commandsFile)
     NS_LOG_FUNCTION(this << " Switch ID: " << m_p4SwitchId << " Running CLI commands from "
                          << commandsFile);
 
+    if (m_thriftCommand.empty())
+    {
+        NS_LOG_ERROR("Thrift command not set for switch ID: " << m_p4SwitchId);
+        return 1;
+    }
+
     // Check if the commands file exists
     std::ifstream infile(commandsFile);
     if (!infile.good())

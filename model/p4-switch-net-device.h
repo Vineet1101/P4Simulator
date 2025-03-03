@@ -45,8 +45,7 @@ namespace ns3
 #define P4SWITCH_ARCH_PIPELINE 3
 
 class Node;
-// class P4CoreV1model;
-class P4CoreV1modelDev;
+class P4CoreV1model;
 class P4CorePsa;
 class P4PnaNic;
 class P4CorePipeline;
@@ -219,13 +218,12 @@ class P4SwitchNetDevice : public NetDevice
     uint32_t m_switchArch; //!< Switch architecture type
 
     // === P4 configuration and initialization ===
-    std::string m_jsonPath;      //!< Path to the P4 JSON configuration file.
-    std::string m_flowTablePath; //!< Path to the flow table file.
-    P4CoreV1modelDev* m_devP4Switch;
-    // P4CoreV1model* m_p4Switch;    //!< P4 switch core
-    P4CorePipeline* m_p4Pipeline; //!< P4 pipeline core
-    P4CorePsa* m_psaSwitch;       //!< PSA switch core
-    P4PnaNic* m_pnaNic;           //!< PNA NIC core
+    std::string m_jsonPath;         //!< Path to the P4 JSON configuration file.
+    std::string m_flowTablePath;    //!< Path to the flow table file.
+    P4CoreV1model* m_v1modelSwitch; //!< V1model switch core
+    P4CorePipeline* m_p4Pipeline;   //!< P4 pipeline core
+    P4CorePsa* m_psaSwitch;         //!< PSA switch core
+    P4PnaNic* m_pnaNic;             //!< PNA NIC core
 
     // === Buffer and queue configuration ===
     size_t m_InputBufferSizeLow;  //!< Input buffer normal packets(low priority) size

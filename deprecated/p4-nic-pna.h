@@ -20,12 +20,22 @@
 #define P4_NIC_PNA_H
 
 #include "ns3/p4-queue.h"
-#include "ns3/p4-switch-core.h"
+#include "ns3/p4-switch-net-device.h"
+#include "ns3/packet.h"
+
+#include <bm/bm_sim/packet.h>
+#include <bm/bm_sim/queue.h>
+#include <bm/bm_sim/queueing.h>
+#include <bm/bm_sim/simple_pre_lag.h>
+#include <bm/bm_sim/switch.h>
+#include <vector>
 
 namespace ns3
 {
 
-class P4PnaNic : public P4SwitchCore
+class P4SwitchNetDevice;
+
+class P4PnaNic : public bm::Switch
 {
   public:
     // by default, swapping is off
@@ -33,7 +43,37 @@ class P4PnaNic : public P4SwitchCore
 
     ~P4PnaNic();
 
-    enum PktInstanceTypePna
+    int receive_(port_t port_num, const char* buffer, int len) override;
+
+    void start_and_return_() override;
+
+    void reset_target_state_() override;
+
+    bool main_processing_pipeline();
+
+    uint64_t GetTimeStamp();
+
+    int ReceivePacket(Ptr<Packet> packetIn,
+                      int inPort,
+                      uint16_t protocol,
+                      const Address& destination);
+
+    Ptr<Packet> ConvertToNs3Packet(std::unique_ptr<bm::Packet>&& bmPacket);
+
+    int GetAddressIndex(const Address& destination);
+
+    void InitSwitchWithP4(std::string jsonPath, std::string flowTablePath);
+
+    // returns the packet id of most recently received packet.
+    static uint64_t get_packet_id()
+    {
+        return (packet_id - 1);
+    }
+
+  private:
+    static uint64_t packet_id;
+
+    enum PktInstanceType
     {
         FROM_NET_PORT,
         FROM_NET_LOOPEDBACK,
@@ -43,33 +83,22 @@ class P4PnaNic : public P4SwitchCore
         FROM_HOST_RECIRCULATED,
     };
 
-    int receive_(port_t port_num, const char* buffer, int len) override;
-
-    void start_and_return_() override;
-
-    void reset_target_state_() override;
-
-    void HandleIngressPipeline() override;
-    void Enqueue(uint32_t egress_port, std::unique_ptr<bm::Packet>&& packet) override;
-    bool HandleEgressPipeline(size_t workerId) override;
-
-    bool main_processing_pipeline();
-
-    int ReceivePacket(Ptr<Packet> packetIn,
-                      int inPort,
-                      uint16_t protocol,
-                      const Address& destination) override;
-
-  private:
     enum PktDirection
     {
         NET_TO_HOST,
         HOST_TO_NET,
     };
 
+  private:
+    int m_thriftPort;
     uint64_t m_packetId; // Packet ID
+    int m_p4SwitchId;    //!< ID of the switch
+    P4SwitchNetDevice* m_switchNetDevice;
+    std::vector<Address> m_destinationList; //!< List of addresses (O(log n) search)
+    std::map<Address, int> m_addressMap;    //!< Map for fast lookup
 
     bm::Queue<std::unique_ptr<bm::Packet>> input_buffer;
+    uint64_t start_timestamp; //!< Start time of the nic
 };
 
 } // namespace ns3
