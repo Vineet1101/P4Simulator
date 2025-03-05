@@ -625,7 +625,7 @@
       "id" : 0,
       "source_info" : {
         "filename" : "link_monitor.p4",
-        "line" : 332,
+        "line" : 334,
         "column" : 8,
         "source_fragment" : "MyDeparser"
       },
@@ -667,7 +667,7 @@
       "id" : 0,
       "source_info" : {
         "filename" : "link_monitor.p4",
-        "line" : 310,
+        "line" : 312,
         "column" : 8,
         "source_fragment" : "update_checksum( ..."
       },
@@ -1101,7 +1101,7 @@
       ]
     },
     {
-      "name" : "link_monitor278",
+      "name" : "link_monitor279",
       "id" : 8,
       "runtime_data" : [],
       "primitives" : [
@@ -1119,15 +1119,15 @@
           ],
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 278,
-            "column" : 23,
+            "line" : 279,
+            "column" : 27,
             "source_fragment" : "(hdr.probe.isValid()) ? 0 : byte_cnt"
           }
         }
       ]
     },
     {
-      "name" : "link_monitor278_0",
+      "name" : "link_monitor279_0",
       "id" : 9,
       "runtime_data" : [],
       "primitives" : [
@@ -1145,15 +1145,15 @@
           ],
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 278,
-            "column" : 23,
+            "line" : 279,
+            "column" : 27,
             "source_fragment" : "(hdr.probe.isValid()) ? 0 : byte_cnt"
           }
         }
       ]
     },
     {
-      "name" : "link_monitor275",
+      "name" : "link_monitor276",
       "id" : 10,
       "runtime_data" : [],
       "primitives" : [
@@ -1184,8 +1184,8 @@
           ],
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 275,
-            "column" : 36,
+            "line" : 276,
+            "column" : 40,
             "source_fragment" : "(bit<32>)standard_metadata.egress_port"
           }
         },
@@ -1207,8 +1207,8 @@
           ],
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 275,
-            "column" : 8,
+            "line" : 276,
+            "column" : 12,
             "source_fragment" : "byte_cnt_reg.read(byte_cnt, (bit<32>)standard_metadata.egress_port)"
           }
         },
@@ -1249,15 +1249,15 @@
           ],
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 276,
-            "column" : 8,
+            "line" : 277,
+            "column" : 12,
             "source_fragment" : "byte_cnt = byte_cnt + standard_metadata.packet_length"
           }
         }
       ]
     },
     {
-      "name" : "link_monitor286",
+      "name" : "link_monitor287",
       "id" : 11,
       "runtime_data" : [],
       "primitives" : [
@@ -1275,15 +1275,15 @@
           ],
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 286,
-            "column" : 16,
+            "line" : 287,
+            "column" : 20,
             "source_fragment" : "hdr.probe_data[0].bos = 1"
           }
         }
       ]
     },
     {
-      "name" : "link_monitor289",
+      "name" : "link_monitor290",
       "id" : 12,
       "runtime_data" : [],
       "primitives" : [
@@ -1301,15 +1301,15 @@
           ],
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 289,
-            "column" : 16,
+            "line" : 290,
+            "column" : 20,
             "source_fragment" : "hdr.probe_data[0].bos = 0"
           }
         }
       ]
     },
     {
-      "name" : "link_monitor283",
+      "name" : "link_monitor284",
       "id" : 13,
       "runtime_data" : [],
       "primitives" : [
@@ -1327,8 +1327,8 @@
           ],
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 283,
-            "column" : 12,
+            "line" : 284,
+            "column" : 16,
             "source_fragment" : "hdr.probe_data.push_front(1)"
           }
         },
@@ -1342,15 +1342,15 @@
           ],
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 284,
-            "column" : 12,
+            "line" : 285,
+            "column" : 16,
             "source_fragment" : "hdr.probe_data[0].setValid()"
           }
         }
       ]
     },
     {
-      "name" : "link_monitor293",
+      "name" : "link_monitor294",
       "id" : 14,
       "runtime_data" : [],
       "primitives" : [
@@ -1391,8 +1391,8 @@
           ],
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 293,
-            "column" : 12,
+            "line" : 294,
+            "column" : 16,
             "source_fragment" : "hdr.probe_data[0].port = (bit<8>)standard_metadata.egress_port"
           }
         },
@@ -1410,8 +1410,8 @@
           ],
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 294,
-            "column" : 12,
+            "line" : 295,
+            "column" : 16,
             "source_fragment" : "hdr.probe_data[0].byte_cnt = byte_cnt"
           }
         },
@@ -1442,8 +1442,8 @@
           ],
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 296,
-            "column" : 42,
+            "line" : 297,
+            "column" : 46,
             "source_fragment" : "(bit<32>)standard_metadata.egress_port"
           }
         },
@@ -1465,8 +1465,8 @@
           ],
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 296,
-            "column" : 12,
+            "line" : 297,
+            "column" : 16,
             "source_fragment" : "last_time_reg.read(last_time, (bit<32>)standard_metadata.egress_port)"
           }
         },
@@ -1497,8 +1497,8 @@
           ],
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 297,
-            "column" : 32,
+            "line" : 298,
+            "column" : 36,
             "source_fragment" : "(bit<32>)standard_metadata.egress_port"
           }
         },
@@ -1520,8 +1520,8 @@
           ],
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 297,
-            "column" : 12,
+            "line" : 298,
+            "column" : 16,
             "source_fragment" : "last_time_reg.write((bit<32>)standard_metadata.egress_port, cur_time)"
           }
         },
@@ -1539,8 +1539,8 @@
           ],
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 298,
-            "column" : 12,
+            "line" : 299,
+            "column" : 16,
             "source_fragment" : "hdr.probe_data[0].last_time = last_time"
           }
         },
@@ -1558,15 +1558,15 @@
           ],
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 299,
-            "column" : 12,
+            "line" : 300,
+            "column" : 16,
             "source_fragment" : "hdr.probe_data[0].cur_time = cur_time"
           }
         }
       ]
     },
     {
-      "name" : "link_monitor279",
+      "name" : "link_monitor280",
       "id" : 15,
       "runtime_data" : [],
       "primitives" : [
@@ -1597,8 +1597,8 @@
           ],
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 279,
-            "column" : 27,
+            "line" : 280,
+            "column" : 31,
             "source_fragment" : "(bit<32>)standard_metadata.egress_port"
           }
         },
@@ -1620,8 +1620,8 @@
           ],
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 279,
-            "column" : 8,
+            "line" : 280,
+            "column" : 12,
             "source_fragment" : "byte_cnt_reg.write((bit<32>)standard_metadata.egress_port, new_byte_cnt)"
           }
         }
@@ -1641,23 +1641,23 @@
       "init_table" : "node_2",
       "tables" : [
         {
-          "name" : "MyIngress.ipv4_lpm",
+          "name" : "MyIngress.ipv4_exact",
           "id" : 0,
           "source_info" : {
             "filename" : "link_monitor.p4",
             "line" : 202,
             "column" : 10,
-            "source_fragment" : "ipv4_lpm"
+            "source_fragment" : "ipv4_exact"
           },
           "key" : [
             {
-              "match_type" : "lpm",
+              "match_type" : "exact",
               "name" : "hdr.ipv4.dstAddr",
               "target" : ["ipv4", "dstAddr"],
               "mask" : null
             }
           ],
-          "match_type" : "lpm",
+          "match_type" : "exact",
           "type" : "simple",
           "max_size" : 1024,
           "with_counters" : false,
@@ -1767,7 +1767,7 @@
               }
             }
           },
-          "true_next" : "MyIngress.ipv4_lpm",
+          "true_next" : "MyIngress.ipv4_exact",
           "false_next" : "node_4"
         },
         {
@@ -1827,15 +1827,15 @@
         "column" : 8,
         "source_fragment" : "MyEgress"
       },
-      "init_table" : "tbl_link_monitor275",
+      "init_table" : "node_10",
       "tables" : [
         {
-          "name" : "tbl_link_monitor275",
+          "name" : "tbl_link_monitor276",
           "id" : 3,
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 275,
-            "column" : 8,
+            "line" : 276,
+            "column" : 12,
             "source_fragment" : "byte_cnt_reg.read(byte_cnt, (bit<32>)standard_metadata.egress_port); ..."
           },
           "key" : [],
@@ -1846,10 +1846,10 @@
           "support_timeout" : false,
           "direct_meters" : null,
           "action_ids" : [10],
-          "actions" : ["link_monitor275"],
-          "base_default_next" : "node_11",
+          "actions" : ["link_monitor276"],
+          "base_default_next" : "node_12",
           "next_tables" : {
-            "link_monitor275" : "node_11"
+            "link_monitor276" : "node_12"
           },
           "default_entry" : {
             "action_id" : 10,
@@ -1859,12 +1859,12 @@
           }
         },
         {
-          "name" : "tbl_link_monitor278",
+          "name" : "tbl_link_monitor279",
           "id" : 4,
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 278,
-            "column" : 23,
+            "line" : 279,
+            "column" : 27,
             "source_fragment" : "(hdr.probe.isValid()) ? 0 : byte_cnt"
           },
           "key" : [],
@@ -1875,10 +1875,10 @@
           "support_timeout" : false,
           "direct_meters" : null,
           "action_ids" : [8],
-          "actions" : ["link_monitor278"],
-          "base_default_next" : "tbl_link_monitor279",
+          "actions" : ["link_monitor279"],
+          "base_default_next" : "tbl_link_monitor280",
           "next_tables" : {
-            "link_monitor278" : "tbl_link_monitor279"
+            "link_monitor279" : "tbl_link_monitor280"
           },
           "default_entry" : {
             "action_id" : 8,
@@ -1888,12 +1888,12 @@
           }
         },
         {
-          "name" : "tbl_link_monitor278_0",
+          "name" : "tbl_link_monitor279_0",
           "id" : 5,
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 278,
-            "column" : 23,
+            "line" : 279,
+            "column" : 27,
             "source_fragment" : "(hdr.probe.isValid()) ? 0 : byte_cnt"
           },
           "key" : [],
@@ -1904,10 +1904,10 @@
           "support_timeout" : false,
           "direct_meters" : null,
           "action_ids" : [9],
-          "actions" : ["link_monitor278_0"],
-          "base_default_next" : "tbl_link_monitor279",
+          "actions" : ["link_monitor279_0"],
+          "base_default_next" : "tbl_link_monitor280",
           "next_tables" : {
-            "link_monitor278_0" : "tbl_link_monitor279"
+            "link_monitor279_0" : "tbl_link_monitor280"
           },
           "default_entry" : {
             "action_id" : 9,
@@ -1917,12 +1917,12 @@
           }
         },
         {
-          "name" : "tbl_link_monitor279",
+          "name" : "tbl_link_monitor280",
           "id" : 6,
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 279,
-            "column" : 8,
+            "line" : 280,
+            "column" : 12,
             "source_fragment" : "byte_cnt_reg.write((bit<32>)standard_metadata.egress_port, new_byte_cnt)"
           },
           "key" : [],
@@ -1933,10 +1933,10 @@
           "support_timeout" : false,
           "direct_meters" : null,
           "action_ids" : [15],
-          "actions" : ["link_monitor279"],
-          "base_default_next" : "node_15",
+          "actions" : ["link_monitor280"],
+          "base_default_next" : "node_16",
           "next_tables" : {
-            "link_monitor279" : "node_15"
+            "link_monitor280" : "node_16"
           },
           "default_entry" : {
             "action_id" : 15,
@@ -1946,12 +1946,12 @@
           }
         },
         {
-          "name" : "tbl_link_monitor283",
+          "name" : "tbl_link_monitor284",
           "id" : 7,
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 283,
-            "column" : 12,
+            "line" : 284,
+            "column" : 16,
             "source_fragment" : "hdr.probe_data.push_front(1); ..."
           },
           "key" : [],
@@ -1962,10 +1962,10 @@
           "support_timeout" : false,
           "direct_meters" : null,
           "action_ids" : [13],
-          "actions" : ["link_monitor283"],
-          "base_default_next" : "node_17",
+          "actions" : ["link_monitor284"],
+          "base_default_next" : "node_18",
           "next_tables" : {
-            "link_monitor283" : "node_17"
+            "link_monitor284" : "node_18"
           },
           "default_entry" : {
             "action_id" : 13,
@@ -1975,12 +1975,12 @@
           }
         },
         {
-          "name" : "tbl_link_monitor286",
+          "name" : "tbl_link_monitor287",
           "id" : 8,
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 286,
-            "column" : 38,
+            "line" : 287,
+            "column" : 42,
             "source_fragment" : "="
           },
           "key" : [],
@@ -1991,10 +1991,10 @@
           "support_timeout" : false,
           "direct_meters" : null,
           "action_ids" : [11],
-          "actions" : ["link_monitor286"],
+          "actions" : ["link_monitor287"],
           "base_default_next" : "MyEgress.swid",
           "next_tables" : {
-            "link_monitor286" : "MyEgress.swid"
+            "link_monitor287" : "MyEgress.swid"
           },
           "default_entry" : {
             "action_id" : 11,
@@ -2004,12 +2004,12 @@
           }
         },
         {
-          "name" : "tbl_link_monitor289",
+          "name" : "tbl_link_monitor290",
           "id" : 9,
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 289,
-            "column" : 38,
+            "line" : 290,
+            "column" : 42,
             "source_fragment" : "="
           },
           "key" : [],
@@ -2020,10 +2020,10 @@
           "support_timeout" : false,
           "direct_meters" : null,
           "action_ids" : [12],
-          "actions" : ["link_monitor289"],
+          "actions" : ["link_monitor290"],
           "base_default_next" : "MyEgress.swid",
           "next_tables" : {
-            "link_monitor289" : "MyEgress.swid"
+            "link_monitor290" : "MyEgress.swid"
           },
           "default_entry" : {
             "action_id" : 12,
@@ -2050,10 +2050,10 @@
           "direct_meters" : null,
           "action_ids" : [7, 6],
           "actions" : ["MyEgress.set_swid", "NoAction"],
-          "base_default_next" : "tbl_link_monitor293",
+          "base_default_next" : "tbl_link_monitor294",
           "next_tables" : {
-            "MyEgress.set_swid" : "tbl_link_monitor293",
-            "NoAction" : "tbl_link_monitor293"
+            "MyEgress.set_swid" : "tbl_link_monitor294",
+            "NoAction" : "tbl_link_monitor294"
           },
           "default_entry" : {
             "action_id" : 6,
@@ -2063,12 +2063,12 @@
           }
         },
         {
-          "name" : "tbl_link_monitor293",
+          "name" : "tbl_link_monitor294",
           "id" : 11,
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 293,
-            "column" : 35,
+            "line" : 294,
+            "column" : 39,
             "source_fragment" : "= (bit<8>)standard_metadata.egress_port; ..."
           },
           "key" : [],
@@ -2079,10 +2079,10 @@
           "support_timeout" : false,
           "direct_meters" : null,
           "action_ids" : [14],
-          "actions" : ["link_monitor293"],
+          "actions" : ["link_monitor294"],
           "base_default_next" : null,
           "next_tables" : {
-            "link_monitor293" : null
+            "link_monitor294" : null
           },
           "default_entry" : {
             "action_id" : 14,
@@ -2095,12 +2095,35 @@
       "action_profiles" : [],
       "conditionals" : [
         {
-          "name" : "node_11",
+          "name" : "node_10",
           "id" : 3,
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 278,
-            "column" : 24,
+            "line" : 270,
+            "column" : 13,
+            "source_fragment" : "hdr.arp.isValid()"
+          },
+          "expression" : {
+            "type" : "expression",
+            "value" : {
+              "op" : "d2b",
+              "left" : null,
+              "right" : {
+                "type" : "field",
+                "value" : ["arp", "$valid$"]
+              }
+            }
+          },
+          "true_next" : null,
+          "false_next" : "tbl_link_monitor276"
+        },
+        {
+          "name" : "node_12",
+          "id" : 4,
+          "source_info" : {
+            "filename" : "link_monitor.p4",
+            "line" : 279,
+            "column" : 28,
             "source_fragment" : "hdr.probe.isValid()"
           },
           "expression" : {
@@ -2114,16 +2137,16 @@
               }
             }
           },
-          "true_next" : "tbl_link_monitor278",
-          "false_next" : "tbl_link_monitor278_0"
+          "true_next" : "tbl_link_monitor279",
+          "false_next" : "tbl_link_monitor279_0"
         },
         {
-          "name" : "node_15",
-          "id" : 4,
+          "name" : "node_16",
+          "id" : 5,
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 281,
-            "column" : 12,
+            "line" : 282,
+            "column" : 16,
             "source_fragment" : "hdr.probe.isValid()"
           },
           "expression" : {
@@ -2138,15 +2161,15 @@
             }
           },
           "false_next" : null,
-          "true_next" : "tbl_link_monitor283"
+          "true_next" : "tbl_link_monitor284"
         },
         {
-          "name" : "node_17",
-          "id" : 5,
+          "name" : "node_18",
+          "id" : 6,
           "source_info" : {
             "filename" : "link_monitor.p4",
-            "line" : 285,
-            "column" : 16,
+            "line" : 286,
+            "column" : 20,
             "source_fragment" : "hdr.probe.hop_cnt == 1"
           },
           "expression" : {
@@ -2163,8 +2186,8 @@
               }
             }
           },
-          "true_next" : "tbl_link_monitor286",
-          "false_next" : "tbl_link_monitor289"
+          "true_next" : "tbl_link_monitor287",
+          "false_next" : "tbl_link_monitor290"
         }
       ]
     }
@@ -2175,7 +2198,7 @@
       "id" : 0,
       "source_info" : {
         "filename" : "link_monitor.p4",
-        "line" : 310,
+        "line" : 312,
         "column" : 8,
         "source_fragment" : "update_checksum( ..."
       },

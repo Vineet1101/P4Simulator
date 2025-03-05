@@ -18,34 +18,12 @@
  * Modified: Mingyu Ma<mingyu.ma@tu-dresden.de>
  */
 
-#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_OFF
-
-#ifdef Mutex
-#undef Mutex
-#endif
-
-#ifdef registry_t
-#undef registry_t
-#endif
-
-#include <bm/spdlog/spdlog.h>
-#undef LOG_INFO
-#undef LOG_ERROR
-#undef LOG_DEBUG
-
-#include "ns3/ethernet-header.h"
-#include "ns3/log.h"
 #include "ns3/p4-core-pipeline.h"
-#include "ns3/register_access.h"
+#include "ns3/p4-switch-net-device.h"
+#include "ns3/register-access-v1model.h"
 #include "ns3/simulator.h"
-#include "ns3/socket.h"
 
-#include <bm/bm_runtime/bm_runtime.h>
-#include <bm/bm_sim/options_parse.h>
-#include <bm/bm_sim/parser.h>
-#include <bm/bm_sim/phv.h>
-
-NS_LOG_COMPONENT_DEFINE("P4CorePipeline");
+NS_LOG_COMPONENT_DEFINE("P4CoreV1modelPipeline");
 
 namespace ns3
 {
@@ -87,16 +65,13 @@ struct bmv2_hash_v1model_pipeline
 REGISTER_HASH(hash_ex_v1model_pipeline);
 REGISTER_HASH(bmv2_hash_v1model_pipeline);
 
-P4CorePipeline::P4CorePipeline(P4SwitchNetDevice* netDevice,
-                               bool enableSwap,
-                               bool enableTracing,
-                               uint32_t drop_port)
-    : bm::Switch(enableSwap),
-      m_enableTracing(enableTracing),
-      m_enableSwap(enableSwap),
-      m_dropPort(drop_port)
+P4CorePipeline::P4CorePipeline(P4SwitchNetDevice* netDevice, bool enableSwap, bool enableTracing)
+    : P4SwitchCore(netDevice, enableSwap, enableTracing),
+      m_packetId(0)
 {
-    m_packetId = 0;
+    // configure for the switch v1model
+    m_thriftCommand = "simple_switch_CLI"; // default thrift command for v1model
+    m_enableQueueingMetadata = false;      // disable queueing metadata for v1model
 
     add_required_field("standard_metadata", "ingress_port");
     add_required_field("standard_metadata", "packet_length");
@@ -105,14 +80,8 @@ P4CorePipeline::P4CorePipeline(P4SwitchNetDevice* netDevice,
     add_required_field("standard_metadata", "egress_port");
 
     force_arith_header("standard_metadata");
-    // force_arith_header("queueing_metadata");
+    // force_arith_header("queueing_metadata"); // not supported queueing metadata
     force_arith_header("intrinsic_metadata");
-
-    static int switch_id = 1;
-    m_p4SwitchId = switch_id++;
-    NS_LOG_INFO("Init P4 Switch with ID: " << m_p4SwitchId);
-
-    m_switchNetDevice = netDevice;
 }
 
 P4CorePipeline::~P4CorePipeline()
@@ -121,133 +90,14 @@ P4CorePipeline::~P4CorePipeline()
     NS_LOG_INFO("Destroying P4CorePipeline.");
 }
 
-void
-P4CorePipeline::InitSwitchWithP4(std::string jsonPath, std::string flowTablePath)
-{
-    // Log function entry
-    NS_LOG_FUNCTION(this);
-    NS_LOG_INFO("Initializing P4CorePipeline.");
-
-    // Initialize status flag and Thrift port
-    int status = 0;
-    static int p4_switch_ctrl_plane_thrift_port = 9090;
-    m_thriftPort = p4_switch_ctrl_plane_thrift_port;
-
-    // Configure OptionsParser
-    bm::OptionsParser opt_parser;
-    opt_parser.config_file_path = jsonPath;
-    opt_parser.debugger_addr = "ipc:///tmp/bmv2-v1model-" +
-                               std::to_string(p4_switch_ctrl_plane_thrift_port) + "-debug.ipc";
-    opt_parser.notifications_addr = "ipc:///tmp/bmv2-v1model-" +
-                                    std::to_string(p4_switch_ctrl_plane_thrift_port) +
-                                    "-notifications.ipc";
-    opt_parser.file_logger =
-        "/tmp/bmv2-v1model-" + std::to_string(p4_switch_ctrl_plane_thrift_port) + "-pipeline.log";
-    opt_parser.thrift_port = p4_switch_ctrl_plane_thrift_port++;
-    opt_parser.console_logging = false;
-
-    // Initialize the switch
-    status = init_from_options_parser(opt_parser);
-    if (status != 0)
-    {
-        NS_LOG_ERROR("Failed to initialize P4CorePipeline.");
-        return; // Avoid exiting simulation
-    }
-
-    // Start the runtime server
-    int port = get_runtime_port();
-    bm_runtime::start_server(this, port);
-
-    // Populate flow table using CLI command
-    std::string cmd = "simple_switch_CLI --thrift-port " + std::to_string(port) + " < " +
-                      flowTablePath + " > /dev/null 2>&1";
-
-    int result = std::system(cmd.c_str());
-
-    // Wait for the server to be ready
-    sleep(1);
-    if (result != 0)
-    {
-        NS_LOG_ERROR("Error executing flow table population command: " << cmd);
-    }
-
-    NS_LOG_INFO("P4CorePipeline initialization completed successfully.");
-}
-
 int
-P4CorePipeline::InitFromCommandLineOptions(int argc, char* argv[])
-{
-    bm::OptionsParser parser;
-    parser.parse(argc, argv, m_argParser);
-
-    // create a dummy transport
-    std::shared_ptr<bm::TransportIface> transport =
-        std::shared_ptr<bm::TransportIface>(bm::TransportIface::make_dummy());
-
-    int status = 0;
-    if (parser.no_p4)
-        // with out p4-json, acctually the switch will wait for the
-        // configuration(p4-json) before work
-        status = init_objects_empty(parser.device_id, transport);
-    else
-        // load p4 configuration files xxxx.json to switch
-        status = init_objects(parser.config_file_path, parser.device_id, transport);
-    return status;
-}
-
-void
-P4CorePipeline::RunCli(const std::string& commandsFile)
-{
-    NS_LOG_FUNCTION(this << " Switch ID: " << m_p4SwitchId << " Running CLI commands from "
-                         << commandsFile);
-
-    int port = get_runtime_port();
-    bm_runtime::start_server(this, port);
-    // start_and_return ();
-    NS_LOG_DEBUG("Switch ID: " << m_p4SwitchId << " Waiting for the runtime server to start");
-    std::this_thread::sleep_for(std::chrono::seconds(3));
-
-    // Run the CLI commands to populate table entries
-    std::string cmd = "run_bmv2_CLI --thrift_port " + std::to_string(port) + " " + commandsFile;
-    int res = std::system(cmd.c_str());
-    (void)res;
-}
-
-int
-P4CorePipeline::receive_(uint32_t port_num, const char* buffer, int len)
-{
-    NS_LOG_FUNCTION(this << " Switch ID: " << m_p4SwitchId << " Port: " << port_num
-                         << " Len: " << len);
-    return 0;
-}
-
-void
-P4CorePipeline::start_and_return_()
-{
-    NS_LOG_FUNCTION("Switch ID: " << m_p4SwitchId << " start");
-}
-
-void
-P4CorePipeline::swap_notify_()
-{
-    NS_LOG_FUNCTION("p4_switch has been notified of a config swap");
-}
-
-void
-P4CorePipeline::reset_target_state_()
-{
-    NS_LOG_DEBUG("Resetting target-specific state, not supported.");
-}
-
-int
-P4CorePipeline::P4ProcessingPipeline(Ptr<Packet> packetIn,
-                                     int inPort,
-                                     uint16_t protocol,
-                                     const Address& destination)
+P4CorePipeline::ReceivePacket(Ptr<Packet> packetIn,
+                              int inPort,
+                              uint16_t protocol,
+                              const Address& destination)
 {
     NS_LOG_FUNCTION(this);
 
-    // === Convert ns-3 packet to bm packet
     std::unique_ptr<bm::Packet> bm_packet = ConvertToBmPacket(packetIn, inPort);
 
     bm::PHV* phv = bm_packet->get_phv();
@@ -299,29 +149,50 @@ P4CorePipeline::P4ProcessingPipeline(Ptr<Packet> packetIn,
     return 0;
 }
 
-Ptr<Packet>
-P4CorePipeline::ConvertToNs3Packet(std::unique_ptr<bm::Packet>&& bm_packet)
+int
+P4CorePipeline::receive_(uint32_t port_num, const char* buffer, int len)
 {
-    // Create a new ns3::Packet using the data buffer
-    char* bm_buf = bm_packet.get()->data();
-    size_t len = bm_packet.get()->get_data_size();
-    Ptr<Packet> ns_packet = Create<Packet>((uint8_t*)(bm_buf), len);
-
-    return ns_packet;
+    NS_LOG_FUNCTION(this << " Port: " << port_num << " Len: " << len);
+    return 0;
 }
 
-std::unique_ptr<bm::Packet>
-P4CorePipeline::ConvertToBmPacket(Ptr<Packet> nsPacket, int inPort)
+void
+P4CorePipeline::start_and_return_()
 {
-    int len = nsPacket->GetSize();
-    uint8_t* pkt_buffer = new uint8_t[len];
-    nsPacket->CopyData(pkt_buffer, len);
-    bm::PacketBuffer buffer(len + 512, (char*)pkt_buffer, len);
-    std::unique_ptr<bm::Packet> bm_packet(
-        new_packet_ptr(inPort, m_packetId++, len, std::move(buffer)));
-    delete[] pkt_buffer;
+    NS_LOG_FUNCTION(this);
+}
 
-    return bm_packet;
+void
+P4CorePipeline::swap_notify_()
+{
+    NS_LOG_FUNCTION("p4_switch has been notified of a config swap");
+}
+
+void
+P4CorePipeline::reset_target_state_()
+{
+    NS_LOG_DEBUG("Resetting target-specific state, not supported.");
+}
+
+void
+P4CorePipeline::HandleIngressPipeline()
+{
+    NS_LOG_FUNCTION(this);
+    NS_LOG_DEBUG("Dummy functions for handling ingress pipeline, use ReceivePacket instead");
+}
+
+bool
+P4CorePipeline::HandleEgressPipeline(size_t workerId)
+{
+    NS_LOG_FUNCTION(this);
+    NS_LOG_DEBUG("Dummy functions for handling egress pipeline, use ReceivePacket instead");
+    return false;
+}
+
+void
+P4CorePipeline::Enqueue(uint32_t egress_port, std::unique_ptr<bm::Packet>&& packet)
+{
+    NS_LOG_WARN("NO inter queue buffer in this simple v1model, use ReceivePacket instead");
 }
 
 } // namespace ns3

@@ -22,70 +22,45 @@
 #define P4_CORE_V1MODEL_PIPELINE_H
 
 #include "ns3/p4-queue.h"
-#include "ns3/p4-switch-net-device.h"
-
-#include <bm/bm_sim/packet.h>
-#include <bm/bm_sim/switch.h>
-
-#define SSWITCH_PIPELINE_DROP_PORT 511
+#include "ns3/p4-switch-core.h"
 
 namespace ns3
 {
 
-class P4SwitchNetDevice;
-
 /**
- * @brief A P4 Pipeline Implementation to be wrapped in P4 Device
- *
- * The P4CorePipeline uses the pipeline implementation provided by
- * `Behavioral Model` (https://github.com/p4lang/behavioral-model).
- * Internal processing functions and the `switch` class are used.
- * However, P4CorePipeline processes packets in a way adapted to ns-3.
+ * @brief A P4 Pipeline Implementation to be wrapped in P4 Device,
+ * using the v1model architecture, It does not contain any buffer, queueing metadata, time control
+ * and scheduling models. It can only realize the calculation and processing functions of p4.
+ * This implementation comes from: https://github.com/p4db/NS4-DEV
  */
-class P4CorePipeline : public bm::Switch
+class P4CorePipeline : public P4SwitchCore
 {
   public:
     /**
      * @brief Construct a new P4 Core Pipeline object
-     *
      * @param netDevice P4 Switch Net Device
      * @param enableSwap enable swapping in run time
      * @param enableTracing enable tracing
-     * @param drop_port set the port to drop packets
      */
-    P4CorePipeline(P4SwitchNetDevice* netDevice,
-                   bool enableSwap,
-                   bool enableTracing,
-                   uint32_t drop_port = SSWITCH_PIPELINE_DROP_PORT);
+    P4CorePipeline(P4SwitchNetDevice* netDevice, bool enableSwap, bool enableTracing);
+
     /**
      * @brief Destroy the P4 Core Pipeline object
      */
     ~P4CorePipeline();
 
     /**
-     * @brief Initialize the switch with P4 program with JSON and flow table
-     *
-     * @param jsonPath path to the JSON file
-     * @param flowTablePath path to the flow table file
+     * @brief The type of packet instance
      */
-    void InitSwitchWithP4(std::string jsonPath, std::string flowTablePath);
-
-    /**
-     * @brief Run CLI commands from a file by thrift
-     *
-     * @param commandsFile path to the commands file
-     */
-    void RunCli(const std::string& commandsFile);
-
-    /**
-     * @brief Initialize the switch with command line options
-     */
-    int InitFromCommandLineOptions(int argc, char* argv[]);
+    enum PktInstanceType
+    {
+        PKT_INSTANCE_TYPE_NORMAL, // only normal pkts
+    };
 
     /**
      * @brief Receive a packet from the network and process with
      * the P4 pipeline: parser, ingress, egress, deparser, notication:
-     * there is no queue buffer in this class
+     * there is no queue buffer in this simple v1model pipeline
      *
      * @param packetIn the packet passed from the SwitchNetDevice
      * @param inPort the port where the packet is received
@@ -93,69 +68,48 @@ class P4CorePipeline : public bm::Switch
      * @param destination the destination address of the packet
      * @return int 0 if success
      */
-    int P4ProcessingPipeline(Ptr<Packet> packetIn,
-                             int inPort,
-                             uint16_t protocol,
-                             const Address& destination);
+    int ReceivePacket(Ptr<Packet> packetIn,
+                      int inPort,
+                      uint16_t protocol,
+                      const Address& destination) override;
 
     /**
-     * @brief Convert a bm packet to ns-3 packet
-     *
-     * @param bmPacket the bm packet
-     * @return Ptr<Packet> the ns-3 packet
-     */
-    Ptr<Packet> ConvertToNs3Packet(std::unique_ptr<bm::Packet>&& bmPacket);
-
-    /**
-     * @brief Convert a ns-3 packet to bm packet
-     *
-     * @param nsPacket the ns-3 packet
-     * @param inPort the port where the packet is received
-     * @return std::unique_ptr<bm::Packet> the bm packet
-     */
-    std::unique_ptr<bm::Packet> ConvertToBmPacket(Ptr<Packet> nsPacket, int inPort);
-
-    /**
-     * @brief [override from bmv2] Receive a packet from the network
+     * @brief [override, dummy] Receive a packet from the network
      */
     int receive_(uint32_t port_num, const char* buffer, int len) override;
 
     /**
-     * @brief [override from bmv2] Start the switch and return
+     * @brief [override, dummy] Start the switch and return
      */
     void start_and_return_() override;
 
     /**
-     * @brief [override from bmv2] Notify the switch of a config swap
+     * @brief [override, dummy] Notify the switch of a config swap
      */
     void swap_notify_() override;
 
     /**
-     * @brief [override from bmv2] Reset the target-specific state
+     * @brief [override, dummy] Reset the target-specific state
      */
     void reset_target_state_() override;
 
-    P4CorePipeline(const P4CorePipeline&) = delete;
-    P4CorePipeline& operator=(const P4CorePipeline&) = delete;
-    P4CorePipeline(P4CorePipeline&&) = delete;
-    P4CorePipeline&& operator=(P4CorePipeline&&) = delete;
+    /**
+     * @brief [override, dummy] Handle the ingress pipeline
+     */
+    void HandleIngressPipeline() override;
 
-  protected:
-    enum PktInstanceType
-    {
-        PKT_INSTANCE_TYPE_NORMAL, // only normal pkts
-    };
+    /**
+     * @brief [override, dummy] Enqueue a packet to the switch queue buffer
+     */
+    void Enqueue(uint32_t egress_port, std::unique_ptr<bm::Packet>&& packet) override;
+
+    /**
+     * @brief [override, dummy] Handle the egress pipeline
+     */
+    bool HandleEgressPipeline(size_t workerId) override;
 
   private:
-    bool m_enableTracing; //!< Enable tracing
-    bool m_enableSwap;    //!< Enable swapping
-    int m_p4SwitchId;     //!< ID of the switch
-    int m_thriftPort;     //!< Port for thrift server
-    uint32_t m_dropPort;  //!< Port to drop packets
-    uint64_t m_packetId;  // Packet ID
-
-    P4SwitchNetDevice* m_switchNetDevice; //!< P4 Switch Net Device
-    bm::TargetParserBasic* m_argParser;   //!< Structure of parsers
+    uint64_t m_packetId; //!< Packet ID
 };
 
 } // namespace ns3

@@ -520,13 +520,13 @@ CustomP2PNetDevice::ProcessHeader(Ptr<Packet> p, uint16_t& param)
     {
         // accelerate, if not, no need for checking that.
         NS_LOG_DEBUG("*** Custom header detected, start processing the custom header");
-        RestoreOriginalHeaders(p);
+        RestoreHeaders(p);
     }
     return true;
 }
 
 void
-CustomP2PNetDevice::RestoreOriginalHeaders(Ptr<Packet> p)
+CustomP2PNetDevice::RestoreHeaders(Ptr<Packet> p)
 {
     NS_LOG_FUNCTION(this << p);
     // Restore the original headers

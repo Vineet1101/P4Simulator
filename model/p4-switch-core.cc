@@ -36,7 +36,6 @@
 #include "ns3/log.h"
 #include "ns3/p4-switch-core.h"
 #include "ns3/p4-switch-net-device.h"
-#include "ns3/register_access.h"
 #include "ns3/simulator.h"
 
 #include <bm/bm_runtime/bm_runtime.h>
@@ -48,13 +47,15 @@ NS_LOG_COMPONENT_DEFINE("P4SwitchCore");
 namespace ns3
 {
 
+static constexpr uint16_t MAX_MIRROR_SESSION_ID = (1u << 15) - 1;
+
 class P4SwitchCore::MirroringSessions
 {
   public:
     bool add_session(int mirror_id, const MirroringSessionConfig& config)
     {
         std::lock_guard<std::mutex> lock(mutex);
-        if (0 <= mirror_id && mirror_id <= RegisterAccess::MAX_MIRROR_SESSION_ID)
+        if (0 <= mirror_id && mirror_id <= MAX_MIRROR_SESSION_ID)
         {
             sessions_map[mirror_id] = config;
             NS_LOG_INFO("Session added with mirror_id=" << mirror_id);
@@ -70,7 +71,7 @@ class P4SwitchCore::MirroringSessions
     bool delete_session(int mirror_id)
     {
         std::lock_guard<std::mutex> lock(mutex);
-        if (0 <= mirror_id && mirror_id <= RegisterAccess::MAX_MIRROR_SESSION_ID)
+        if (0 <= mirror_id && mirror_id <= MAX_MIRROR_SESSION_ID)
         {
             bool erased = sessions_map.erase(mirror_id) == 1;
             if (erased)

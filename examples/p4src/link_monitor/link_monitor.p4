@@ -199,9 +199,9 @@ control MyIngress(inout headers hdr,
         hdr.ethernet.dstAddr = dstAddr;
     }
 
-    table ipv4_lpm {
+    table ipv4_exact {
         key = {
-            hdr.ipv4.dstAddr: lpm;
+            hdr.ipv4.dstAddr: exact;
         }
         actions = {
             ipv4_forward;
@@ -226,7 +226,7 @@ control MyIngress(inout headers hdr,
 
     apply {
         if (hdr.ipv4.isValid()) {
-            ipv4_lpm.apply();
+            ipv4_exact.apply();
         }
         else if (hdr.probe.isValid()) {
             standard_metadata.egress_spec = (bit<9>)meta.egress_spec;
@@ -267,36 +267,38 @@ control MyEgress(inout headers hdr,
     }
 
     apply {
-        bit<32> byte_cnt;
-        bit<32> new_byte_cnt;
-        time_t last_time;
-        time_t cur_time = standard_metadata.egress_global_timestamp;
-        // increment byte cnt for this packet's port
-        byte_cnt_reg.read(byte_cnt, (bit<32>)standard_metadata.egress_port);
-        byte_cnt = byte_cnt + standard_metadata.packet_length;
-        // reset the byte count when a probe packet passes through
-        new_byte_cnt = (hdr.probe.isValid()) ? 0 : byte_cnt;
-        byte_cnt_reg.write((bit<32>)standard_metadata.egress_port, new_byte_cnt);
+        if (!hdr.arp.isValid()) {
+            bit<32> byte_cnt;
+            bit<32> new_byte_cnt;
+            time_t last_time;
+            time_t cur_time = standard_metadata.egress_global_timestamp;
+            // increment byte cnt for this packet's port
+            byte_cnt_reg.read(byte_cnt, (bit<32>)standard_metadata.egress_port);
+            byte_cnt = byte_cnt + standard_metadata.packet_length;
+            // reset the byte count when a probe packet passes through
+            new_byte_cnt = (hdr.probe.isValid()) ? 0 : byte_cnt;
+            byte_cnt_reg.write((bit<32>)standard_metadata.egress_port, new_byte_cnt);
 
-        if (hdr.probe.isValid()) {
-            // fill out probe fields
-            hdr.probe_data.push_front(1);
-            hdr.probe_data[0].setValid();
-            if (hdr.probe.hop_cnt == 1) {
-                hdr.probe_data[0].bos = 1;
+            if (hdr.probe.isValid()) {
+                // fill out probe fields
+                hdr.probe_data.push_front(1);
+                hdr.probe_data[0].setValid();
+                if (hdr.probe.hop_cnt == 1) {
+                    hdr.probe_data[0].bos = 1;
+                }
+                else {
+                    hdr.probe_data[0].bos = 0;
+                }
+                // set switch ID field
+                swid.apply();
+                hdr.probe_data[0].port = (bit<8>)standard_metadata.egress_port;
+                hdr.probe_data[0].byte_cnt = byte_cnt;
+                // read / update the last_time_reg
+                last_time_reg.read(last_time, (bit<32>)standard_metadata.egress_port);
+                last_time_reg.write((bit<32>)standard_metadata.egress_port, cur_time);
+                hdr.probe_data[0].last_time = last_time;
+                hdr.probe_data[0].cur_time = cur_time;
             }
-            else {
-                hdr.probe_data[0].bos = 0;
-            }
-            // set switch ID field
-            swid.apply();
-            hdr.probe_data[0].port = (bit<8>)standard_metadata.egress_port;
-            hdr.probe_data[0].byte_cnt = byte_cnt;
-            // read / update the last_time_reg
-            last_time_reg.read(last_time, (bit<32>)standard_metadata.egress_port);
-            last_time_reg.write((bit<32>)standard_metadata.egress_port, cur_time);
-            hdr.probe_data[0].last_time = last_time;
-            hdr.probe_data[0].cur_time = cur_time;
         }
     }
 }

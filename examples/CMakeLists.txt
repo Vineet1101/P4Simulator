@@ -60,6 +60,18 @@ build_lib_example(
     ${libcsma}
 )
 
+# 4 hosts 4 switches topology [Link Monitoring]
+build_lib_example(
+  NAME p4-link-monitoring
+  SOURCE_FILES p4-link-monitoring.cc
+  LIBRARIES_TO_LINK
+    ${libp4sim}
+    ${libinternet}
+    ${libapplications}
+    ${libnetwork}
+    ${libcsma}
+)
+
 # [ ================= PSA Arch ================= ]
 
 # simple 2 hosts 1 switch topology [ipv4 forwarding]

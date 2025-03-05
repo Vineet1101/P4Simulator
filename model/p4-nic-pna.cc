@@ -18,7 +18,7 @@
 
 #include "ns3/p4-nic-pna.h"
 #include "ns3/p4-switch-net-device.h"
-#include "ns3/register_access.h"
+#include "ns3/register-access-v1model.h"
 #include "ns3/simulator.h"
 
 NS_LOG_COMPONENT_DEFINE("P4CorePna");
@@ -106,17 +106,8 @@ P4PnaNic::ReceivePacket(Ptr<Packet> packetIn,
                         uint16_t protocol,
                         const Address& destination)
 {
-    int len = packetIn->GetSize();
-    uint8_t* pkt_buffer = new uint8_t[len];
-    packetIn->CopyData(pkt_buffer, len);
-    // we limit the packet buffer to original size + 512 bytes, which means we
-    // cannot add more than 512 bytes of header data to the packet, which should
-    // be more than enough
-    bm::PacketBuffer buffer(len + 512, (char*)pkt_buffer, len);
-    std::unique_ptr<bm::Packet> bm_packet =
-        new_packet_ptr(inPort, m_packetId++, len, std::move(buffer));
-    delete[] pkt_buffer;
-
+    std::unique_ptr<bm::Packet> bm_packet = ConvertToBmPacket(packetIn, inPort);
+    int len = bm_packet.get()->get_data_size();
     bm::PHV* phv = bm_packet->get_phv();
 
     // many current p4 programs assume this

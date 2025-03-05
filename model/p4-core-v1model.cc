@@ -19,9 +19,9 @@
 
 #include "ns3/p4-core-v1model.h"
 #include "ns3/p4-switch-net-device.h"
-#include "ns3/register_access.h"
+#include "ns3/primitives-v1model.h"
+#include "ns3/register-access-v1model.h"
 #include "ns3/simulator.h"
-
 NS_LOG_COMPONENT_DEFINE("P4CoreV1model");
 
 namespace ns3
@@ -63,6 +63,8 @@ struct bmv2_hash_v1model
 // give an unused variable warning
 REGISTER_HASH(hash_ex_v1model);
 REGISTER_HASH(bmv2_hash_v1model);
+
+extern int import_primitives();
 
 P4CoreV1model::P4CoreV1model(P4SwitchNetDevice* net_device,
                              bool enable_swap,
@@ -196,14 +198,10 @@ P4CoreV1model::ReceivePacket(Ptr<Packet> packetIn,
 {
     NS_LOG_FUNCTION(this);
 
-    int len = packetIn->GetSize();
-    uint8_t* pkt_buffer = new uint8_t[len];
-    packetIn->CopyData(pkt_buffer, len);
-    bm::PacketBuffer buffer(len + 512, (char*)pkt_buffer, len);
+    std::unique_ptr<bm::Packet> bm_packet = ConvertToBmPacket(packetIn, inPort);
 
-    std::unique_ptr<bm::Packet> bm_packet =
-        new_packet_ptr(inPort, m_packetId++, len, std::move(buffer));
-    delete[] pkt_buffer;
+    bm::PHV* phv = bm_packet->get_phv();
+    int len = bm_packet.get()->get_data_size();
 
     if (m_enableTracing)
     {
@@ -211,10 +209,7 @@ P4CoreV1model::ReceivePacket(Ptr<Packet> packetIn,
         m_bitsPerTimeInterval += len * 8;
     }
 
-    bm::PHV* phv = bm_packet->get_phv();
-    len = bm_packet.get()->get_data_size();
     bm_packet.get()->set_ingress_port(inPort);
-
     phv->reset_metadata();
 
     // setting ns3 specific metadata in packet register

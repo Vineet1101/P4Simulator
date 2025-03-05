@@ -46,8 +46,10 @@ list(APPEND third_party_libs -L/usr/local/lib)
 # Core module construction
 build_lib(
     LIBNAME p4sim
-    SOURCE_FILES # equivalent to module.source
-        model/p4-queue.cc
+    SOURCE_FILES # equivalent to module.source        utils/format-utils.cc
+        utils/format-utils.cc
+        utils/switch-api.cc
+        utils/p4-queue.cc
         model/p4-bridge-channel.cc
         model/p4-p2p-channel.cc
         model/custom-header.cc
@@ -59,13 +61,15 @@ build_lib(
         model/p4-nic-pna.cc
         model/p4-switch-net-device.cc
         model/custom-p2p-net-device.cc
-        model/format-utils.cc
-        model/switch-api.cc
         helper/p4-helper.cc
         helper/p4-topology-reader-helper.cc
         helper/p4-p2p-helper.cc
     HEADER_FILES # equivalent to headers.source
-        model/p4-queue.h
+        utils/p4-queue.h
+        utils/format-utils.h
+        utils/switch-api.h
+        utils/register-access-v1model.h
+        utils/primitives-v1model.h
         model/p4-bridge-channel.h
         model/p4-p2p-channel.h
         model/custom-header.h
@@ -77,9 +81,6 @@ build_lib(
         model/p4-nic-pna.h
         model/p4-switch-net-device.h
         model/custom-p2p-net-device.h
-        model/format-utils.h
-        model/switch-api.h
-        model/register_access.h
         helper/p4-helper.h
         helper/p4-topology-reader-helper.h
         helper/p4-p2p-helper.h

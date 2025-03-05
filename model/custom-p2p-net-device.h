@@ -267,7 +267,7 @@ class CustomP2PNetDevice : public NetDevice
     bool ProcessHeader(Ptr<Packet> p, uint16_t& param);
 
     /** */
-    void RestoreOriginalHeaders(Ptr<Packet> p);
+    void RestoreHeaders(Ptr<Packet> p);
 
     /**
      * Start Sending a Packet Down the Wire.
