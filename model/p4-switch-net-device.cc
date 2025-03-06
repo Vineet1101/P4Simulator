@@ -546,18 +546,13 @@ P4SwitchNetDevice::SendNs3Packet(Ptr<Packet> packetOut,
     if (packetOut)
     {
         // Print the packet's header
-        // EthernetHeader eeh_1;
-        // if (packetOut->PeekHeader (eeh_1))
-        //   {
-        //     NS_LOG_DEBUG ("Ethernet packet");
-        //     // log the ethernet header information
-        //     Mac48Address src_mac = eeh_1.GetSource ();
-        //     Mac48Address dst_mac = eeh_1.GetDestination ();
-        //     uint16_t protocol_eth = eeh_1.GetLengthType ();
-        //     protocol = protocol_eth; // Keep the protocol number of the packet
-        //     NS_LOG_DEBUG ("Source MAC: " << src_mac << ", Destination MAC: " << dst_mac
-        //                                  << ", Protocol: " << protocol_eth);
-        //   }
+        EthernetHeader eeh_1;
+
+        if (packetOut->PeekHeader(eeh_1))
+        {
+            NS_LOG_DEBUG("Ethernet packet");
+            protocol = eeh_1.GetLengthType(); // recover the protocol number
+        }
 
         EthernetHeader eeh;
         packetOut->RemoveHeader(eeh); // keep the ethernet header
