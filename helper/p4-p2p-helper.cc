@@ -24,18 +24,10 @@
 #include "ns3/names.h"
 #include "ns3/net-device-queue-interface.h"
 #include "ns3/p4-p2p-channel.h"
+#include "ns3/p4-p2p-helper.h"
 #include "ns3/packet.h"
 #include "ns3/queue.h"
 #include "ns3/simulator.h"
-
-#ifdef NS3_MPI
-#include "ns3/mpi-interface.h"
-#include "ns3/mpi-receiver.h"
-#include "ns3/point-to-point-remote-channel.h"
-#endif
-
-#include "p4-p2p-helper.h"
-
 #include "ns3/trace-helper.h"
 
 namespace ns3
@@ -275,41 +267,7 @@ P4PointToPointHelper::Install(Ptr<Node> a, Ptr<Node> b)
     devB->AggregateObject(ndqiB);
 
     Ptr<P4P2PChannel> channel = nullptr;
-
-    // If MPI is enabled, we need to see if both nodes have the same system id
-    // (rank), and the rank is the same as this instance.  If both are true,
-    // use a normal p2p channel, otherwise use a remote channel
-#ifdef NS3_MPI
-    bool useNormalChannel = true;
-    if (MpiInterface::IsEnabled())
-    {
-        uint32_t n1SystemId = a->GetSystemId();
-        uint32_t n2SystemId = b->GetSystemId();
-        uint32_t currSystemId = MpiInterface::GetSystemId();
-        if (n1SystemId != currSystemId || n2SystemId != currSystemId)
-        {
-            useNormalChannel = false;
-        }
-    }
-    if (useNormalChannel)
-    {
-        m_channelFactory.SetTypeId("ns3::P4P2PChannel");
-        channel = m_channelFactory.Create<P4P2PChannel>();
-    }
-    else
-    {
-        m_channelFactory.SetTypeId("ns3::PointToPointRemoteChannel");
-        channel = m_channelFactory.Create<PointToPointRemoteChannel>();
-        Ptr<MpiReceiver> mpiRecA = CreateObject<MpiReceiver>();
-        Ptr<MpiReceiver> mpiRecB = CreateObject<MpiReceiver>();
-        mpiRecA->SetReceiveCallback(MakeCallback(&CustomP2PNetDevice::Receive, devA));
-        mpiRecB->SetReceiveCallback(MakeCallback(&CustomP2PNetDevice::Receive, devB));
-        devA->AggregateObject(mpiRecA);
-        devB->AggregateObject(mpiRecB);
-    }
-#else
     channel = m_channelFactory.Create<P4P2PChannel>();
-#endif
 
     devA->Attach(channel);
     devB->Attach(channel);

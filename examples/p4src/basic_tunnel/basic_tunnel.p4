@@ -8,7 +8,7 @@
 
 const bit<16> TYPE_ARP = 0x806;
 const bit<16> TYPE_IPV4 = 0x800;
-const bit<16> TYPE_MYTUNNEL = 0x12;  // Same with: static constexpr uint64_t g_p4Protocol = 0x12;
+const bit<16> TYPE_MYTUNNEL = 0xDC;  // Same with: static constexpr uint64_t g_p4Protocol = 0xDC;
 
 /*************************************************************************
 *********************** H E A D E R S  ***********************************

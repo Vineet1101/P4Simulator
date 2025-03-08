@@ -199,14 +199,14 @@ CustomP2PNetDevice::GetDstPort(Ptr<Packet> p)
         uint16_t protocol_temp = ip_hd.GetProtocol();
         cus_hd.SetProtocolFieldNumber(0);
 
-        if (protocol_temp == 0x11)
+        if (protocol_temp == 0x11) // UDP
         {
             NS_LOG_DEBUG("UDP protocol, return the dst port number");
             UdpHeader udp_hd;
             p->PeekHeader(udp_hd);
             dst_port = udp_hd.GetDestinationPort();
         }
-        else if (protocol_temp == 0x06)
+        else if (protocol_temp == 0x06) // TCP
         {
             NS_LOG_DEBUG("TCP protocol, return the dst port number");
             TcpHeader tcp_hd;

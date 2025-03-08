@@ -478,7 +478,7 @@ class CustomP2PNetDevice : public NetDevice
 
     // Protocol number used to identify the custom P4 header in nested packet parsing.
     // The previous header's protocol field indicates that the next is a custom header
-    static constexpr uint16_t m_p4ProtocolNumber = 0x12;
+    static constexpr uint16_t m_p4ProtocolNumber = 0xDC;
 
     /**
      * \brief The Maximum Transmission Unit

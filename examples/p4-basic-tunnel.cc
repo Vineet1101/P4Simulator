@@ -40,7 +40,7 @@ unsigned long start = getTickCount();
 double global_start_time = 1.0;
 double sink_start_time = global_start_time + 1.0;
 double client_start_time = sink_start_time + 1.0;
-double client_stop_time = client_start_time + 3; // sending time 30s
+double client_stop_time = client_start_time + 5; // sending time
 double sink_stop_time = client_stop_time + 5;
 double global_stop_time = sink_stop_time + 5;
 
@@ -52,8 +52,10 @@ double first_packet_send_time_tx = 0.0;
 double last_packet_send_time_tx = 0.0;
 double first_packet_received_time_rx = 0.0;
 double last_packet_received_time_rx = 0.0;
-uint64_t totalTxBytes = 0;
-uint64_t totalRxBytes = 0;
+uint64_t totalTxBytes_1 = 0;
+uint64_t totalRxBytes_1 = 0;
+uint64_t totalTxBytes_2 = 0;
+uint64_t totalRxBytes_2 = 0;
 
 // Convert IP address to hexadecimal format
 std::string
@@ -86,6 +88,128 @@ ConvertMacToHex(Address macAddr)
     return hexStream.str();
 }
 
+void
+TxCallback(Ptr<const Packet> packet)
+{
+    if (first_tx)
+    {
+        // here we just simple jump the first 10 pkts (include some of ARP packets)
+        first_packet_send_time_tx = Simulator::Now().GetSeconds();
+        counter_sender_10--;
+        if (counter_sender_10 == 0)
+        {
+            first_tx = false;
+        }
+    }
+    else
+    {
+        totalTxBytes_1 += packet->GetSize();
+        last_packet_send_time_tx = Simulator::Now().GetSeconds();
+    }
+}
+
+void
+RxCallback(Ptr<const Packet> packet, const Address& addr)
+{
+    if (first_rx)
+    {
+        // here we just simple jump the first 10 pkts (include some of ARP packets)
+        first_packet_received_time_rx = Simulator::Now().GetSeconds();
+        counter_receiver_10--;
+        if (counter_receiver_10 == 0)
+        {
+            first_rx = false;
+        }
+    }
+    else
+    {
+        totalRxBytes_1 += packet->GetSize();
+        last_packet_received_time_rx = Simulator::Now().GetSeconds();
+    }
+}
+
+void
+TxCallback_2(Ptr<const Packet> packet)
+{
+    if (first_tx)
+    {
+        // here we just simple jump the first 10 pkts (include some of ARP packets)
+        first_packet_send_time_tx = Simulator::Now().GetSeconds();
+        counter_sender_10--;
+        if (counter_sender_10 == 0)
+        {
+            first_tx = false;
+        }
+    }
+    else
+    {
+        totalTxBytes_2 += packet->GetSize();
+        last_packet_send_time_tx = Simulator::Now().GetSeconds();
+    }
+}
+
+void
+RxCallback_2(Ptr<const Packet> packet, const Address& addr)
+{
+    if (first_rx)
+    {
+        // here we just simple jump the first 10 pkts (include some of ARP packets)
+        first_packet_received_time_rx = Simulator::Now().GetSeconds();
+        counter_receiver_10--;
+        if (counter_receiver_10 == 0)
+        {
+            first_rx = false;
+        }
+    }
+    else
+    {
+        totalRxBytes_2 += packet->GetSize();
+        last_packet_received_time_rx = Simulator::Now().GetSeconds();
+    }
+}
+
+void
+PrintFinalThroughput()
+{
+    // 计算传输和接收的时间间隔
+    double send_time = last_packet_send_time_tx - first_packet_send_time_tx;
+    double elapsed_time = last_packet_received_time_rx - first_packet_received_time_rx;
+
+    // 计算每个传输流的总字节数
+    uint64_t totalTxBytes = totalTxBytes_1 + totalTxBytes_2;
+    uint64_t totalRxBytes = totalRxBytes_1 + totalRxBytes_2;
+
+    // 避免除零错误
+    double finalTxThroughput = (send_time > 0) ? (totalTxBytes * 8.0) / (send_time * 1e6) : 0.0;
+    double finalRxThroughput =
+        (elapsed_time > 0) ? (totalRxBytes * 8.0) / (elapsed_time * 1e6) : 0.0;
+
+    std::cout << "======================================" << std::endl;
+    std::cout << "Final Simulation Results:" << std::endl;
+    std::cout << "Client Start Time: " << first_packet_send_time_tx << " s" << std::endl;
+    std::cout << "Client Stop Time: " << last_packet_send_time_tx << " s" << std::endl;
+    std::cout << "Sink Start Time: " << first_packet_received_time_rx << " s" << std::endl;
+    std::cout << "Sink Stop Time: " << last_packet_received_time_rx << " s" << std::endl;
+
+    std::cout << "--------------------------------------" << std::endl;
+    std::cout << "Detailed Bytes Transmitted & Received" << std::endl;
+    std::cout << "Tx Stream 1: " << totalTxBytes_1 << " bytes" << std::endl;
+    std::cout << "Tx Stream 2: " << totalTxBytes_2 << " bytes" << std::endl;
+    std::cout << "Total Transmitted Bytes: " << totalTxBytes << " bytes over " << send_time << " s"
+              << std::endl;
+
+    std::cout << "Rx Stream 1: " << totalRxBytes_1 << " bytes" << std::endl;
+    std::cout << "Rx Stream 2: " << totalRxBytes_2 << " bytes" << std::endl;
+    std::cout << "Total Received Bytes: " << totalRxBytes << " bytes over " << elapsed_time << " s"
+              << std::endl;
+
+    std::cout << "--------------------------------------" << std::endl;
+    std::cout << "Final Throughput Metrics" << std::endl;
+    std::cout << "Final Transmitted Throughput: " << finalTxThroughput << " Mbps" << std::endl;
+    std::cout << "Final Received Throughput: " << finalRxThroughput << " Mbps" << std::endl;
+    std::cout << "======================================" << std::endl;
+}
+
 // ============================ data struct ============================
 struct SwitchNodeC_t
 {
@@ -111,7 +235,7 @@ main(int argc, char* argv[])
 
     int running_number = 0;
     uint16_t pktSize = 1000; // in Bytes. 1458 to prevent fragments, default 512
-    std::string appDataRate[] = {"2Mbps", "5Mbps"}; // Default application data rate
+    std::string appDataRate[] = {"1Mbps", "3Mbps"}; // Default application data rate
     std::string ns3_link_rate = "1000Mbps";
     bool enableTracePcap = true;
 
@@ -121,7 +245,7 @@ main(int argc, char* argv[])
         "/home/p4/workdir/ns-3-dev-git/contrib/p4sim/examples/p4src/basic_tunnel/";
     std::string topoInput =
         "/home/p4/workdir/ns-3-dev-git/contrib/p4sim/examples/p4src/basic_tunnel/topo.txt";
-    std::string topoFormat("CsmaTopo");
+    std::string topoFormat("P2PTopo");
 
     // ============================  command line ============================
     CommandLine cmd;
@@ -156,6 +280,7 @@ main(int argc, char* argv[])
 
     // set default network link parameter
     P4PointToPointHelper p4p2phelper;
+    p4p2phelper.SetDeviceAttribute("DataRate", DataRateValue(DataRate("10Mbps")));
     p4p2phelper.SetChannelAttribute("Delay", TimeValue(MilliSeconds(0.01)));
 
     P4TopologyReader::ConstLinksIterator_t iter;
@@ -341,14 +466,19 @@ main(int argc, char* argv[])
     app1.Start(Seconds(client_start_time));
     app1.Stop(Seconds(client_stop_time));
 
-    // Normal Stream == Second == send link h0 -----> h1
-    servPort = 1200; // change the application port
+    // === Setup Tracing ===
+    Ptr<OnOffApplication> ptr_app1 =
+        DynamicCast<OnOffApplication>(terminals.Get(clientI)->GetApplication(0));
+    ptr_app1->TraceConnectWithoutContext("Tx", MakeCallback(&TxCallback));
+    sinkApp1.Get(0)->TraceConnectWithoutContext("Rx", MakeCallback(&RxCallback));
 
-    // node = terminals.Get (serverI);
-    // ipv4_adder = node->GetObject<Ipv4> ();
-    // serverAddr1 =
-    //     ipv4_adder->GetAddress (1, 0)
-    //         .GetLocal (); // Interface index 1 corresponds to the first assigned IP
+    // Normal Stream == Second == send link h0 -----> h1
+    servPort = 1301; // change the application port
+
+    node = terminals.Get(serverI);
+    ipv4_adder = node->GetObject<Ipv4>();
+    serverAddr1 = ipv4_adder->GetAddress(1, 0)
+                      .GetLocal(); // Interface index 1 corresponds to the first assigned IP
     InetSocketAddress dst2 = InetSocketAddress(serverAddr1, servPort);
     PacketSinkHelper sink2 = PacketSinkHelper("ns3::UdpSocketFactory", dst2);
     ApplicationContainer sinkApp2 = sink2.Install(terminals.Get(serverI));
@@ -361,11 +491,17 @@ main(int argc, char* argv[])
     onOff2.SetAttribute("DataRate", StringValue(appDataRate[1]));
     onOff2.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
     onOff2.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
-    // onOff2.SetAttribute ("MaxBytes", UintegerValue (5000));
+    // onOff2.SetAttribute("MaxBytes", UintegerValue(500));
 
     ApplicationContainer app2 = onOff2.Install(terminals.Get(clientI));
     app2.Start(Seconds(client_start_time));
     app2.Stop(Seconds(client_stop_time));
+
+    // === Setup Tracing ===
+    Ptr<OnOffApplication> ptr_app2 =
+        DynamicCast<OnOffApplication>(terminals.Get(clientI)->GetApplication(0));
+    ptr_app2->TraceConnectWithoutContext("Tx", MakeCallback(&TxCallback_2));
+    sinkApp2.Get(0)->TraceConnectWithoutContext("Rx", MakeCallback(&RxCallback_2));
 
     // Enable pcap tracing
     p4p2phelper.EnablePcapAll("p4-basic-tunnel");
@@ -383,5 +519,6 @@ main(int argc, char* argv[])
                                           << std::endl
                                           << "Run successfully!");
 
+    PrintFinalThroughput();
     return 0;
 }
