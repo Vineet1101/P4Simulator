@@ -199,6 +199,7 @@ CustomP2PNetDevice::GetDstPort(Ptr<Packet> p)
         uint16_t protocol_temp = ip_hd.GetProtocol();
         cus_hd.SetProtocolFieldNumber(0);
 
+        // With OnOffApplication, the protocol will be UDP or TCP.
         if (protocol_temp == 0x11) // UDP
         {
             NS_LOG_DEBUG("UDP protocol, return the dst port number");
@@ -528,6 +529,7 @@ CustomP2PNetDevice::ProcessHeader(Ptr<Packet> p, uint16_t& param)
 void
 CustomP2PNetDevice::RestoreHeaders(Ptr<Packet> p)
 {
+    // two case: 1. add custom header 2. without custom header
     NS_LOG_FUNCTION(this << p);
     // Restore the original headers
     // for the switch port net-device, no need to processing the header.
@@ -790,6 +792,8 @@ CustomP2PNetDevice::Receive(Ptr<Packet> packet)
         //
         Ptr<Packet> originalPacket = packet->Copy();
 
+        EthernetHeader eeh_hd;
+        bool hasEthernet = originalPacket->PeekHeader(eeh_hd);
         // std::cout << "***Netdevice: Receive: before remove the custom header " << std::endl;
         // originalPacket->Print (std::cout);
         // std::cout << " " << std::endl;
@@ -800,12 +804,24 @@ CustomP2PNetDevice::Receive(Ptr<Packet> packet)
         // there is no difference in what the promisc callback sees and what the
         // normal receive callback sees.
         //
-        ProcessHeader(packet, protocol);
+        ProcessHeader(packet, protocol); // the original pacekt have etherent header
+        // RemoveEthernetHeader(packet);
+        if (hasEthernet)
+        {
+            originalPacket = packet->Copy();
+            originalPacket->AddHeader(eeh_hd);
+        }
 
         // PrintPacketHeaders (packet); // @TEST
 
-        // std::cout << "***Netdevice: Receive: after remove the custom header " << std::endl;
-        // packet->Print (std::cout);
+        // std::cout << m_NeedProcessHeader << packet->GetSize()
+        //           << "***Netdevice: Receive: after remove the custom header 234" << std::endl;
+        // packet->Print(std::cout);
+        // std::cout << " " << std::endl;
+
+        // std::cout << m_NeedProcessHeader << originalPacket->GetSize()
+        //           << "***Netdevice: Receive: origin pacekt 321 " << std::endl;
+        // originalPacket->Print(std::cout);
         // std::cout << " " << std::endl;
 
         if (!m_promiscCallback.IsNull())
@@ -822,6 +838,21 @@ CustomP2PNetDevice::Receive(Ptr<Packet> packet)
         m_macRxTrace(originalPacket);
         m_rxCallback(this, packet, protocol, GetRemote());
     }
+}
+
+bool
+CustomP2PNetDevice::RemoveEthernetHeader(Ptr<Packet> p)
+{
+    NS_LOG_FUNCTION(this);
+    EthernetHeader eeh_hd;
+    bool hasEthernet = p->PeekHeader(eeh_hd);
+    if (hasEthernet)
+    {
+        NS_LOG_DEBUG("Ethernet header detected");
+        p->RemoveHeader(eeh_hd);
+        return true;
+    }
+    return false;
 }
 
 Ptr<Queue<Packet>>

@@ -55,6 +55,8 @@ class CustomP2PNetDevice : public NetDevice
     CustomP2PNetDevice();
     virtual ~CustomP2PNetDevice();
 
+    bool RemoveEthernetHeader(Ptr<Packet> p);
+
     uint16_t GetDstPort(Ptr<Packet> p);
     bool HandleTransportLayerHeader(Ptr<Packet> p,
                                     CustomHeader& cus_hd,

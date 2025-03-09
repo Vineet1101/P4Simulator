@@ -142,6 +142,9 @@ P4SwitchCore::InitializeSwitchFromP4Json(const std::string& jsonPath)
     static int p4_switch_ctrl_plane_thrift_port = 9090;
     m_thriftPort = p4_switch_ctrl_plane_thrift_port;
 
+    std::cout << "P4 switch " << m_p4SwitchId
+              << " thrift port: " << p4_switch_ctrl_plane_thrift_port << std::endl;
+
     bm::OptionsParser opt_parser;
     opt_parser.config_file_path = jsonPath;
     opt_parser.debugger_addr =

@@ -1,0 +1,21 @@
+6 6 14
+6 h 0 s 10Gbps 1ms
+7 h 0 s 10Gbps 1ms
+8 h 0 s 10Gbps 1ms
+9 h 1 s 10Gbps 1ms
+10 h 1 s 10Gbps 1ms
+11 h 1 s 10Gbps 1ms
+0 s 2 s 40Gbps 0.5ms
+2 s 4 s 40Gbps 0.5ms
+2 s 5 s 40Gbps 0.5ms
+2 s 1 s 40Gbps 0.5ms
+0 s 3 s 40Gbps 0.5ms
+4 s 3 s 40Gbps 0.5ms
+5 s 3 s 40Gbps 0.5ms
+1 s 3 s 40Gbps 0.5ms
+0 SIMPLE_ROUTER
+1 SIMPLE_ROUTER
+2 SIMPLE_ROUTER
+3 SIMPLE_ROUTER
+4 SIMPLE_ROUTER
+5 SIMPLE_ROUTER

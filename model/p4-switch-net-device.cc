@@ -264,9 +264,9 @@ P4SwitchNetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
         ns3Packet->AddHeader(eeh_1);
 
         // @debug
-        // std::cout << "* Switch Port *** Receive from Device: " << std::endl;
-        // ns3Packet->Print (std::cout);
-        // std::cout << std::endl;
+        std::cout << "* Switch Port *** Receive from Device: " << std::endl;
+        ns3Packet->Print(std::cout);
+        std::cout << ns3Packet->GetSize() << std::endl;
     }
     else
     {
@@ -540,7 +540,8 @@ P4SwitchNetDevice::SendNs3Packet(Ptr<Packet> packetOut,
 {
     NS_LOG_DEBUG("Sending ns3 packet to port " << outPort);
 
-    // packetOut->Print (std::cout);
+    // std::cout << "* after p4 processing " << packetOut->GetSize() << "packet length" <<
+    // std::endl; packetOut->Print(std::cout);
     // std::cout << std::endl;
 
     if (packetOut)
@@ -554,13 +555,12 @@ P4SwitchNetDevice::SendNs3Packet(Ptr<Packet> packetOut,
             protocol = eeh_1.GetLengthType(); // recover the protocol number
         }
 
-        EthernetHeader eeh;
-        packetOut->RemoveHeader(eeh); // keep the ethernet header
+        packetOut->RemoveHeader(eeh_1); // keep the ethernet header
 
         // @debug
-        // std::cout << "* Switch Port *** Send from Device: " << std::endl;
-        // packetOut->Print (std::cout);
-        // std::cout << std::endl;
+        // std::cout << "* Switch Port (out)*** Send from Device: " << std::endl;
+        // packetOut->Print(std::cout);
+        // std::cout << "packet length: " << packetOut->GetSize() << std::endl;
 
         if (outPort != 511)
         {
