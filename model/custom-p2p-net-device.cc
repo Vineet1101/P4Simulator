@@ -792,8 +792,9 @@ CustomP2PNetDevice::Receive(Ptr<Packet> packet)
         //
         Ptr<Packet> originalPacket = packet->Copy();
 
-        EthernetHeader eeh_hd;
-        bool hasEthernet = originalPacket->PeekHeader(eeh_hd);
+        // EthernetHeader eeh_hd;
+        // bool hasEthernet = originalPacket->PeekHeader(eeh_hd);
+
         // std::cout << "***Netdevice: Receive: before remove the custom header " << std::endl;
         // originalPacket->Print (std::cout);
         // std::cout << " " << std::endl;
@@ -805,12 +806,13 @@ CustomP2PNetDevice::Receive(Ptr<Packet> packet)
         // normal receive callback sees.
         //
         ProcessHeader(packet, protocol); // the original pacekt have etherent header
+
         // RemoveEthernetHeader(packet);
-        if (hasEthernet)
-        {
-            originalPacket = packet->Copy();
-            originalPacket->AddHeader(eeh_hd);
-        }
+        // if (hasEthernet)
+        // {
+        //     originalPacket = packet->Copy();
+        //     originalPacket->AddHeader(eeh_hd);
+        // }
 
         // PrintPacketHeaders (packet); // @TEST
 

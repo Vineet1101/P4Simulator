@@ -82,6 +82,7 @@ build_lib_example(
     ${libapplications}
     ${libnetwork}
     ${libcsma}
+    ${libflow-monitor}
 )
 
 # [ ================= PSA Arch ================= ]

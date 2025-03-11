@@ -264,9 +264,9 @@ P4SwitchNetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
         ns3Packet->AddHeader(eeh_1);
 
         // @debug
-        std::cout << "* Switch Port *** Receive from Device: " << std::endl;
-        ns3Packet->Print(std::cout);
-        std::cout << ns3Packet->GetSize() << std::endl;
+        // std::cout << "* Switch Port *** Receive from Device: " << std::endl;
+        // ns3Packet->Print(std::cout);
+        // std::cout << ns3Packet->GetSize() << std::endl;
     }
     else
     {
