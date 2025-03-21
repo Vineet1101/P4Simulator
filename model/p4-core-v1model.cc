@@ -22,6 +22,10 @@
 #include "ns3/primitives-v1model.h"
 #include "ns3/register-access-v1model.h"
 #include "ns3/simulator.h"
+
+#include <fstream> // tracing info to file
+#include <sstream>
+
 NS_LOG_COMPONENT_DEFINE("P4CoreV1model");
 
 namespace ns3
@@ -92,9 +96,14 @@ P4CoreV1model::P4CoreV1model(P4SwitchNetDevice* net_device,
 
     if (m_enableTracing)
     {
-        m_packetsPerTimeInterval = 0;
-        m_totalPakcketsNum = 0;
-        m_bitsPerTimeInterval = 0;
+        m_inputBps = 0;                                 // bps
+        m_inputBp = 0;                                  // bp
+        m_inputPps = 0;                                 // pps
+        m_inputPp = 0;                                  // pp
+        m_egressBps = 0;                                // bps
+        m_egressBp = 0;                                 // bp
+        m_egressPps = 0;                                // pps
+        m_egressPp = 0;                                 // pp
         m_timeInterval = Time::FromInteger(1, Time::S); // 1 second per interval
     }
 
@@ -205,8 +214,8 @@ P4CoreV1model::ReceivePacket(Ptr<Packet> packetIn,
 
     if (m_enableTracing)
     {
-        m_packetsPerTimeInterval++;
-        m_bitsPerTimeInterval += len * 8;
+        m_inputPps++;          // input pps
+        m_inputBps += len * 8; // input bps, this may add the header in account.
     }
 
     bm_packet.get()->set_ingress_port(inPort);
@@ -473,6 +482,13 @@ P4CoreV1model::HandleEgressPipeline(size_t workerId)
     if (bm_packet == nullptr)
         return false;
 
+    if (m_enableTracing)
+    {
+        m_egressPps++; // egress pps
+        int len = bm_packet->get_data_size();
+        m_egressBps += len * 8; // egress bps, this may add the header in account.
+    }
+
     NS_LOG_FUNCTION("Egress processing for the packet");
     bm::PHV* phv = bm_packet->get_phv();
     bm::Pipeline* egress_mau = this->get_pipeline("egress");
@@ -614,6 +630,8 @@ P4CoreV1model::CalculateScheduleTime()
 {
     m_egressTimeEvent = EventId();
 
+    // Now we can not set the dequeue rate for each queue, later we will add this feature
+    // by p4 runtime controller.
     uint64_t bottleneck_ns = 1e9 / m_switchRate;
     egress_buffer.set_rate_for_all(m_switchRate);
     m_egressTimeRef = Time::FromDouble(bottleneck_ns, Time::NS);
@@ -645,17 +663,66 @@ P4CoreV1model::MulticastPacket(bm::Packet* packet, unsigned int mgid)
 void
 P4CoreV1model::CalculatePacketsPerSecond()
 {
-    NS_LOG_FUNCTION(this);
-    m_packetsPerTimeInterval = m_packetId - m_packetsPerTimeInterval;
-    m_totalPakcketsNum += m_packetsPerTimeInterval;
-    m_packetId = 0;
+    // Calculating P4 switch statistics
+    m_inputBp += m_inputBps;
+    m_inputPp += m_inputPps;
+    m_egressBp += m_egressBp;
+    m_egressPp += m_egressPps;
 
-    m_totalPacketRate = m_bitsPerTimeInterval;
-    m_bitsPerTimeInterval = 0;
+    // Construct log file path
+    std::string log_filename = "/tmp/bmv2-" + std::to_string(m_p4SwitchId) + "-queue_info.log";
+    static std::ofstream log_file(log_filename, std::ios::app);
 
-    NS_LOG_INFO("Packets per time interval: " << m_packetsPerTimeInterval << " [pps]");
-    NS_LOG_INFO("Total packets: " << m_totalPakcketsNum << " [pps]");
-    NS_LOG_INFO("Total packet rate: " << m_totalPacketRate << " [bps]");
+    if (!log_file.is_open())
+    {
+        NS_LOG_ERROR("Failed to open log file: " << log_filename);
+        return;
+    }
+
+    std::ostringstream log_stream;
+    log_stream << "P4 switch ID: " << m_p4SwitchId << "\n";
+    log_stream << "Time: " << Simulator::Now().GetSeconds() << " [s]\n";
+    log_stream << "Input packets per time interval: " << m_inputPps << " [pps]\n";
+    log_stream << "Input bits per time interval: " << m_inputBps << " [bps]\n";
+    log_stream << "Egress packets per time interval: " << m_egressPps << " [pps]\n";
+    log_stream << "Egress bits per time interval: " << m_egressBps << " [bps]\n";
+
+    log_stream << "Total input packets: " << m_inputPp << " [pp]\n";
+    log_stream << "Total input bits: " << m_inputBp << " [bp]\n";
+    log_stream << "Total egress packets: " << m_egressPp << " [pp]\n";
+    log_stream << "Total egress bits: " << m_egressBp << " [bp]\n";
+
+    m_inputPps = 0;
+    m_inputBps = 0;
+    m_egressPps = 0;
+    m_egressBps = 0;
+
+    size_t input_buffer_size = input_buffer->get_size();
+    log_stream << "Input buffer size: " << input_buffer_size << "\n";
+
+    uint32_t port_number = m_switchNetDevice->GetNBridgePorts();
+
+    for (size_t i = 0; i < static_cast<size_t>(port_number); i++)
+    {
+        size_t queue_size = egress_buffer.size(i);
+        log_stream << "[TEST] Queue buffer for ports " << i << " size: " << queue_size << "\n";
+    }
+
+    for (size_t i = 0; i < static_cast<size_t>(port_number); i++)
+    {
+        for (size_t j = 0; j < m_nbQueuesPerPort; j++)
+        {
+            size_t queue_size = egress_buffer.size(i, j);
+            log_stream << "Queue pipeline " << i << " priority " << j << " size: " << queue_size
+                       << "\n";
+        }
+    }
+
+    size_t output_buffer_size = output_buffer.size();
+    log_stream << "Output buffer size: " << output_buffer_size << "\n";
+
+    log_file << log_stream.str();
+    log_file.flush();
 
     Simulator::Schedule(m_timeInterval, &P4CoreV1model::CalculatePacketsPerSecond, this);
 }

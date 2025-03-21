@@ -263,7 +263,7 @@ class NSQueueingLogicPriRL
      * mechanism ns3 in the replacement for the polling mechanism, so there will
      * be some loss in performance)
      *
-     * [from bmv2 author]
+     * [from bmv2]
      * Retrieves an element for the worker thread indentified by \p worker_id and
      * moves it to \p pItem. The id of the logical queue which contained this
      * element is copied to \p queue_id and the priority value of the served

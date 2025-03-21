@@ -217,7 +217,7 @@ CalculateThroughput()
                          << "Switch5(Tx): " << throughput_switch5);
 
     // 追加写入文件
-    std::ofstream outFile("throughput_log.txt", std::ios::app);
+    std::ofstream outFile("throughput_log_1.txt", std::ios::app);
     if (outFile.is_open())
     {
         outFile << currentTime << " " << throughput_switch0 << " " << throughput_switch2 << " "

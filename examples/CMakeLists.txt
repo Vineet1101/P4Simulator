@@ -145,3 +145,26 @@ build_lib_example(
     ${libnetwork}
     ${libcsma}
 )
+
+# network test
+build_lib_example(
+  NAME p4-traffic-gene
+  SOURCE_FILES p4-traffic-gene.cc
+  LIBRARIES_TO_LINK
+    ${libp4sim}
+    ${libinternet}
+    ${libapplications}
+    ${libnetwork}
+    ${libpoint-to-point}
+)
+
+# network test
+build_lib_example(
+  NAME p4-queue-test
+  SOURCE_FILES p4-queue-test.cc
+  LIBRARIES_TO_LINK
+    ${libp4sim}
+    ${libinternet}
+    ${libapplications}
+    ${libnetwork}
+)

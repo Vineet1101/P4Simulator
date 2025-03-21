@@ -40,7 +40,7 @@ unsigned long start = getTickCount();
 double global_start_time = 1.0;
 double sink_start_time = global_start_time + 1.0;
 double client_start_time = sink_start_time + 1.0;
-double client_stop_time = client_start_time + 5; // sending time
+double client_stop_time = client_start_time + 30; // sending time
 double sink_stop_time = client_stop_time + 5;
 double global_stop_time = sink_stop_time + 5;
 
@@ -185,8 +185,8 @@ main(int argc, char* argv[])
 
     int running_number = 0;
     uint16_t pktSize = 1000; // in Bytes. 1458 to prevent fragments, default 512
-    std::string appDataRate[] = {"1Mbps", "3Mbps"}; // Default application data rate
-    std::string ns3_link_rate = "1000Mbps";
+    std::string appDataRate[] = {"10Mbps", "40Mbps"}; // Default application data rate
+    std::string ns3_link_rate = "100Mbps";
     bool enableTracePcap = true;
 
     std::string p4JsonPath =
@@ -230,8 +230,8 @@ main(int argc, char* argv[])
 
     // set default network link parameter
     P4PointToPointHelper p4p2phelper;
-    p4p2phelper.SetDeviceAttribute("DataRate", DataRateValue(DataRate("10Mbps")));
-    p4p2phelper.SetChannelAttribute("Delay", TimeValue(MilliSeconds(0.01)));
+    p4p2phelper.SetDeviceAttribute("DataRate", DataRateValue(DataRate(ns3_link_rate)));
+    p4p2phelper.SetChannelAttribute("Delay", TimeValue(MilliSeconds(1)));
 
     P4TopologyReader::ConstLinksIterator_t iter;
     SwitchNodeC_t switchNodes[switchNum];
@@ -350,6 +350,7 @@ main(int argc, char* argv[])
     // p4SwitchHelper.SetDeviceAttribute("ChannelType", UintegerValue(0));
     p4SwitchHelper.SetDeviceAttribute("P4SwitchArch", UintegerValue(0));
     p4SwitchHelper.SetDeviceAttribute("ChannelType", UintegerValue(1));
+    p4SwitchHelper.SetDeviceAttribute("SwitchRate", UintegerValue(10000));
 
     for (unsigned int i = 0; i < switchNum; i++)
     {
@@ -410,17 +411,11 @@ main(int argc, char* argv[])
     onOff1.SetAttribute("DataRate", StringValue(appDataRate[0]));
     onOff1.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
     onOff1.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
-    onOff1.SetAttribute("MaxBytes", UintegerValue(5000));
+    // onOff1.SetAttribute("MaxBytes", UintegerValue(5000));
 
     ApplicationContainer app1 = onOff1.Install(terminals.Get(clientI));
     app1.Start(Seconds(client_start_time));
     app1.Stop(Seconds(client_stop_time));
-
-    // === Setup Tracing ===
-    Ptr<OnOffApplication> ptr_app1 =
-        DynamicCast<OnOffApplication>(terminals.Get(clientI)->GetApplication(0));
-    ptr_app1->TraceConnectWithoutContext("Tx", MakeCallback(&TxCallback));
-    sinkApp1.Get(0)->TraceConnectWithoutContext("Rx", MakeCallback(&RxCallback));
 
     // Normal Stream == Second == send link h0 -----> h1
     servPort = 1301; // change the application port
@@ -441,17 +436,11 @@ main(int argc, char* argv[])
     onOff2.SetAttribute("DataRate", StringValue(appDataRate[1]));
     onOff2.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
     onOff2.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
-    onOff2.SetAttribute("MaxBytes", UintegerValue(10000));
+    // onOff2.SetAttribute("MaxBytes", UintegerValue(10000));
 
     ApplicationContainer app2 = onOff2.Install(terminals.Get(clientI));
     app2.Start(Seconds(client_start_time));
     app2.Stop(Seconds(client_stop_time));
-
-    // === Setup Tracing ===
-    Ptr<OnOffApplication> ptr_app2 =
-        DynamicCast<OnOffApplication>(terminals.Get(clientI)->GetApplication(1));
-    ptr_app2->TraceConnectWithoutContext("Tx", MakeCallback(&TxCallback_2));
-    sinkApp2.Get(0)->TraceConnectWithoutContext("Rx", MakeCallback(&RxCallback_2));
 
     // Enable pcap tracing
     p4p2phelper.EnablePcapAll("p4-basic-tunnel");
