@@ -1,52 +1,52 @@
 # -*- Mode: python; py-indent-offset: 4; indent-tabs-mode: nil; coding: utf-8; -*-
 
 def build(bld):
-    # obj = bld.create_ns3_program('p4sim-example', ['p4sim', 'internet', 'applications', 'network'])
-    # obj.source = 'p4sim-example.cc'
-    
-    # obj = bld.create_ns3_program('p4-basic-test', ['p4sim', 'internet', 'applications', 'network'])
-    # obj.source = 'p4-basic-test.cc'
-    
-    # obj = bld.create_ns3_program('p4-basic-test-p2p', ['p4sim', 'internet', 'applications', 'network'])
-    # obj.source = 'p4-basic-test-p2p.cc'
-    
-    # obj = bld.create_ns3_program('p4-custom-header-test', ['p4sim'])
-    # obj.source = 'p4-custom-header-test.cc'
-    
-    # obj = bld.create_ns3_program('p4-basic-example', ['p4sim', 'internet', 'applications', 'network'])
-    # obj.source = 'p4-basic-example.cc'
-    
-    # obj = bld.create_ns3_program('p4-basic-tunnel-example', ['p4sim', 'internet', 'applications', 'network'])
-    # obj.source = 'p4-basic-tunnel-example.cc'
-    
-    # obj = bld.create_ns3_program('p4-p2p-custom-header-test', ['p4sim', 'internet', 'applications', 'network'])
-    # obj.source = 'p4-p2p-custom-header-test.cc'
-    
-    # obj = bld.create_ns3_program('p4-custom-test', ['p4sim', 'internet', 'applications', 'network'])
-    # obj.source = 'p4-custom-test.cc'
-    
-    ## ================================== Evaluation of the P4 program
-    
-    # 1. basic ipv4 forwarding test with 2 hosts 1 switch CSMA channel
-    obj = bld.create_ns3_program('p4-ipv4-forwarding-test', ['p4sim', 'internet', 'applications', 'network'])
-    obj.source = 'p4-ipv4-forwarding-test.cc'
-    
-    # # 2. basic ipv4 forwarding test with 2 hosts 1 switch P2P channel
-    # obj = bld.create_ns3_program('p4-ipv4-forwarding-test-1', ['p4sim', 'internet', 'applications', 'network'])
-    # obj.source = 'p4-ipv4-forwarding-test-1.cc'
-    
-    
-    # 2.0 basic ipv4 forwarding test with 2 hosts 1 switch P2P channel
-    obj = bld.create_ns3_program('p4-ipv4-forwarding-refactor', ['p4sim', 'internet', 'applications', 'network'])
-    obj.source = 'p4-ipv4-forwarding-refactor.cc'
-    
-    # # 3. basic p2p test with 2 hosts 1
-    # obj = bld.create_ns3_program('p2p-test', ['p4sim', 'internet', 'applications', 'network'])
-    # obj.source = 'p2p-test.cc'
-    
-    
-    # 
-    # 
-    # 4.0 basic ipv4 forwarding test with topology and animation
-    obj = bld.create_ns3_program('p4-ipv4-animation', ['p4sim', 'internet', 'applications', 'network', 'netanim'])
-    obj.source = 'p4-ipv4-animation.cc'
+    ## =================== V1model Arch ===================
+
+    obj = bld.create_ns3_program('p4-v1model-ipv4-forwarding', ['p4sim', 'internet', 'applications', 'network', 'csma'])
+    obj.source = 'p4-v1model-ipv4-forwarding.cc'
+
+    obj = bld.create_ns3_program('p4-l3-router', ['p4sim', 'internet', 'applications', 'network', 'csma'])
+    obj.source = 'p4-l3-router.cc'
+
+    obj = bld.create_ns3_program('p4-basic-example', ['p4sim', 'internet', 'applications', 'network', 'csma'])
+    obj.source = 'p4-basic-example.cc'
+
+    obj = bld.create_ns3_program('p4-basic-tunnel', ['p4sim', 'internet', 'applications', 'network'])
+    obj.source = 'p4-basic-tunnel.cc'
+
+    obj = bld.create_ns3_program('p4-firewall', ['p4sim', 'internet', 'applications', 'network', 'csma'])
+    obj.source = 'p4-firewall.cc'
+
+    obj = bld.create_ns3_program('p4-link-monitoring', ['p4sim', 'internet', 'applications', 'network', 'csma'])
+    obj.source = 'p4-link-monitoring.cc'
+
+    obj = bld.create_ns3_program('p4-spine-leaf-topo', ['p4sim', 'internet', 'applications', 'network', 'csma', 'flow-monitor'])
+    obj.source = 'p4-spine-leaf-topo.cc'
+
+    ## =================== PSA Arch ===================
+
+    obj = bld.create_ns3_program('p4-psa-ipv4-forwarding', ['p4sim', 'internet', 'applications', 'network', 'csma'])
+    obj.source = 'p4-psa-ipv4-forwarding.cc'
+
+    ## =================== NO P4 ===================
+
+    obj = bld.create_ns3_program('p4-p2p-custom-header-test', ['p4sim', 'internet', 'applications', 'network'])
+    obj.source = 'p4-p2p-custom-header-test.cc'
+
+    ## =================== Test ===================
+
+    obj = bld.create_ns3_program('p4-custom-header-test', ['p4sim'])
+    obj.source = 'p4-custom-header-test.cc'
+
+    obj = bld.create_ns3_program('net-test', ['p4sim', 'internet', 'applications', 'network', 'csma'])
+    obj.source = 'net-test.cc'
+
+    obj = bld.create_ns3_program('routing-test', ['p4sim', 'internet', 'applications', 'network', 'csma'])
+    obj.source = 'routing-test.cc'
+
+    obj = bld.create_ns3_program('p4-traffic-gene', ['p4sim', 'internet', 'applications', 'network', 'point-to-point'])
+    obj.source = 'p4-traffic-gene.cc'
+
+    obj = bld.create_ns3_program('p4-queue-test', ['p4sim', 'internet', 'applications', 'network'])
+    obj.source = 'p4-queue-test.cc'

@@ -27,21 +27,24 @@ def build(bld):
     ]
     module = bld.create_ns3_module('p4sim', req_ns3_modules)
     module.source = [
-        'model/p4-queue.cc',
+        'utils/format-utils.cc',
+        'utils/switch-api.cc',
+        'utils/p4-queue.cc',
         'model/p4-bridge-channel.cc',
         'model/p4-p2p-channel.cc',
         'model/custom-header.cc',
         'model/p4-topology-reader.cc',
+        'model/p4-switch-core.cc',
         'model/p4-core-v1model.cc',
-        "model/p4-core-psa.cc",
+        'model/p4-core-pipeline.cc',
+        'model/p4-core-psa.cc',
+        'model/p4-nic-pna.cc',
         'model/p4-switch-net-device.cc',
         'model/custom-p2p-net-device.cc',
-        'model/format-utils.cc',
-        'model/switch-api.cc',
         'helper/p4-helper.cc',
         'helper/p4-topology-reader-helper.cc',
-        'helper/p4-p2p-helper.cc'
-        ]
+        'helper/p4-p2p-helper.cc',
+    ]
 
     module_test = bld.create_ns3_module_test_library('p4sim')
     module_test.source = [
@@ -61,22 +64,26 @@ def build(bld):
     headers = bld(features='ns3header')
     headers.module = 'p4sim'
     headers.source = [
-        'model/p4-queue.h',
+        'utils/p4-queue.h',
+        'utils/format-utils.h',
+        'utils/switch-api.h',
+        'utils/register-access-v1model.h',
+        'utils/primitives-v1model.h',
         'model/p4-bridge-channel.h',
         'model/p4-p2p-channel.h',
         'model/custom-header.h',
         'model/p4-topology-reader.h',
+        'model/p4-switch-core.h',
         'model/p4-core-v1model.h',
-        "model/p4-core-psa.h",
+        'model/p4-core-pipeline.h',
+        'model/p4-core-psa.h',
+        'model/p4-nic-pna.h',
         'model/p4-switch-net-device.h',
         'model/custom-p2p-net-device.h',
-        'model/format-utils.h',
-        'model/switch-api.h',
-        'model/register_access.h',
         'helper/p4-helper.h',
         'helper/p4-topology-reader-helper.h',
-        'helper/p4-p2p-helper.h'
-        ]
+        'helper/p4-p2p-helper.h',
+    ]
 
     # Add library dependencies (Deprecated)
     # module.use += ['BM', 'BOOST', 'SW']
