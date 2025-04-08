@@ -36,9 +36,9 @@ This will create a virtual machine with name "P4 Tutorial Development" with the 
 ### 2. Clone the NS-3 Repository  
 ```bash
 cd
-mdkir workdir
+mkdir workdir
 cd workdir
-git clone https://gitlab.com/nsnam/ns-3.git ns3.35
+git clone https://github.com/nsnam/ns-3-dev-git.git ns3.35
 cd ns3.35
 git checkout ns-3.35 
 ```
@@ -98,23 +98,30 @@ vagrant up dev
 
 This will create a virtual machine with name "P4 Tutorial Development" with the date. 
 
-### 2. Clone the NS-3 Repository  
+### 2. install Cmake
+```bash
+sudo apt update
+sudo apt install cmake
+
+```
+
+### 3. Clone the NS-3 Repository  
 ```bash
 cd
-mdkir workdir
+mkdir workdir
 cd workdir
-git clone https://gitlab.com/nsnam/ns-3.git ns3.39
+git clone https://github.com/nsnam/ns-3-dev-git.git ns3.39
 cd ns3.39
 git checkout ns-3.39
 ```
 
-### 3. Clone & Integrate `p4sim` into NS-3  
+### 4. Clone & Integrate `p4sim` into NS-3  
 ```bash
 cd /home/p4/workdir/ns3.39/contrib/
 git clone https://github.com/your-repo/p4sim.git
 ```
 
-### 4. Set Up the Environment (for external libs)
+### 5. Set Up the Environment (for external libs)
 ```bash
 cd /home/p4/workdir/ns3.39/contrib/p4sim/ # p4sim root directory
 sudo ./set_pkg_config_env.sh
