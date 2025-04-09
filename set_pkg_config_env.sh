@@ -8,7 +8,7 @@ includedir=/usr/local/include/bm
 Name: BMv2
 Description: Behavioral Model
 Version: 1.15.0
-Libs: -L\${libdir} -lbmall -lbmpi -lbmv2 -lgmp
+Libs: -L\${libdir} -lbmall
 Cflags: -I\${includedir}" >/usr/local/lib/pkgconfig/bm.pc
 
 echo "prefix=/usr/lib/

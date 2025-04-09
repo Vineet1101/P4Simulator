@@ -31,7 +31,9 @@ This has been tested with ns-3 repo Tag `ns-3.35`.
 vagrant up dev
 ```
 
-This will create a virtual machine with name "P4 Tutorial Development" with the date. 
+Please also **check the webpage**: [Introduction build venv of vm-ubuntu-24.04](https://github.com/p4lang/tutorials/tree/7273da1c2ac2fd05cea0a9dd0504184b8c955eae/vm-ubuntu-24.04#introduction), current version you need to install the tools by yourself: [install](https://github.com/p4lang/tutorials/tree/7273da1c2ac2fd05cea0a9dd0504184b8c955eae/vm-ubuntu-24.04#installing-open-source-p4-development-tools-on-the-vm)
+
+This will create a virtual machine with name "P4 Tutorial Development" with the date. Please **test with `simple_switch` command**, to test if the `bmv2` is correct installed. Later we use the libs.
 
 ### 2. Clone the NS-3 Repository  
 ```bash
@@ -71,7 +73,7 @@ git apply ./contrib/p4sim/doc/changes.patch
 
 ### 7. Run a Simulation Example  
 ```bash
-./waf --run "exampleA"
+./waf --run "exampleA" # This will run exampleA (name).
 
 # In the p4sim example, you may need to adjust the path of p4 and other files.
 # For example:
@@ -96,7 +98,9 @@ The include file is: `/usr/local/include/bm`, the libs is `/usr/local/lib/libbma
 vagrant up dev
 ```
 
-This will create a virtual machine with name "P4 Tutorial Development" with the date. 
+Please also **check the webpage**: [Introduction build venv of vm-ubuntu-24.04](https://github.com/p4lang/tutorials/tree/7273da1c2ac2fd05cea0a9dd0504184b8c955eae/vm-ubuntu-24.04#introduction), current version you need to install the tools by yourself: [install](https://github.com/p4lang/tutorials/tree/7273da1c2ac2fd05cea0a9dd0504184b8c955eae/vm-ubuntu-24.04#installing-open-source-p4-development-tools-on-the-vm)
+
+This will create a virtual machine with name "P4 Tutorial Development" with the date. Please **test with `simple_switch` command**, to test if the `bmv2` is correct installed. Later we use the libs.
 
 ### 2. install Cmake
 ```bash
@@ -136,7 +140,7 @@ sudo ./set_pkg_config_env.sh
 
 ### 7. Run a Simulation Example  
 ```bash
-./waf --run "exampleA"
+./waf --run "exampleA" # This will run exampleA (name).
 
 # In the p4sim example, you may need to adjust the path of p4 and other files.
 # For example:
