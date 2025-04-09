@@ -48,7 +48,7 @@ git checkout ns-3.35
 ### 3. Clone & Integrate `p4sim` into NS-3  
 ```bash
 cd /home/p4/workdir/ns3.35/contrib/
-git clone https://github.com/your-repo/p4sim.git
+git clone https://github.com/HapCommSys/p4sim.git
 ```
 
 ### 4. Set Up the Environment (for external libs)
@@ -122,7 +122,7 @@ git checkout ns-3.39
 ### 4. Clone & Integrate `p4sim` into NS-3  
 ```bash
 cd /home/p4/workdir/ns3.39/contrib/
-git clone https://github.com/your-repo/p4sim.git
+git clone https://github.com/HapCommSys/p4sim.git
 ```
 
 ### 5. Set Up the Environment (for external libs)
