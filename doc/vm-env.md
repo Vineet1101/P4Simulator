@@ -12,8 +12,7 @@
 
 It is recommended to use a **virtual machine** with Vagrant to simplify the installation and ensure compatibility. 
 
-
-# <a name='local-deployment'></a> Local deployment (ns3.39) [⤴️](#index)
+## <a name="local-deployment-ns339"></a> Local Deployment (ns-3.39) [⤴️](#index)
 
 This guide walks you through setting up a local environment to run the P4Sim integrated with `ns-3.39` on Ubuntu 24.04. The full setup includes installing the behavioral model (`bmv2`), setting up SSH for remote access, and building the ns-3 project with P4Sim support. This is tested with `Ubuntu 24.04 LTS Desktop`. 
 
@@ -142,7 +141,7 @@ Notes:
 
 ---
 
-## <a name='setup-ns3.35'></a> Setup Instructions for ns-3 version 3.x - 3.35 (Build with `waf`) [⤴️](#index)
+## <a name="setup-ns335"></a>  Setup Instructions for ns-3 version 3.x - 3.35 (Build with `waf`) [⤴️](#index)
 
 This has been tested with ns-3 repo Tag `ns-3.35`.
 
@@ -215,7 +214,7 @@ git apply ./contrib/p4sim/doc/changes.patch
 
 ---
 
-## ⭐  <a name='setup-ns3.39'></a> Setup Instructions for ns-3 version 3.36 - 3.39 (Build with `Cmake`) [⤴️](#index) 
+## ⭐  <a name='setup-ns339'></a> Setup Instructions for ns-3 version 3.36 - 3.39 (Build with `Cmake`) [⤴️](#index) 
 
 This has been tested with ns-3 repo Tag `ns-3.39`. Because the virtual machine will build BMv2 and libs with **C++17**, and ns-3 p4simulator using the external inlucde file and libs, therefore the ns-3 also need to build with **C++17**.
 The include file is: `/usr/local/include/bm`, the libs is `/usr/local/lib/libbmall.so`.
