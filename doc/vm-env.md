@@ -184,7 +184,6 @@ git clone https://github.com/HapCommSys/p4sim.git
 ### 4. Set Up the Environment (for external libs)
 ```bash
 cd /home/p4/workdir/ns3.35/contrib/p4sim/ # p4sim root directory
-git checkout waf
 sudo ./set_pkg_config_env.sh
 ```
 
