@@ -88,7 +88,7 @@ cd ../..
 You can run a built-in example using:
 
 ```bash
-./waf --run "exampleA"
+./ns3 run "exampleA"  # This will run exampleA (name).
 ```
 
 ---
@@ -195,13 +195,13 @@ git apply ./contrib/p4sim/doc/changes.patch
 ### 6. Configure & Build NS-3  
 ```bash
 # in ns-3 root directory
-./waf configure --enable-examples --enable-tests
-./waf build
+./ns3 configure --enable-examples --enable-tests
+./ns3 build
 ```
 
 ### 7. Run a Simulation Example  
 ```bash
-./waf --run "exampleA" # This will run exampleA (name).
+./ns3 run "exampleA" # This will run exampleA (name).
 
 # In the p4sim example, you may need to adjust the path of p4 and other files.
 # For example:
@@ -278,7 +278,7 @@ sudo ./set_pkg_config_env.sh
 
 ### 7. Run a Simulation Example  
 ```bash
-./waf --run "exampleA" # This will run exampleA (name).
+./ns3 run "exampleA" # This will run exampleA (name).
 
 # In the p4sim example, you may need to adjust the path of p4 and other files.
 # For example:
