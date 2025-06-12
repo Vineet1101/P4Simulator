@@ -40,7 +40,7 @@ unsigned long start = getTickCount();
 double global_start_time = 1.0;
 double sink_start_time = global_start_time + 1.0;
 double client_start_time = sink_start_time + 1.0;
-double client_stop_time = client_start_time + 30; // sending time
+double client_stop_time = client_start_time + 3; // sending time
 double sink_stop_time = client_stop_time + 5;
 double global_stop_time = sink_stop_time + 5;
 
@@ -185,7 +185,7 @@ main(int argc, char* argv[])
 
     int running_number = 0;
     uint16_t pktSize = 1000; // in Bytes. 1458 to prevent fragments, default 512
-    std::string appDataRate[] = {"10Mbps", "40Mbps"}; // Default application data rate
+    std::string appDataRate[] = {"1Mbps", "4Mbps"}; // Default application data rate
     std::string ns3_link_rate = "100Mbps";
     bool enableTracePcap = true;
 
@@ -350,7 +350,7 @@ main(int argc, char* argv[])
     // p4SwitchHelper.SetDeviceAttribute("ChannelType", UintegerValue(0));
     p4SwitchHelper.SetDeviceAttribute("P4SwitchArch", UintegerValue(0));
     p4SwitchHelper.SetDeviceAttribute("ChannelType", UintegerValue(1));
-    p4SwitchHelper.SetDeviceAttribute("SwitchRate", UintegerValue(10000));
+    p4SwitchHelper.SetDeviceAttribute("SwitchRate", UintegerValue(1000));
 
     for (unsigned int i = 0; i < switchNum; i++)
     {

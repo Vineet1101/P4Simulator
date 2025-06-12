@@ -50,6 +50,7 @@ build_lib(
         utils/format-utils.cc
         utils/switch-api.cc
         utils/p4-queue.cc
+        utils/fattree-topo-helper.cc
         model/p4-bridge-channel.cc
         model/p4-p2p-channel.cc
         model/custom-header.cc
@@ -64,12 +65,14 @@ build_lib(
         helper/p4-helper.cc
         helper/p4-topology-reader-helper.cc
         helper/p4-p2p-helper.cc
+        helper/build-flowtable-helper.cc
     HEADER_FILES # equivalent to headers.source
         utils/p4-queue.h
         utils/format-utils.h
         utils/switch-api.h
         utils/register-access-v1model.h
         utils/primitives-v1model.h
+        utils/fattree-topo-helper.h
         model/p4-bridge-channel.h
         model/p4-p2p-channel.h
         model/custom-header.h
@@ -84,6 +87,7 @@ build_lib(
         helper/p4-helper.h
         helper/p4-topology-reader-helper.h
         helper/p4-p2p-helper.h
+        helper/build-flowtable-helper.h
     LIBRARIES_TO_LINK 
         ${libcore} 
         ${libnetwork}  

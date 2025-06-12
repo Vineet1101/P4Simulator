@@ -85,6 +85,17 @@ build_lib_example(
     ${libflow-monitor}
 )
 
+# fattree test
+build_lib_example(
+  NAME p4-topo-fattree
+  SOURCE_FILES p4-topo-fattree.cc
+  LIBRARIES_TO_LINK
+    ${libp4sim}
+    ${libinternet}
+    ${libapplications}
+    ${libnetwork}
+)
+
 # [ ================= PSA Arch ================= ]
 
 # simple 2 hosts 1 switch topology [ipv4 forwarding]
@@ -110,6 +121,18 @@ build_lib_example(
     ${libinternet}
     ${libapplications}
     ${libnetwork}
+)
+
+# fattree test
+build_lib_example(
+  NAME topo-fattree
+  SOURCE_FILES topo-fattree.cc
+  LIBRARIES_TO_LINK
+    ${libp4sim}
+    ${libinternet}
+    ${libapplications}
+    ${libnetwork}
+    ${libnix-vector-routing}
 )
 
 # [ ================= Test ================= ]
