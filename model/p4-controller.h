@@ -1,62 +1,114 @@
+#ifndef P4_CONTROLLER_H
 #define P4_CONTROLLER_H
 
-#include "ns3/object.h"
 #include "p4-switch-net-device.h"
-#include <string>
-#include <vector>
+
+#include "ns3/object.h"
 #include <ns3/network-module.h>
 
-namespace ns3 {
+#include <string>
+#include <vector>
+
+namespace ns3
+{
 
 // class P4SwitchInterface;
 
 /**
  * @brief Controller for managing multiple P4 switches in an NS-3 simulation.
-@@ -41,15 +42,15 @@ class P4Controller : public Object
-  /**
+ *
+ * This class provides methods for:
+ * - Viewing flow table information for all or specific P4 switches.
+ * - Setting paths for flow table configuration and viewing.
+ * - Managing a collection of P4 switches, including adding and retrieving switches.
+ */
+class P4Controller : public Object
+{
+  public:
+    /**
+     * @brief Constructor for P4Controller.
+     */
+    P4Controller();
+
+    /**
+     * @brief Destructor for P4Controller.
+     */
+    ~P4Controller();
+
+    /**
+     * @brief Register the P4Controller class with the NS-3 type system.
+     *
+     * @return TypeId for the P4Controller class.
+     */
+    static TypeId GetTypeId(void);
+
+    /**
      * @brief View flow table information for all P4 switches managed by the controller.
      */
-  void ViewAllSwitchFlowTableInfo (ns3::NodeContainer nodes);
+    void ViewAllSwitchFlowTableInfo(ns3::NodeContainer nodes);
 
-  /**
-     * @brief View detailed flow table, counter, register, and meter information 
+    /**
+     * @brief View detailed flow table, counter, register, and meter information
      *        for a specific P4 switch.
-     * 
+     *
      * @param index Index of the P4 switch in the controller's collection.
      */
-  void ViewP4SwitchFlowTableInfo (Ptr<P4SwitchNetDevice> sw);
+    void ViewP4SwitchFlowTableInfo(Ptr<P4SwitchNetDevice> sw);
 
-  /**
+    /**
      * @brief Set the path for viewing flow table information of a specific P4 switch.
-@@ -73,14 +74,14 @@ class P4Controller : public Object
+     *
+     * @param index Index of the P4 switch in the controller's collection.
+     * @param viewFlowTablePath File path for viewing flow table information.
+     */
+    void SetP4SwitchViewFlowTablePath(size_t index, const std::string& viewFlowTablePath);
+
+    /**
+     * @brief Set the path for populating the flow table of a specific P4 switch.
+     *
+     * @param index Index of the P4 switch in the controller's collection.
+     * @param flowTablePath File path for populating flow table entries.
+     */
+    void SetP4SwitchFlowTablePath(size_t index, const std::string& flowTablePath);
+
+    /**
+     * @brief Retrieve a specific P4 switch from the controller.
+     *
      * @param index Index of the P4 switch in the controller's collection.
      * @return Pointer to the requested P4SwitchInterface.
      */
-//  P4SwitchInterface *GetP4Switch (size_t index);
+    //  P4SwitchInterface *GetP4Switch (size_t index);
 
-  /**
+    /**
      * @brief Add a new P4 switch to the controller.
-     * 
+     *
      * @return Pointer to the newly added P4SwitchInterface.
      */
-//   P4SwitchInterface *AddP4Switch ();
+    //   P4SwitchInterface *AddP4Switch ();
 
-  /**
+    /**
      * @brief Get the total number of P4 switches managed by the controller.
-@@ -89,16 +90,16 @@ class P4Controller : public Object
+     *
+     * @return Number of P4 switches.
      */
-  unsigned int
-  GetP4SwitchNum () const
-  { return 1;
-   //  return p4SwitchInterfaces_.size ();
-  }
+    unsigned int GetP4SwitchNum() const
+    {
+        return 1;
+        //  return p4SwitchInterfaces_.size ();
+    }
 
-private:
-  /**
+  private:
+    /**
      * @brief Collection of P4 switch interfaces managed by the controller.
      *        Each switch is identified by its index in this vector.
      */
-//   std::vector<P4SwitchInterface *> p4SwitchInterfaces_;
+    //   std::vector<P4SwitchInterface *> p4SwitchInterfaces_;
 
-  // Disable copy constructor and assignment operatorAdd commentMore actions
-  P4Controller (const P4Controller &) = delete;
+    // Disable copy constructor and assignment operator
+    P4Controller(const P4Controller&) = delete;
+    P4Controller& operator=(const P4Controller&) = delete;
+};
+
+} // namespace ns3
+
+#endif // P4_CONTROLLER_H
