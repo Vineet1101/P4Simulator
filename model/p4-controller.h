@@ -1,4 +1,4 @@
-#define P4_CONTROLLER_HAdd commentMore actions
+#define P4_CONTROLLER_H
 
 #include "ns3/object.h"
 #include "p4-switch-net-device.h"
