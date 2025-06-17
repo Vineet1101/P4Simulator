@@ -94,6 +94,7 @@ build_lib_example(
     ${libinternet}
     ${libapplications}
     ${libnetwork}
+    ${libcsma}
 )
 
 # [ ================= PSA Arch ================= ]
@@ -133,6 +134,7 @@ build_lib_example(
     ${libapplications}
     ${libnetwork}
     ${libnix-vector-routing}
+    ${libcsma}
 )
 
 # [ ================= Test ================= ]
