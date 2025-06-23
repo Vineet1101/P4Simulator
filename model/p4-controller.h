@@ -13,7 +13,7 @@
 namespace ns3
 {
 
-class P4CoreV1Model;
+class P4CoreV1model;
 
 /**
  * @brief Controller for managing multiple P4 switches in an NS-3 simulation.
