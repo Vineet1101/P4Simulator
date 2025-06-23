@@ -22,7 +22,7 @@
 
 #include "ns3/net-device.h"
 #include "ns3/p4-bridge-channel.h"
-
+#include "ns3/p4-core-v1model.h"
 #include <map>
 #include <stdint.h>
 #include <string>
@@ -148,6 +148,7 @@ class P4SwitchNetDevice : public NetDevice
                        int outPort,
                        uint16_t protocol,
                        const Address& destination);
+    P4CoreV1model* GetV1ModelCore() const;
 
     // inherited from NetDevice base class.
     void SetIfIndex(const uint32_t index) override;

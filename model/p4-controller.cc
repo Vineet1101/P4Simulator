@@ -1,8 +1,7 @@
 #include "ns3/p4-controller.h"
 #include "ns3/log.h"
 #include <iostream>
-#include <ns3/network-module.h>
-#include "ns3/p4-switch-net-device.h"
+
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("P4Controller");
@@ -19,81 +18,89 @@ P4Controller::GetTypeId (void)
 
 P4Controller::P4Controller ()
 {
-  NS_LOG_FUNCTION (this);
-
-
-  
+  NS_LOG_FUNCTION (this);  
 }
 
 P4Controller::~P4Controller ()
 {
   NS_LOG_FUNCTION (this);
-
-  // Clean up all P4SwitchInterface pointers
-  // for (size_t i = 0; i < p4SwitchInterfaces_.size (); i++)
-  //   {
-  //     if (p4SwitchInterfaces_[i] != nullptr)
-  //       {
-  //         delete p4SwitchInterfaces_[i];
-  //         p4SwitchInterfaces_[i] = nullptr;
-  //       }
-  //   }
 }
 
 void
-P4Controller::ViewAllSwitchFlowTableInfo (ns3::NodeContainer nodes)
+P4Controller::RegisterSwitch(ns3::Ptr<ns3::P4SwitchNetDevice> sw)
 {
-  
- 
-  NS_LOG_INFO("================= Flow Table =================");
-    for (uint32_t i = 0; i < nodes.GetN(); ++i) {
-        ns3::Ptr<ns3::Node> node = nodes.Get(i);
-  
-        for (uint32_t j = 0; j < node->GetNDevices(); ++j) {
-            ns3::Ptr<ns3::NetDevice> dev = node->GetDevice(j);
-            ns3::Ptr<ns3::P4SwitchNetDevice> sw = ns3::DynamicCast<ns3::P4SwitchNetDevice>(dev);
-            if (sw) {
-              ViewP4SwitchFlowTableInfo(sw);
-            }
-        }
+   m_connectedSwitches.push_back(sw);
+   NS_LOG_INFO("Switch registered successfully");
+}
+
+uint32_t
+P4Controller::GetN()
+{
+  return m_connectedSwitches.size();
+}
+
+void
+P4Controller::ViewAllSwitchFlowTableInfo ()
+{
+    NS_LOG_INFO("\n==== Viewing All P4 Switch Flow Tables ====\n");
+    for (uint32_t i = 0; i < m_connectedSwitches.size(); ++i) {
+        ViewP4SwitchFlowTableInfo(i);
     }
+    NS_LOG_INFO("==========================================\n");
 }
 
 void
-P4Controller::ViewP4SwitchFlowTableInfo (Ptr<P4SwitchNetDevice> sw)
+P4Controller::ViewP4SwitchFlowTableInfo (uint32_t index)
 {
-
-  std::string path = sw->GetFlowTablePath(); 
-    std::ifstream infile(path);
-    NS_LOG_INFO(path);
-    if (!infile.is_open()) {
-        // std::cerr << "Failed to open flow table file: " << path << std::endl;
-        NS_LOG_ERROR("Error reading the file contents");
+ if (index >= m_connectedSwitches.size()) {
+        NS_LOG_ERROR("[ERROR] Invalid switch index: " << index << "\n"); 
         return;
     }
-    std::string line;
-    while (std::getline(infile, line)) {
-        NS_LOG_INFO( "  " << line << "\n");
+
+    Ptr<P4SwitchNetDevice> sw = m_connectedSwitches[index];
+    std::string path = sw->GetFlowTablePath();
+    std::ifstream file(path);
+
+    if (!file.is_open()) {
+        NS_LOG_ERROR("[ERROR] Could not open flow table file at: " << path << "\n"); 
+        return;
     }
 
-    infile.close();
-    NS_LOG_INFO("-------------------------\n");
- 
+    NS_LOG_INFO("Flow Table for Switch " << index << "\n"); 
+    std::string line;
+    while (std::getline(file, line)) {
+        NS_LOG_INFO("  " << line << "\n"); 
+    }
+    file.close();
+}
+
+void 
+P4Controller::PrintTableEntryCount(uint32_t index, const std::string& tableName)
+{
+
+    if (index >= m_connectedSwitches.size()) {
+        NS_LOG_WARN("Invalid switch index " << index);
+        return;
+    }
+
+    Ptr<P4SwitchNetDevice> sw = m_connectedSwitches[index];
+    P4CoreV1Model* core = sw->GetV1ModelCore();
+
+    if (!core) {
+        NS_LOG_WARN("Switch " << index << " has no v1model core (core is null)");
+        return;
+    }
+
+    int num = core->GetNumEntries(tableName);
+    NS_LOG_INFO("Switch " << index << " - Table [" << tableName << "] has " << num << " entries.");
+
+
 }
 
 void
 P4Controller::SetP4SwitchViewFlowTablePath (size_t index, const std::string &viewFlowTablePath)
 {
-  NS_LOG_FUNCTION (this << index << viewFlowTablePath);
 
-  // if (index >= p4SwitchInterfaces_.size () || p4SwitchInterfaces_[index] == nullptr)
-  //   {
-  //     NS_LOG_ERROR ("Call SetP4SwitchViewFlowTablePath("
-  //                   << index << "): P4SwitchInterface pointer is null or index out of range.");
-  //     return;
-  //   }
-
-  // p4SwitchInterfaces_[index]->SetViewFlowTablePath (viewFlowTablePath);
 }
 
 void
@@ -101,14 +108,6 @@ P4Controller::SetP4SwitchFlowTablePath (size_t index, const std::string &flowTab
 {
   NS_LOG_FUNCTION (this << index << flowTablePath);
 
-  // if (index >= p4SwitchInterfaces_.size () || p4SwitchInterfaces_[index] == nullptr)
-  //   {
-  //     NS_LOG_ERROR ("Call SetP4SwitchFlowTablePath("
-  //                   << index << "): P4SwitchInterface pointer is null or index out of range.");
-  //     return;
-  //   }
-
-  // p4SwitchInterfaces_[index]->SetFlowTablePath (flowTablePath);
 }
 
 // P4SwitchInterface *

@@ -194,6 +194,8 @@ class P4CoreV1model : public P4SwitchCore
      */
     int SetAllEgressQueueRates(uint64_t ratePps);
 
+    int GetNumEntries(const std::string& tableName);
+
   protected:
     /**
      * @brief The egress thread mapper for dequeue process of queue buffer

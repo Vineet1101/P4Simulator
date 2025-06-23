@@ -622,4 +622,10 @@ P4SwitchNetDevice::GetMulticast(Ipv6Address addr) const
     return Mac48Address::GetMulticast(addr);
 }
 
+P4CoreV1model*
+P4SwitchNetDevice::GetV1ModelCore() const 
+{
+    return m_v1modelSwitch;
+}
+
 } // namespace ns3
