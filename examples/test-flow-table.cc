@@ -40,7 +40,7 @@ main(int argc, char* argv[])
 
     // Create a dummy controller and test the flow table view functions
     P4Controller controller;
-    controller.ViewAllSwitchFlowTableInfo(nodes);
+    controller.ViewAllSwitchFlowTableInfo();
 
     Simulator::Run();
     Simulator::Destroy();
