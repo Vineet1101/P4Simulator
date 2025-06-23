@@ -2,16 +2,18 @@
 #define P4_CONTROLLER_H
 
 #include "p4-switch-net-device.h"
+
 #include "ns3/object.h"
+#include "ns3/p4-core-v1model.h"
 #include <ns3/network-module.h>
+
 #include <string>
 #include <vector>
-#include "ns3/p4-core-v1model.h"
 
 namespace ns3
 {
 
-  class P4CoreV1Model;
+class P4CoreV1Model;
 
 /**
  * @brief Controller for managing multiple P4 switches in an NS-3 simulation.
@@ -40,29 +42,29 @@ class P4Controller : public Object
      * @return TypeId for the P4Controller class.
      */
     static TypeId GetTypeId(void);
-     /**
-    * @brief Register P4 Switch with the controller.
-    */
-    void RegisterSwitch(ns3::Ptr<ns3::P4SwitchNetDevice> sw);
-    
     /**
-    * @brief Gives the count of the p4 switches registered with the controller
-    * 
-    */
+     * @brief Register P4 Switch with the controller.
+     */
+    void RegisterSwitch(ns3::Ptr<ns3::P4SwitchNetDevice> sw);
+
+    /**
+     * @brief Gives the count of the p4 switches registered with the controller
+     *
+     */
     uint32_t GetN();
-    
+
     /**
      * @brief View flow table information for all P4 switches managed by the controller.
      */
-    void ViewAllSwitchFlowTableInfo ();
+    void ViewAllSwitchFlowTableInfo();
 
     /**
-     * @brief View detailed flow table, counter, register, and meter information 
+     * @brief View detailed flow table, counter, register, and meter information
      *        for a specific P4 switch.
-     * 
+     *
      * @param index Index of the P4 switch in the controller's collection.
      */
-    void ViewP4SwitchFlowTableInfo (uint32_t index);
+    void ViewP4SwitchFlowTableInfo(uint32_t index);
     /**
      * @brief Set the path for viewing flow table information of a specific P4 switch.
      *
@@ -104,6 +106,8 @@ class P4Controller : public Object
         return 1;
         //  return p4SwitchInterfaces_.size ();
     }
+
+    void PrintTableEntryCount(uint32_t index, const std::string& tableName);
 
   private:
     /**

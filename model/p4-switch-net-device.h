@@ -22,7 +22,7 @@
 
 #include "ns3/net-device.h"
 #include "ns3/p4-bridge-channel.h"
-#include "ns3/p4-core-v1model.h"
+
 #include <map>
 #include <stdint.h>
 #include <string>
