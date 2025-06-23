@@ -782,12 +782,13 @@ P4CoreV1model::SetAllEgressQueueRates(const uint64_t rate_pps)
     return 0;
 }
 
-int 
+int
 P4CoreV1model::GetNumEntries(const std::string& tableName)
 {
     size_t num = 0;
-   bm:: MatchErrorCode rc = this->mt_get_num_entries(0, tableName, &num);  // cxt_id = 0
-    if (rc != bm::MatchErrorCode::SUCCESS) {
+    bm::MatchErrorCode rc = this->mt_get_num_entries(0, tableName, &num); // cxt_id = 0
+    if (rc != bm::MatchErrorCode::SUCCESS)
+    {
         NS_LOG_WARN("GetNumEntries failed for table " << tableName);
         return -1;
     }
