@@ -381,14 +381,28 @@ main(int argc, char* argv[])
         Ptr<P4SwitchNetDevice> p4sw = DynamicCast<P4SwitchNetDevice>(p4SwitchNetDeviceContainer.Get(j));
         if (p4sw) {
             controller.RegisterSwitch(p4sw);
-            NS_LOG_INFO("THe control flow is reaching here");
-        //     Simulator::Schedule(
-        //     Seconds(1.0),
-        //     &P4Controller::PrintTableEntryCount,
-        //     &controller,
-        //     i,
-        //     "ipv4_nhop"
-        // );
+            Simulator::Schedule(
+            Seconds(1.0),
+            &P4Controller::PrintTableEntryCount,
+            &controller,
+            i,
+            "MyIngress.ipv4_nhop"
+        );
+            Simulator::Schedule(
+            Seconds(2.0),
+            &P4Controller::ClearFlowTableEntries,
+            &controller,
+            0,                // switch index
+            "MyIngress.ipv4_nhop",      // table name
+            false             // do not reset default entry
+         );
+              Simulator::Schedule(
+            Seconds(3.0),
+            &P4Controller::PrintTableEntryCount,
+            &controller,
+            i,
+            "MyIngress.ipv4_nhop"
+        );
 
         } else {
             NS_LOG_WARN("Failed to cast device at index " << j << " to P4SwitchNetDevice");
@@ -396,7 +410,7 @@ main(int argc, char* argv[])
     }
 
     // Optional: print full flow tables
-    controller.ViewAllSwitchFlowTableInfo();
+
 }
 
 

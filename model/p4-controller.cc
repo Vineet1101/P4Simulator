@@ -1,5 +1,6 @@
-#include "ns3/log.h"
 #include "ns3/p4-controller.h"
+
+#include "ns3/log.h"
 
 #include <iostream>
 
@@ -99,6 +100,42 @@ P4Controller::PrintTableEntryCount(uint32_t index, const std::string& tableName)
 
     int num = core->GetNumEntries(tableName);
     NS_LOG_INFO("Switch " << index << " - Table [" << tableName << "] has " << num << " entries.");
+}
+
+void
+P4Controller::ClearFlowTableEntries(uint32_t index, const std::string& tableName, bool resetDefault)
+{
+    std::string fullTableName = tableName;
+    if (tableName.find("MyIngress.") != 0)
+    {
+        fullTableName = "MyIngress." + tableName;
+    }
+    if (index >= m_connectedSwitches.size())
+    {
+        NS_LOG_WARN("Invalid switch index " << index);
+        return;
+    }
+
+    Ptr<P4SwitchNetDevice> sw = m_connectedSwitches[index];
+    P4CoreV1model* core = sw->GetV1ModelCore();
+
+    if (!core)
+    {
+        NS_LOG_WARN("Switch " << index << " has no v1model core (core is null)");
+        return;
+    }
+    int rc = core->ClearFlowTableEntries(fullTableName, resetDefault);
+
+    if (rc == 0)
+    {
+        NS_LOG_INFO("Successfully cleared entries in table [" << fullTableName << "] on switch "
+                                                              << index);
+    }
+    else
+    {
+        NS_LOG_ERROR("Failed to clear entries in table [" << fullTableName << "] on switch "
+                                                          << index);
+    }
 }
 
 void
