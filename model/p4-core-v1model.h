@@ -196,6 +196,7 @@ class P4CoreV1model : public P4SwitchCore
 
     int GetNumEntries(const std::string& tableName);
 
+    int ClearFlowTableEntries(const std::string& tableName, bool resetDefault);
   protected:
     /**
      * @brief The egress thread mapper for dequeue process of queue buffer

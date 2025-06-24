@@ -108,6 +108,10 @@ class P4Controller : public Object
     }
 
     void PrintTableEntryCount(uint32_t index, const std::string& tableName);
+    /**
+     *  @brief Clears the table entries from the given switch and table
+     */
+    void ClearFlowTableEntries(uint32_t index, const std::string& tableName, bool resetDefault = false);
 
   private:
     /**

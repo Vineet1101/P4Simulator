@@ -790,9 +790,21 @@ P4CoreV1model::GetNumEntries(const std::string& tableName)
     if (rc != bm::MatchErrorCode::SUCCESS)
     {
         NS_LOG_WARN("GetNumEntries failed for table " << tableName);
-        return -1;
+        return -100;
     }
     return static_cast<int>(num);
+}
+
+int
+P4CoreV1model::ClearFlowTableEntries(const std::string& tableName, bool resetDefault)
+{
+    bm::MatchErrorCode rc = this->mt_clear_entries(0, tableName, resetDefault); // cxt_id = 0
+    if (rc != bm::MatchErrorCode::SUCCESS)
+    {
+        NS_LOG_WARN("ClearFlowTableEntries failed for table " << tableName );
+        return -100;
+    }
+    return 0;  // success
 }
 
 } // namespace ns3
