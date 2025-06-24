@@ -44,9 +44,9 @@
 #include "ns3/format-utils.h"
 #include "ns3/internet-module.h"
 #include "ns3/network-module.h"
+#include "ns3/p4-controller.h"
 #include "ns3/p4-helper.h"
 #include "ns3/p4-topology-reader-helper.h"
-#include "ns3/p4-controller.h"
 
 #include <filesystem>
 #include <iomanip>
@@ -189,6 +189,7 @@ int
 main(int argc, char* argv[])
 {
     LogComponentEnable("P4BasicExample", LOG_LEVEL_INFO);
+    LogComponentEnable("P4Controller", LOG_LEVEL_INFO);
 
     // ============================ parameters ============================
     int running_number = 0;
@@ -199,8 +200,7 @@ main(int argc, char* argv[])
 
     std::string p4JsonPath =
         "/home/p4/workdir/ns3.39/contrib/p4sim/examples/p4src/p4_basic/p4_basic.json";
-    std::string flowTableDirPath =
-        "/home/p4/workdir/ns3.39/contrib/p4sim/examples/p4src/p4_basic/";
+    std::string flowTableDirPath = "/home/p4/workdir/ns3.39/contrib/p4sim/examples/p4src/p4_basic/";
     std::string topoInput =
         "/home/p4/workdir/ns3.39/contrib/p4sim/examples/p4src/p4_basic/topo.txt";
     std::string topoFormat("CsmaTopo");
@@ -370,51 +370,48 @@ main(int argc, char* argv[])
 
     P4Controller controller;
 
- for (unsigned int i = 0; i < switchNum; i++) {
-    std::string flowTablePath = flowTableDirPath + "flowtable_" + std::to_string(i) + ".txt";
-    p4SwitchHelper.SetDeviceAttribute("FlowTablePath", StringValue(flowTablePath));
-    NS_LOG_INFO("*** P4 switch configuration: " << p4JsonPath << ", \n " << flowTablePath);
+    for (unsigned int i = 0; i < switchNum; i++)
+    {
+        std::string flowTablePath = flowTableDirPath + "flowtable_" + std::to_string(i) + ".txt";
+        p4SwitchHelper.SetDeviceAttribute("FlowTablePath", StringValue(flowTablePath));
+        NS_LOG_INFO("*** P4 switch configuration: " << p4JsonPath << ", \n " << flowTablePath);
 
-    NetDeviceContainer p4SwitchNetDeviceContainer = p4SwitchHelper.Install(switchNode.Get(i), switchNodes[i].switchDevices);
+        NetDeviceContainer p4SwitchNetDeviceContainer =
+            p4SwitchHelper.Install(switchNode.Get(i), switchNodes[i].switchDevices);
 
-    for (uint32_t j = 0; j < p4SwitchNetDeviceContainer.GetN(); j++) {
-        Ptr<P4SwitchNetDevice> p4sw = DynamicCast<P4SwitchNetDevice>(p4SwitchNetDeviceContainer.Get(j));
-        if (p4sw) {
-            controller.RegisterSwitch(p4sw);
-            Simulator::Schedule(
-            Seconds(1.0),
-            &P4Controller::PrintTableEntryCount,
-            &controller,
-            i,
-            "MyIngress.ipv4_nhop"
-        );
-            Simulator::Schedule(
-            Seconds(2.0),
-            &P4Controller::ClearFlowTableEntries,
-            &controller,
-            0,                // switch index
-            "MyIngress.ipv4_nhop",      // table name
-            false             // do not reset default entry
-         );
-              Simulator::Schedule(
-            Seconds(3.0),
-            &P4Controller::PrintTableEntryCount,
-            &controller,
-            i,
-            "MyIngress.ipv4_nhop"
-        );
-
-        } else {
-            NS_LOG_WARN("Failed to cast device at index " << j << " to P4SwitchNetDevice");
+        for (uint32_t j = 0; j < p4SwitchNetDeviceContainer.GetN(); j++)
+        {
+            Ptr<P4SwitchNetDevice> p4sw =
+                DynamicCast<P4SwitchNetDevice>(p4SwitchNetDeviceContainer.Get(j));
+            if (p4sw)
+            {
+                controller.RegisterSwitch(p4sw);
+                Simulator::Schedule(Seconds(1.0),
+                                    &P4Controller::PrintTableEntryCount,
+                                    &controller,
+                                    i,
+                                    "MyIngress.ipv4_nhop");
+                Simulator::Schedule(Seconds(2.0),
+                                    &P4Controller::ClearFlowTableEntries,
+                                    &controller,
+                                    0,                     // switch index
+                                    "MyIngress.ipv4_nhop", // table name
+                                    false                  // do not reset default entry
+                );
+                Simulator::Schedule(Seconds(3.0),
+                                    &P4Controller::PrintTableEntryCount,
+                                    &controller,
+                                    i,
+                                    "MyIngress.ipv4_nhop");
+            }
+            else
+            {
+                NS_LOG_WARN("Failed to cast device at index " << j << " to P4SwitchNetDevice");
+            }
         }
+
+        // Optional: print full flow tables
     }
-
-    // Optional: print full flow tables
-
-}
-
-
-    
 
     // === Configuration for Link: h0 -----> h1 ===
     unsigned int serverI = 3;
