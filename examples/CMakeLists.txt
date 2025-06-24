@@ -204,3 +204,15 @@ build_lib_example(Add commentMore actions
     ${libapplications}
     ${libnetwork}
   )
+
+# p4-controller test
+build_lib_example(Add commentMore actions
+  NAME p4-basic-controller
+  SOURCE_FILES p4-basic-controller.cc
+    LIBRARIES_TO_LINK
+    ${libp4sim}
+    ${libinternet}
+    ${libapplications}
+    ${libnetwork}
+    ${libcsma}
+  )

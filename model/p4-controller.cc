@@ -1,6 +1,5 @@
-#include "ns3/p4-controller.h"
-
 #include "ns3/log.h"
+#include "ns3/p4-controller.h"
 
 #include <iostream>
 
@@ -99,7 +98,8 @@ P4Controller::PrintTableEntryCount(uint32_t index, const std::string& tableName)
     }
 
     int num = core->GetNumEntries(tableName);
-    NS_LOG_INFO("Switch " << index << " - Table [" << tableName << "] has " << num << " entries.");
+    NS_LOG_INFO("Switch " << index << " - Table [" << tableName << "] has " << num
+                          << " entries in time " << Simulator::Now().GetSeconds() << " seconds.");
 }
 
 void
@@ -128,13 +128,15 @@ P4Controller::ClearFlowTableEntries(uint32_t index, const std::string& tableName
 
     if (rc == 0)
     {
-        NS_LOG_INFO("Successfully cleared entries in table [" << fullTableName << "] on switch "
-                                                              << index);
+        NS_LOG_INFO("Successfully cleared entries in table ["
+                    << fullTableName << "] on switch " << index << " in time "
+                    << Simulator::Now().GetSeconds() << " seconds.");
     }
     else
     {
-        NS_LOG_ERROR("Failed to clear entries in table [" << fullTableName << "] on switch "
-                                                          << index);
+        NS_LOG_ERROR("Failed to clear entries in table ["
+                     << fullTableName << "] on switch " << index << " in time "
+                     << Simulator::Now().GetSeconds() << " seconds.");
     }
 }
 
