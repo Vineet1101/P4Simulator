@@ -18,6 +18,7 @@
  */
 
 #include "ns3/p4-core-v1model.h"
+
 #include "ns3/p4-switch-net-device.h"
 #include "ns3/primitives-v1model.h"
 #include "ns3/register-access-v1model.h"
@@ -143,6 +144,40 @@ P4CoreV1model::~P4CoreV1model()
     output_buffer.push_front(nullptr);
 
     NS_LOG_INFO("P4CoreV1model destroyed successfully.");
+}
+static const char* MatchErrorCodeToStr(bm::MatchErrorCode rcc) {
+    switch (rcc) {
+        case bm::MatchErrorCode::SUCCESS: return "SUCCESS";
+        case bm::MatchErrorCode::TABLE_FULL: return "TABLE_FULL";
+        case bm::MatchErrorCode::INVALID_HANDLE: return "INVALID_HANDLE";
+        case bm::MatchErrorCode::EXPIRED_HANDLE: return "EXPIRED_HANDLE";
+        case bm::MatchErrorCode::COUNTERS_DISABLED: return "COUNTERS_DISABLED";
+        case bm::MatchErrorCode::METERS_DISABLED: return "METERS_DISABLED";
+        case bm::MatchErrorCode::AGEING_DISABLED: return "AGEING_DISABLED";
+        case bm::MatchErrorCode::INVALID_TABLE_NAME: return "INVALID_TABLE_NAME";
+        case bm::MatchErrorCode::INVALID_ACTION_NAME: return "INVALID_ACTION_NAME";
+        case bm::MatchErrorCode::WRONG_TABLE_TYPE: return "WRONG_TABLE_TYPE";
+        case bm::MatchErrorCode::INVALID_MBR_HANDLE: return "INVALID_MBR_HANDLE";
+        case bm::MatchErrorCode::MBR_STILL_USED: return "MBR_STILL_USED";
+        case bm::MatchErrorCode::MBR_ALREADY_IN_GRP: return "MBR_ALREADY_IN_GRP";
+        case bm::MatchErrorCode::MBR_NOT_IN_GRP: return "MBR_NOT_IN_GRP";
+        case bm::MatchErrorCode::INVALID_GRP_HANDLE: return "INVALID_GRP_HANDLE";
+        case bm::MatchErrorCode::GRP_STILL_USED: return "GRP_STILL_USED";
+        case bm::MatchErrorCode::EMPTY_GRP: return "EMPTY_GRP";
+        case bm::MatchErrorCode::DUPLICATE_ENTRY: return "DUPLICATE_ENTRY";
+        case bm::MatchErrorCode::BAD_MATCH_KEY: return "BAD_MATCH_KEY";
+        case bm::MatchErrorCode::INVALID_METER_OPERATION: return "INVALID_METER_OPERATION";
+        case bm::MatchErrorCode::DEFAULT_ACTION_IS_CONST: return "DEFAULT_ACTION_IS_CONST";
+        case bm::MatchErrorCode::DEFAULT_ENTRY_IS_CONST: return "DEFAULT_ENTRY_IS_CONST";
+        case bm::MatchErrorCode::NO_DEFAULT_ENTRY: return "NO_DEFAULT_ENTRY";
+        case bm::MatchErrorCode::INVALID_ACTION_PROFILE_NAME: return "INVALID_ACTION_PROFILE_NAME";
+        case bm::MatchErrorCode::NO_ACTION_PROFILE_SELECTION: return "NO_ACTION_PROFILE_SELECTION";
+        case bm::MatchErrorCode::IMMUTABLE_TABLE_ENTRIES: return "IMMUTABLE_TABLE_ENTRIES";
+        case bm::MatchErrorCode::BAD_ACTION_DATA: return "BAD_ACTION_DATA";
+        case bm::MatchErrorCode::NO_TABLE_KEY: return "NO_TABLE_KEY";
+        case bm::MatchErrorCode::ERROR: return "GENERIC_ERROR";
+        default: return "UNKNOWN_ERROR_CODE";
+    }
 }
 
 void
@@ -790,7 +825,7 @@ P4CoreV1model::GetNumEntries(const std::string& tableName)
     if (rc != bm::MatchErrorCode::SUCCESS)
     {
         NS_LOG_WARN("GetNumEntries failed for table " << tableName);
-        return -100;
+        return -1;
     }
     return static_cast<int>(num);
 }
@@ -801,10 +836,134 @@ P4CoreV1model::ClearFlowTableEntries(const std::string& tableName, bool resetDef
     bm::MatchErrorCode rc = this->mt_clear_entries(0, tableName, resetDefault); // cxt_id = 0
     if (rc != bm::MatchErrorCode::SUCCESS)
     {
-        NS_LOG_WARN("ClearFlowTableEntries failed for table " << tableName );
-        return -100;
+        NS_LOG_WARN("ClearFlowTableEntries failed for table " << tableName);
+        return -1;
     }
+    return 0; // success
+}
+
+int
+P4CoreV1model::AddFlowEntry(const std::string& tableName,
+                            const std::vector<bm::MatchKeyParam>& matchKey,
+                            const std::string& actionName,
+                            bm::ActionData&& actionData,
+                            bm::entry_handle_t* handle,
+                            int priority)
+{
+   
+    bm::MatchErrorCode rc = this->mt_add_entry(0, // context ID
+                                               tableName,
+                                               matchKey,
+                                               actionName,
+                                               std::move(actionData),
+                                               handle,
+                                               priority);
+
+    if (rc != bm::MatchErrorCode::SUCCESS)
+    {
+        NS_LOG_WARN("AddFlowEntry failed for table " << tableName << " with error code ");
+        return -1;
+    }
+
+    return 0; // success
+}
+int P4CoreV1model::SetDefaultAction(const std::string& tableName,
+                                    const std::string& actionName,
+                                    bm::ActionData&& actionData)
+{
+  
+    bm::MatchErrorCode rc = this->mt_set_default_action(
+        0, tableName, actionName, std::move(actionData));
+      
+
+
+
+    if (rc != bm::MatchErrorCode::SUCCESS)
+    {
+        NS_LOG_WARN("SetDefaultAction failed for table " << tableName << " action " << actionName);
+        NS_LOG_WARN("mt_set_default_action() failed with code: "
+             << static_cast<int>(rc) << " (" << MatchErrorCodeToStr(rc) << ")");
+
+
+        return -1;
+    }
+
+    return 0;
+}
+int
+P4CoreV1model::ResetDefaultEntry(const std::string& tableName)
+{
+   
+    bm::MatchErrorCode rc = this->mt_reset_default_entry(0, tableName);
+
+    if (rc != bm::MatchErrorCode::SUCCESS)
+    {
+        NS_LOG_WARN("ResetDefaultEntry failed for table " << tableName
+                      << " with code " << static_cast<int>(rc)
+                      << " (" << MatchErrorCodeToStr(rc) << ")");
+        return -1;
+    }
+
     return 0;  // success
 }
+int P4CoreV1model::DeleteFlowEntry(const std::string& tableName, bm::entry_handle_t handle)
+{
+  
+    bm::MatchErrorCode rc = this->mt_delete_entry(0, tableName, handle); 
+
+    if (rc != bm::MatchErrorCode::SUCCESS)
+    {
+        NS_LOG_WARN("DeleteFlowEntry failed for table " << tableName
+                      << " and handle " << handle
+                      << " with code " << static_cast<int>(rc)
+                      << " (" << MatchErrorCodeToStr(rc) << ")");
+        return -1;
+    }
+
+    return 0; 
+}
+int P4CoreV1model::ModifyFlowEntry(const std::string& tableName,
+                                   bm::entry_handle_t handle,
+                                   const std::string& actionName,
+                                   bm::ActionData actionData)
+{
+ 
+
+  
+    bm::MatchErrorCode rc = this->mt_modify_entry(0, tableName, handle, actionName, std::move(actionData));
+
+    if (rc != bm::MatchErrorCode::SUCCESS)
+    {
+        NS_LOG_WARN("ModifyFlowEntry failed for table " << tableName
+                      << ", handle " << handle
+                      << " with code " << static_cast<int>(rc)
+                      << " (" << MatchErrorCodeToStr(rc) << ")");
+        return -1;
+    }
+
+    return 0;
+}
+int P4CoreV1model::SetEntryTtl(const std::string& tableName,
+                               bm::entry_handle_t handle,
+                               unsigned int ttlMs)
+{
+   
+
+    bm::MatchErrorCode rc = this->mt_set_entry_ttl(0, tableName, handle, ttlMs);
+
+    if (rc != bm::MatchErrorCode::SUCCESS)
+    {
+        NS_LOG_WARN("SetEntryTtl failed for table " << tableName
+                      << ", handle " << handle
+                      << " with code " << static_cast<int>(rc)
+                      << " (" << MatchErrorCodeToStr(rc) << ")");
+        return -1;
+    }
+
+    return 0;
+}
+
+
+
 
 } // namespace ns3
