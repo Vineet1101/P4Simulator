@@ -1,5 +1,6 @@
-#include "ns3/log.h"
 #include "ns3/p4-controller.h"
+
+#include "ns3/log.h"
 
 #include <iostream>
 
@@ -81,7 +82,8 @@ P4Controller::ViewP4SwitchFlowTableInfo(uint32_t index)
 
 void
 P4Controller::PrintTableEntryCount(uint32_t index, const std::string& tableName)
-{
+{   
+    
     if (index >= m_connectedSwitches.size())
     {
         NS_LOG_WARN("Invalid switch index " << index);
@@ -98,18 +100,13 @@ P4Controller::PrintTableEntryCount(uint32_t index, const std::string& tableName)
     }
 
     int num = core->GetNumEntries(tableName);
-    NS_LOG_INFO("Switch " << index << " - Table [" << tableName << "] has " << num
-                          << " entries in time " << Simulator::Now().GetSeconds() << " seconds.");
+    NS_LOG_INFO("Switch " << index << " - Table [" << tableName << "] has " << num << " entries.");
 }
 
 void
 P4Controller::ClearFlowTableEntries(uint32_t index, const std::string& tableName, bool resetDefault)
 {
-    std::string fullTableName = tableName;
-    if (tableName.find("MyIngress.") != 0)
-    {
-        fullTableName = "MyIngress." + tableName;
-    }
+   
     if (index >= m_connectedSwitches.size())
     {
         NS_LOG_WARN("Invalid switch index " << index);
@@ -124,19 +121,233 @@ P4Controller::ClearFlowTableEntries(uint32_t index, const std::string& tableName
         NS_LOG_WARN("Switch " << index << " has no v1model core (core is null)");
         return;
     }
-    int rc = core->ClearFlowTableEntries(fullTableName, resetDefault);
+    int rc = core->ClearFlowTableEntries(tableName, resetDefault);
 
     if (rc == 0)
     {
-        NS_LOG_INFO("Successfully cleared entries in table ["
-                    << fullTableName << "] on switch " << index << " in time "
-                    << Simulator::Now().GetSeconds() << " seconds.");
+        NS_LOG_INFO("Successfully cleared entries in table [" <<tableName << "] on switch "
+                                                              << index);
     }
     else
     {
-        NS_LOG_ERROR("Failed to clear entries in table ["
-                     << fullTableName << "] on switch " << index << " in time "
-                     << Simulator::Now().GetSeconds() << " seconds.");
+        NS_LOG_ERROR("Failed to clear entries in table [" << tableName << "] on switch "
+                                                          << index);
+    }
+}
+
+void
+P4Controller::AddFlowEntry(uint32_t index,
+                           const std::string& tableName,
+                           const std::vector<bm::MatchKeyParam>& matchKey,
+                           const std::string& actionName,
+                           bm::ActionData&& actionData,
+                           int priority)
+{
+    NS_LOG_FUNCTION(this << index << tableName << actionName << priority);
+
+    if (index >= m_connectedSwitches.size())
+    {
+        NS_LOG_WARN("Invalid switch index " << index);
+        return;
+    }
+
+    Ptr<P4SwitchNetDevice> sw = m_connectedSwitches[index];
+    P4CoreV1model* core = sw->GetV1ModelCore();
+
+    if (!core)
+    {
+        NS_LOG_ERROR("V1Model core not found for switch " << index);
+        return;
+    }
+
+    bm::entry_handle_t handle;
+    int result = core->AddFlowEntry(tableName,
+                                    matchKey,
+                                    actionName,
+                                    std::move(actionData),
+                                    &handle,
+                                    priority);
+
+    if (result == 0)
+    {
+        NS_LOG_INFO("Successfully added flow entry to table ["
+                    << tableName << "] on switch " << index << " (handle = " << handle << ")");
+    }
+    else
+    {
+        NS_LOG_ERROR("Failed to add flow entry to table [" << tableName << "] on switch " << index
+                                                           << ", result code = " << result);
+    }
+}
+void 
+P4Controller::SetDefaultAction(uint32_t index,
+                                    const std::string& tableName,
+                                    const std::string& actionName,
+                                    bm::ActionData&& actionData)
+{
+    NS_LOG_FUNCTION(this << index << tableName << actionName);
+
+    if (index >= m_connectedSwitches.size())
+    {
+        NS_LOG_WARN("Invalid switch index " << index);
+        return;
+    }
+
+    Ptr<P4SwitchNetDevice> sw = m_connectedSwitches[index];
+    P4CoreV1model* core = sw->GetV1ModelCore();
+
+    if (!core)
+    {
+        NS_LOG_ERROR("V1Model core not found for switch " << index);
+        return;
+    }
+
+    int status = core->SetDefaultAction(tableName, actionName, std::move(actionData));
+
+    if (status == 0)
+    {
+        NS_LOG_INFO("Successfully set default action [" << actionName << "] for table ["
+                     << tableName << "] on switch " << index);
+    }
+    else
+    {
+        NS_LOG_ERROR("Failed to set default action for table [" << tableName << "] on switch "
+                      << index << ", code = " << status);
+    }
+}
+void 
+P4Controller::ResetDefaultEntry(uint32_t index, const std::string& tableName)
+{
+    NS_LOG_FUNCTION(this << index << tableName);
+
+    if (index >= m_connectedSwitches.size())
+    {
+        NS_LOG_WARN("Invalid switch index " << index);
+        return;
+    }
+
+    Ptr<P4SwitchNetDevice> sw = m_connectedSwitches[index];
+    P4CoreV1model* core = sw->GetV1ModelCore();  
+
+    if (!core)
+    {
+        NS_LOG_ERROR("V1Model core not found for switch " << index);
+        return;
+    }
+
+    int status = core->ResetDefaultEntry(tableName);
+
+    if (status == 0)
+    {
+        NS_LOG_INFO("Successfully reset default entry for table [" << tableName
+                     << "] on switch " << index);
+    }
+    else
+    {
+        NS_LOG_ERROR("Failed to reset default entry for table [" << tableName
+                      << "] on switch " << index << ", code = " << status);
+    }
+}
+void 
+P4Controller::DeleteFlowEntry(uint32_t index, const std::string& tableName, bm::entry_handle_t handle)
+{
+    NS_LOG_FUNCTION(this << index << tableName << handle);
+
+    if (index >= m_connectedSwitches.size())
+    {
+        NS_LOG_WARN("Invalid switch index " << index);
+        return;
+    }
+
+    Ptr<P4SwitchNetDevice> sw = m_connectedSwitches[index];
+    P4CoreV1model* core = sw->GetV1ModelCore();
+
+    if (!core)
+    {
+        NS_LOG_ERROR("V1Model core not found for switch " << index);
+        return;
+    }
+
+    int status = core->DeleteFlowEntry(tableName, handle);
+
+    if (status == 0)
+    {
+        NS_LOG_INFO("Successfully deleted entry (handle = " << handle
+                     << ") from table [" << tableName << "] on switch " << index);
+    }
+    else
+    {
+        NS_LOG_ERROR("Failed to delete entry from table [" << tableName
+                      << "] on switch " << index << ", code = " << status);
+    }
+}
+
+void P4Controller::ModifyFlowEntry(uint32_t index,
+                                   const std::string& tableName,
+                                   bm::entry_handle_t handle,
+                                   const std::string& actionName,
+                                   bm::ActionData actionData)
+{
+    NS_LOG_FUNCTION(this << index << tableName << handle << actionName);
+
+    if (index >= m_connectedSwitches.size())
+    {
+        NS_LOG_WARN("Invalid switch index " << index);
+        return;
+    }
+
+    Ptr<P4SwitchNetDevice> sw = m_connectedSwitches[index];
+    P4CoreV1model* core = sw->GetV1ModelCore();
+
+    if (!core)
+    {
+        NS_LOG_ERROR("V1Model core not found for switch " << index);
+        return;
+    }
+
+    int status = core->ModifyFlowEntry(tableName, handle, actionName, std::move(actionData));
+
+    if (status == 0)
+    {
+        NS_LOG_INFO("Modified flow entry for handle " << handle << " in table [" << tableName << "] on switch " << index);
+    }
+    else
+    {
+        NS_LOG_ERROR("Failed to modify flow entry for handle " << handle << " in table [" << tableName << "] on switch " << index);
+    }
+}
+void
+P4Controller::SetEntryTtl(uint32_t index,
+                               const std::string& tableName,
+                               bm::entry_handle_t handle,
+                               unsigned int ttlMs)
+{
+    NS_LOG_FUNCTION(this << index << tableName << handle << ttlMs);
+
+    if (index >= m_connectedSwitches.size())
+    {
+        NS_LOG_WARN("Invalid switch index " << index);
+        return;
+    }
+
+    Ptr<P4SwitchNetDevice> sw = m_connectedSwitches[index];
+    P4CoreV1model* core = sw->GetV1ModelCore();
+
+    if (!core)
+    {
+        NS_LOG_ERROR("V1Model core not found for switch " << index);
+        return;
+    }
+
+    int status = core->SetEntryTtl(tableName, handle, ttlMs);
+
+    if (status == 0)
+    {
+        NS_LOG_INFO("Set TTL = " << ttlMs << "ms for entry handle " << handle << " in table [" << tableName << "] on switch " << index);
+    }
+    else
+    {
+        NS_LOG_ERROR("Failed to set TTL for entry handle " << handle << " in table [" << tableName << "] on switch " << index);
     }
 }
 
@@ -150,31 +361,5 @@ P4Controller::SetP4SwitchFlowTablePath(size_t index, const std::string& flowTabl
 {
     NS_LOG_FUNCTION(this << index << flowTablePath);
 }
-
-// P4SwitchInterface *
-// P4Controller::GetP4Switch (size_t index)
-// {
-//   NS_LOG_FUNCTION (this << index);
-
-//   // if (index >= p4SwitchInterfaces_.size ())
-//   //   {
-//   //     NS_LOG_ERROR ("Call GetP4Switch(" << index << "): Index out of range.");
-//   //     return nullptr;
-//   //   }
-
-//   // return p4SwitchInterfaces_[index];
-// }
-
-// P4SwitchInterface *
-// P4Controller::AddP4Switch ()
-// {
-//   NS_LOG_FUNCTION (this);
-
-//   P4SwitchInterface *p4SwitchInterface = new P4SwitchInterface;
-//   p4SwitchInterfaces_.push_back (p4SwitchInterface);
-
-//   NS_LOG_INFO ("Added a new P4 switch. Total switches: " << p4SwitchInterfaces_.size ());
-//   return p4SwitchInterface;
-// }
 
 } // namespace ns3
