@@ -130,6 +130,24 @@ public:
   void SetEntryTtl(uint32_t index, const std::string &tableName,
                    bm::entry_handle_t handle, unsigned int ttlMs);
 
+  void PrintFlowEntries(uint32_t index, const std::string &tableName);
+  void PrintIndirectFlowEntries(uint32_t index, const std::string &tableName);
+  void PrintIndirectWsFlowEntries(uint32_t index, const std::string &tableName);
+  void PrintEntry(uint32_t index, const std::string &tableName,
+                  bm::entry_handle_t handle);
+  void PrintDefaultEntry(uint32_t index, const std::string &tableName);
+  void PrintIndirectDefaultEntry(uint32_t index, const std::string &tableName);
+  void PrintIndirectWsDefaultEntry(uint32_t index,
+                                   const std::string &tableName);
+  void PrintEntryFromKey(uint32_t index, const std::string &tableName,
+                         const std::vector<bm::MatchKeyParam> &matchKey);
+  void
+  PrintIndirectEntryFromKey(uint32_t index, const std::string &tableName,
+                            const std::vector<bm::MatchKeyParam> &matchKey);
+  void
+  PrintIndirectWsEntryFromKey(uint32_t index, const std::string &tableName,
+                              const std::vector<bm::MatchKeyParam> &matchKey);
+
 private:
   /**
    * @brief Collection of P4 switch interfaces managed by the controller.

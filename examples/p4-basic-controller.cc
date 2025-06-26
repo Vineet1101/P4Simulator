@@ -172,6 +172,7 @@ struct HostNodeC_t {
 int main(int argc, char *argv[]) {
   LogComponentEnable("P4BasicExample", LOG_LEVEL_INFO);
   LogComponentEnable("P4Controller", LOG_LEVEL_INFO);
+  LogComponentEnable("P4CoreV1model", LOG_LEVEL_WARN);
 
   // ============================ parameters ============================
   int running_number = 0;
@@ -374,26 +375,16 @@ int main(int argc, char *argv[]) {
         // Optional: stagger per-switch actions to avoid log clutter
         double baseTime = 0.5 + j * 0.2;
 
-        // Set default action
-        Simulator::Schedule(Seconds(baseTime), [j, &controller]() {
-          bm::ActionData dropAction; // drop takes no parameters
-          controller.SetDefaultAction(j, "MyIngress.ipv4_nhop",
-                                      "MyIngress.drop", std::move(dropAction));
-        });
-
         // Print table entry count
         Simulator::Schedule(Seconds(baseTime + 0.5), [j, &controller]() {
-          controller.PrintTableEntryCount(j, "MyIngress.ipv4_nhop");
+          controller.PrintTableEntryCount(3, "MyIngress.ipv4_nhop");
         });
 
-        // Reset default entry
-        Simulator::Schedule(Seconds(baseTime + 1.0), [j, &controller]() {
-          controller.ResetDefaultEntry(j, "MyIngress.ipv4_nhop");
+        Simulator::Schedule(Seconds(2.0), [j, &controller]() {
+          controller.PrintFlowEntries(j, "MyIngress.ipv4_nhop");
         });
-
-        // Clear flow table entries (without resetting default)
-        Simulator::Schedule(Seconds(baseTime + 2.0), [j, &controller]() {
-          controller.ClearFlowTableEntries(j, "MyIngress.ipv4_nhop", false);
+        Simulator::Schedule(Seconds(2.5), [&controller]() {
+          controller.PrintDefaultEntry(0, "MyIngress.ipv4_nhop");
         });
 
         //                Simulator::Schedule(Seconds(1.0), [&controller]() {
