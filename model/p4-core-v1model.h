@@ -338,6 +338,25 @@ public:
 
   int RegisterReset(const std::string &registerName);
 
+  // ======= Parse Value Set Functions  =======
+
+  int ParseVsetAdd(const std::string &vsetName, const bm::ByteContainer &value);
+
+  int ParseVsetRemove(const std::string &vsetName,
+                      const bm::ByteContainer &value);
+
+  int ParseVsetGet(const std::string &vsetName,
+                   std::vector<bm::ByteContainer> *values);
+
+  int ParseVsetClear(const std::string &vsetName);
+
+  // ======= Runtime State Management ========
+  int ResetState();
+
+  int Serialize(std::ostream *out);
+
+  int LoadNewConfig(const std::string &newConfig);
+
 protected:
   /**
    * @brief The egress thread mapper for dequeue process of queue buffer

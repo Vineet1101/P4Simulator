@@ -187,6 +187,21 @@ public:
                           const bm::Data &value);
 
   void RegisterReset(uint32_t index, const std::string &registerName);
+  // ======= Parse Value Set Functions  =======
+  void ParseVsetAdd(uint32_t index, const std::string &vsetName,
+                    const bm::ByteContainer &value);
+  void ParseVsetRemove(uint32_t index, const std::string &vsetName,
+                       const bm::ByteContainer &value);
+  void ParseVsetGet(uint32_t index, const std::string &vsetName);
+  void ParseVsetClear(uint32_t index, const std::string &vsetName);
+
+  // ======== Runtime State Management Functions =======
+
+  void ResetState(uint32_t index);
+
+  void Serialize(uint32_t index, std::ostream *out);
+
+  void LoadNewConfig(uint32_t index, const std::string &newConfig);
 
 private:
   /**
