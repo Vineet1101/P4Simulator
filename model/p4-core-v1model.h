@@ -22,6 +22,7 @@
 
 #include "ns3/p4-queue.h"
 #include "ns3/p4-switch-core.h"
+#include <bm/bm_sim/counters.h>
 
 #define SSWITCH_VIRTUAL_QUEUE_NUM_V1MODEL 8
 
@@ -241,6 +242,101 @@ public:
                                 const std::vector<bm::MatchKeyParam> &matchKey,
                                 bm::MatchTableIndirectWS::Entry *entry,
                                 int priority = 1);
+
+  // === Counter Functions ===
+
+  /**
+   * @brief Read packet and byte counters for a specific table entry.
+   * @param tableName The name of the table.
+   * @param handle The entry handle.
+   * @param bytes Output: number of bytes.
+   * @param packets Output: number of packets.
+   * @return 0 on success, -1 on failure.
+   */
+  int ReadTableCounters(const std::string &tableName, bm::entry_handle_t handle,
+                        uint64_t *bytes, uint64_t *packets);
+
+  /**
+   * @brief Reset all counters in the specified match-action table.
+   * @param tableName The name of the table.
+   * @return 0 on success, -1 on failure.
+   */
+  int ResetTableCounters(const std::string &tableName);
+
+  /**
+   * @brief Write counters for a specific table entry.
+   * @param tableName The name of the table.
+   * @param handle The entry handle.
+   * @param bytes Number of bytes to set.
+   * @param packets Number of packets to set.
+   * @return 0 on success, -1 on failure.
+   */
+  int WriteTableCounters(const std::string &tableName,
+                         bm::entry_handle_t handle, uint64_t bytes,
+                         uint64_t packets);
+  // bm::Counter::CounterErrorCode ReadCounter(const std::string &counterName,
+  // size_t index,
+  //                                       bm::MatchTableAbstract::counter_value_t
+  //                                       *bytes,
+  //                                       bm::MatchTableAbstract::counter_value_t
+  //                                       *packets);
+
+  // bm::Counter::CounterErrorCode ResetCounter(const std::string &counterName);
+
+  // bm::Counter::CounterErrorCode WriteCounter(const std::string &counterName,
+  // size_t index,
+  //                                        bm::MatchTableAbstract::counter_value_t
+  //                                        bytes,
+  //                                        bm::MatchTableAbstract::counter_value_t
+  //                                        packets);
+
+  // // ======= Meter Functions  =======
+  // bm::MatchErrorCode SetMeterRates(const std::string &tableName,
+  //                                  bm::entry_handle_t handle,
+  //                                  const
+  //                                  std::vector<bm::Meter::rate_config_t>
+  //                                  &configs);
+
+  // bm::MatchErrorCode GetMeterRates(const std::string &tableName,
+  //                                  bm::entry_handle_t handle,
+  //                                  std::vector<bm::Meter::rate_config_t>
+  //                                  *configs);
+
+  // bm::MatchErrorCode ResetMeterRates(const std::string &tableName,
+  //                                    bm::entry_handle_t handle);
+
+  // bm::Meter::MeterErrorCode SetMeterArrayRates(const std::string &meterName,
+  //                                            const
+  //                                            std::vector<bm::Meter::rate_config_t>
+  //                                            &configs);
+
+  // bm::Meter::MeterErrorCode SetMeterRates(const std::string &meterName,
+  // size_t idx,
+  //                                       const
+  //                                       std::vector<bm::Meter::rate_config_t>
+  //                                       &configs);
+
+  // bm::Meter::MeterErrorCode GetMeterRates(const std::string &meterName,
+  // size_t idx,
+  //                                       std::vector<bm::Meter::rate_config_t>
+  //                                       *configs);
+
+  // bm::Meter::MeterErrorCode ResetMeterRates(const std::string &meterName,
+  // size_t idx);
+
+  // ======= Register Operations Functions  =======
+  int RegisterRead(const std::string &registerName, size_t index,
+                   bm::Data *value);
+
+  int RegisterWrite(const std::string &registerName, size_t index,
+                    const bm::Data &value);
+
+  std::vector<bm::Data> RegisterReadAll(const std::string &registerName);
+
+  int RegisterWriteRange(const std::string &registerName, size_t startIndex,
+                         size_t endIndex, const bm::Data &value);
+
+  int RegisterReset(const std::string &registerName);
 
 protected:
   /**

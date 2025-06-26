@@ -148,6 +148,46 @@ public:
   PrintIndirectWsEntryFromKey(uint32_t index, const std::string &tableName,
                               const std::vector<bm::MatchKeyParam> &matchKey);
 
+  // ========= Counter Functions ==========
+  void ReadCounters(uint32_t index, const std::string &tableName,
+                    bm::entry_handle_t handle);
+  void ResetCounters(uint32_t index, const std::string &tableName);
+  void WriteCounters(uint32_t index, const std::string &tableName,
+                     bm::entry_handle_t handle, uint64_t bytes,
+                     uint64_t packets);
+  // void ReadCounter(uint32_t index, const std::string &counterName, size_t
+  // counterIndex); void ResetCounter(uint32_t index, const std::string
+  // &counterName); void WriteCounter(uint32_t index, const std::string
+  // &counterName, size_t counterIndex,
+  //                   bm::MatchTableAbstract::counter_value_t bytes,
+  //                   bm::MatchTableAbstract::counter_value_t packets);
+
+  // // ======= Meter Functions  =======
+  // void SetMeterRates(uint32_t index, const std::string &tableName,
+  //                    bm::entry_handle_t handle,
+  //                    const std::vector<bm::Meter::rate_config_t> &configs);
+
+  // void GetMeterRates(uint32_t index, const std::string &tableName,
+  //                    bm::entry_handle_t handle);
+
+  // void ResetMeterRates(uint32_t index, const std::string &tableName,
+  //                      bm::entry_handle_t handle);
+
+  // ======= Register Operations Functions  =======
+  void RegisterRead(uint32_t index, const std::string &registerName,
+                    size_t regIndex, bm::Data *value);
+
+  void RegisterWrite(uint32_t index, const std::string &registerName,
+                     size_t regIndex, const bm::Data &value);
+
+  void RegisterReadAll(uint32_t index, const std::string &registerName);
+
+  void RegisterWriteRange(uint32_t index, const std::string &registerName,
+                          size_t startIndex, size_t endIndex,
+                          const bm::Data &value);
+
+  void RegisterReset(uint32_t index, const std::string &registerName);
+
 private:
   /**
    * @brief Collection of P4 switch interfaces managed by the controller.
