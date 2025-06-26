@@ -243,6 +243,21 @@ static const char *RegisterErrorCodeToStr(bm::Register::RegisterErrorCode rc) {
   }
 }
 
+static const char *RuntimeErrorCodeToStr(bm::RuntimeInterface::ErrorCode rc) {
+  switch (rc) {
+  case bm::RuntimeInterface::SUCCESS:
+    return "SUCCESS";
+  case bm::RuntimeInterface::CONFIG_SWAP_DISABLED:
+    return "CONFIG_SWAP_DISABLED";
+  case bm::RuntimeInterface::ONGOING_SWAP:
+    return "ONGOING_SWAP";
+  case bm::RuntimeInterface::NO_ONGOING_SWAP:
+    return "NO_ONGOING_SWAP";
+  default:
+    return "UNKNOWN_RUNTIME_ERROR_CODE";
+  }
+}
+
 void P4CoreV1model::start_and_return_() {
   NS_LOG_FUNCTION("Switch ID: " << m_p4SwitchId << " start");
   CheckQueueingMetadata();
@@ -1375,6 +1390,75 @@ int P4CoreV1model::RegisterReset(const std::string &registerName) {
     NS_LOG_WARN("RegisterReset failed for register "
                 << registerName
                 << " with error: " << RegisterErrorCodeToStr(rc));
+    return -1;
+  }
+  return 0;
+}
+int P4CoreV1model::ParseVsetAdd(const std::string &vsetName,
+                                const bm::ByteContainer &value) {
+  bm::ParseVSet::ErrorCode rc = this->parse_vset_add(0, vsetName, value);
+  if (rc != bm::ParseVSet::SUCCESS) {
+    NS_LOG_WARN("ParseVsetAdd failed for set '" << vsetName
+                                                << "' with error code " << rc);
+    return -1;
+  }
+  return 0;
+}
+
+int P4CoreV1model::ParseVsetRemove(const std::string &vsetName,
+                                   const bm::ByteContainer &value) {
+  bm::ParseVSet::ErrorCode rc = this->parse_vset_remove(0, vsetName, value);
+  if (rc != bm::ParseVSet::SUCCESS) {
+    NS_LOG_WARN("ParseVsetRemove failed for set '"
+                << vsetName << "' with error code " << rc);
+    return -1;
+  }
+  return 0;
+}
+
+int P4CoreV1model::ParseVsetGet(const std::string &vsetName,
+                                std::vector<bm::ByteContainer> *values) {
+  bm::ParseVSet::ErrorCode rc = this->parse_vset_get(0, vsetName, values);
+  if (rc != bm::ParseVSet::SUCCESS) {
+    NS_LOG_WARN("ParseVsetGet failed for set '" << vsetName
+                                                << "' with error code " << rc);
+    return -1;
+  }
+  return 0;
+}
+
+int P4CoreV1model::ParseVsetClear(const std::string &vsetName) {
+  bm::ParseVSet::ErrorCode rc = this->parse_vset_clear(0, vsetName);
+  if (rc != bm::ParseVSet::SUCCESS) {
+    NS_LOG_WARN("ParseVsetClear failed for set '"
+                << vsetName << "' with error code " << rc);
+    return -1;
+  }
+  return 0;
+}
+int P4CoreV1model::ResetState() {
+  bm::RuntimeInterface::ErrorCode rc = this->reset_state();
+  if (rc != bm::RuntimeInterface::SUCCESS) {
+    NS_LOG_WARN("ResetState failed with error: " << RuntimeErrorCodeToStr(rc));
+    return -1;
+  }
+  return 0;
+}
+
+int P4CoreV1model::Serialize(std::ostream *out) {
+  bm::RuntimeInterface::ErrorCode rc = this->serialize(out);
+  if (rc != bm::RuntimeInterface::SUCCESS) {
+    NS_LOG_WARN("Serialize failed with error: " << RuntimeErrorCodeToStr(rc));
+    return -1;
+  }
+  return 0;
+}
+
+int P4CoreV1model::LoadNewConfig(const std::string &newConfig) {
+  bm::RuntimeInterface::ErrorCode rc = this->load_new_config(newConfig);
+  if (rc != bm::RuntimeInterface::SUCCESS) {
+    NS_LOG_WARN(
+        "LoadNewConfig failed with error: " << RuntimeErrorCodeToStr(rc));
     return -1;
   }
   return 0;

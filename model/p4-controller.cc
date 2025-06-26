@@ -1004,6 +1004,176 @@ void P4Controller::RegisterReset(uint32_t index,
                  << registerName << "] on switch " << index);
   }
 }
+void P4Controller::ParseVsetGet(uint32_t index, const std::string &vsetName) {
+  NS_LOG_FUNCTION(this << index << vsetName);
+
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_ERROR("V1Model core not found for switch " << index);
+    return;
+  }
+
+  std::vector<bm::ByteContainer> values;
+  int status = core->ParseVsetGet(vsetName, &values);
+
+  if (status == 0) {
+    NS_LOG_INFO("ParseVsetGet succeeded for switch "
+                << index << ", vset [" << vsetName
+                << "], count = " << values.size());
+    for (size_t i = 0; i < values.size(); ++i) {
+      NS_LOG_INFO("  Value[" << i << "] = " << values[i].to_hex());
+    }
+  } else {
+    NS_LOG_ERROR("ParseVsetGet failed for switch " << index << ", vset ["
+                                                   << vsetName << "]");
+  }
+}
+void P4Controller::ParseVsetAdd(uint32_t index, const std::string &vsetName,
+                                const bm::ByteContainer &value) {
+  NS_LOG_FUNCTION(this << index << vsetName << value.to_hex());
+
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_ERROR("V1Model core not found for switch " << index);
+    return;
+  }
+
+  int status = core->ParseVsetAdd(vsetName, value);
+  if (status == 0) {
+    NS_LOG_INFO("ParseVsetAdd succeeded for switch "
+                << index << ", vset [" << vsetName
+                << "], value = " << value.to_hex());
+  } else {
+    NS_LOG_ERROR("ParseVsetAdd failed for switch " << index << ", vset ["
+                                                   << vsetName << "]");
+  }
+}
+
+void P4Controller::ParseVsetRemove(uint32_t index, const std::string &vsetName,
+                                   const bm::ByteContainer &value) {
+  NS_LOG_FUNCTION(this << index << vsetName << value.to_hex());
+
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_ERROR("V1Model core not found for switch " << index);
+    return;
+  }
+
+  int status = core->ParseVsetRemove(vsetName, value);
+  if (status == 0) {
+    NS_LOG_INFO("ParseVsetRemove succeeded for switch "
+                << index << ", vset [" << vsetName
+                << "], value = " << value.to_hex());
+  } else {
+    NS_LOG_ERROR("ParseVsetRemove failed for switch " << index << ", vset ["
+                                                      << vsetName << "]");
+  }
+}
+
+void P4Controller::ParseVsetClear(uint32_t index, const std::string &vsetName) {
+  NS_LOG_FUNCTION(this << index << vsetName);
+
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  auto core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_ERROR("V1Model core not found for switch " << index);
+    return;
+  }
+
+  int status = core->ParseVsetClear(vsetName);
+  if (status == 0) {
+    NS_LOG_INFO("ParseVsetClear succeeded for switch " << index << ", vset ["
+                                                       << vsetName << "]");
+  } else {
+    NS_LOG_ERROR("ParseVsetClear failed for switch " << index << ", vset ["
+                                                     << vsetName << "]");
+  }
+}
+
+void P4Controller::ResetState(uint32_t index) {
+  NS_LOG_FUNCTION(this << index);
+
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_ERROR("V1Model core not found for switch " << index);
+    return;
+  }
+
+  int status = core->ResetState();
+  if (status == 0) {
+    NS_LOG_INFO("ResetState succeeded for switch " << index);
+  } else {
+    NS_LOG_ERROR("ResetState failed for switch " << index);
+  }
+}
+
+void P4Controller::Serialize(uint32_t index, std::ostream *out) {
+  NS_LOG_FUNCTION(this << index);
+
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_ERROR("V1Model core not found for switch " << index);
+    return;
+  }
+
+  int status = core->Serialize(out);
+  if (status == 0) {
+    NS_LOG_INFO("Serialize succeeded for switch " << index);
+  } else {
+    NS_LOG_ERROR("Serialize failed for switch " << index);
+  }
+}
+
+void P4Controller::LoadNewConfig(uint32_t index, const std::string &newConfig) {
+  NS_LOG_FUNCTION(this << index);
+
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_ERROR("V1Model core not found for switch " << index);
+    return;
+  }
+
+  int status = core->LoadNewConfig(newConfig);
+  if (status == 0) {
+    NS_LOG_INFO("LoadNewConfig succeeded for switch " << index);
+  } else {
+    NS_LOG_ERROR("LoadNewConfig failed for switch " << index);
+  }
+}
 
 void P4Controller::SetP4SwitchViewFlowTablePath(
     size_t index, const std::string &viewFlowTablePath) {}
