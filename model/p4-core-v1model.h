@@ -208,6 +208,39 @@ public:
                       const std::string &actionName, bm::ActionData actionData);
   int SetEntryTtl(const std::string &tableName, bm::entry_handle_t handle,
                   unsigned int ttlMs);
+  std::vector<bm::MatchTable::Entry>
+  GetFlowEntries(const std::string &tableName);
+  std::vector<bm::MatchTableIndirect::Entry>
+  GetIndirectFlowEntries(const std::string &tableName);
+  std::vector<bm::MatchTableIndirectWS::Entry>
+  GetIndirectWsFlowEntries(const std::string &tableName);
+
+  int GetEntry(const std::string &tableName, bm::entry_handle_t handle,
+               bm::MatchTable::Entry *entry);
+  int GetIndirectEntry(const std::string &tableName, bm::entry_handle_t handle,
+                       bm::MatchTableIndirect::Entry *entry);
+  int GetIndirectWsEntry(const std::string &tableName,
+                         bm::entry_handle_t handle,
+                         bm::MatchTableIndirectWS::Entry *entry);
+
+  int GetDefaultEntry(const std::string &tableName,
+                      bm::MatchTable::Entry *entry);
+  int GetIndirectDefaultEntry(const std::string &tableName,
+                              bm::MatchTableIndirect::Entry *entry);
+  int GetIndirectWsDefaultEntry(const std::string &tableName,
+                                bm::MatchTableIndirectWS::Entry *entry);
+
+  int GetEntryFromKey(const std::string &tableName,
+                      const std::vector<bm::MatchKeyParam> &matchKey,
+                      bm::MatchTable::Entry *entry, int priority = 1);
+  int GetIndirectEntryFromKey(const std::string &tableName,
+                              const std::vector<bm::MatchKeyParam> &matchKey,
+                              bm::MatchTableIndirect::Entry *entry,
+                              int priority = 1);
+  int GetIndirectWsEntryFromKey(const std::string &tableName,
+                                const std::vector<bm::MatchKeyParam> &matchKey,
+                                bm::MatchTableIndirectWS::Entry *entry,
+                                int priority = 1);
 
 protected:
   /**

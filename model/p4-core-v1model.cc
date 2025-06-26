@@ -962,8 +962,170 @@ int P4CoreV1model::SetEntryTtl(const std::string& tableName,
 
     return 0;
 }
+std::vector<bm::MatchTable::Entry>
+P4CoreV1model::GetFlowEntries(const std::string& tableName)
+{
+   
+
+    try
+    {
+        return this->mt_get_entries(0, tableName);  // cxt_id = 0
+    }
+    catch (const std::exception& e)
+    {
+        NS_LOG_ERROR("Exception in GetFlowEntries: " << e.what());
+        return {}; // empty vector
+    }
+}
+std::vector<bm::MatchTableIndirect::Entry>
+P4CoreV1model::GetIndirectFlowEntries(const std::string& tableName)
+{
+  
+
+    try
+    {
+        return this->mt_indirect_get_entries(0, tableName); // cxt_id = 0
+    }
+    catch (const std::exception& e)
+    {
+        NS_LOG_ERROR("Error in GetIndirectFlowEntries: " << e.what());
+        return {};
+    }
+}
+
+std::vector<bm::MatchTableIndirectWS::Entry>
+P4CoreV1model::GetIndirectWsFlowEntries(const std::string& tableName)
+{
 
 
+    try
+    {
+        return this->mt_indirect_ws_get_entries(0, tableName); // cxt_id = 0
+    }
+    catch (const std::exception& e)
+    {
+        NS_LOG_ERROR("Error in GetIndirectWsFlowEntries: " << e.what());
+        return {};
+    }
+}
+
+int P4CoreV1model::GetEntry(const std::string& tableName, bm::entry_handle_t handle, bm::MatchTable::Entry* entry)
+{
+
+    bm::MatchErrorCode rc = this->mt_get_entry(0, tableName, handle, entry);
+    if (rc != bm::MatchErrorCode::SUCCESS)
+    {
+        NS_LOG_WARN("GetEntry failed for table: " << tableName << ", handle: " << handle << ", code: " << static_cast<int>(rc));
+        return -1;
+    }
+    return 0;
+}
+
+int P4CoreV1model::GetIndirectEntry(const std::string& tableName, bm::entry_handle_t handle, bm::MatchTableIndirect::Entry* entry)
+{
+
+    bm::MatchErrorCode rc = this->mt_indirect_get_entry(0, tableName, handle, entry);
+    if (rc != bm::MatchErrorCode::SUCCESS)
+    {
+        NS_LOG_WARN("GetIndirectEntry failed for table: " << tableName << ", handle: " << handle << ", code: " << static_cast<int>(rc));
+        return -1;
+    }
+    return 0;
+}
+
+int P4CoreV1model::GetIndirectWsEntry(const std::string& tableName, bm::entry_handle_t handle, bm::MatchTableIndirectWS::Entry* entry)
+{
+
+    bm::MatchErrorCode rc = this->mt_indirect_ws_get_entry(0, tableName, handle, entry);
+    if (rc != bm::MatchErrorCode::SUCCESS)
+    {
+        NS_LOG_WARN("GetIndirectWsEntry failed for table: " << tableName << ", handle: " << handle << ", code: " << static_cast<int>(rc));
+        return -1;
+    }
+    return 0;
+}
+
+int 
+P4CoreV1model::GetDefaultEntry(const std::string& tableName, bm::MatchTable::Entry* entry)
+{
+   
+
+    bm::MatchErrorCode rc = this->mt_get_default_entry(0, tableName, entry);
+    if (rc != bm::MatchErrorCode::SUCCESS)
+    {
+        NS_LOG_WARN("GetDefaultEntry failed for table: " << tableName << ", code: " << static_cast<int>(rc));
+        return -1;
+    }
+    return 0;
+}
+
+int 
+P4CoreV1model::GetIndirectDefaultEntry(const std::string& tableName, bm::MatchTableIndirect::Entry* entry)
+{
+   
+
+    bm::MatchErrorCode rc = this->mt_indirect_get_default_entry(0, tableName, entry);
+    if (rc != bm::MatchErrorCode::SUCCESS)
+    {
+        NS_LOG_WARN("Indirect default entry fn failed with code: "
+            << " (" << MatchErrorCodeToStr(rc) << ")");
+        return -1;
+    }
+    return 0;
+}
+
+int 
+P4CoreV1model::GetIndirectWsDefaultEntry(const std::string& tableName, bm::MatchTableIndirectWS::Entry* entry)
+{
+   
+
+    bm::MatchErrorCode rc = this->mt_indirect_ws_get_default_entry(0, tableName, entry);
+    if (rc != bm::MatchErrorCode::SUCCESS)
+    {
+        NS_LOG_WARN("GetIndirectWsDefaultEntry failed for table: " << tableName << ", code: " << static_cast<int>(rc));
+        return -1;
+    }
+    return 0;
+}
+
+int P4CoreV1model::GetEntryFromKey(const std::string& tableName, const std::vector<bm::MatchKeyParam>& matchKey, bm::MatchTable::Entry* entry, int priority)
+{
+   
+    bm::MatchErrorCode rc = this->mt_get_entry_from_key(0, tableName, matchKey, entry, priority);
+    if (rc != bm::MatchErrorCode::SUCCESS)
+    {
+        NS_LOG_WARN("GetEntryFromKey failed for table: " << tableName
+                     << ", error: " << MatchErrorCodeToStr(rc));
+        return -1;
+    }
+    return 0;
+}
+
+int P4CoreV1model::GetIndirectEntryFromKey(const std::string& tableName, const std::vector<bm::MatchKeyParam>& matchKey, bm::MatchTableIndirect::Entry* entry, int priority)
+{
+   
+    bm::MatchErrorCode rc = this->mt_indirect_get_entry_from_key(0, tableName, matchKey, entry, priority);
+    if (rc != bm::MatchErrorCode::SUCCESS)
+    {
+        NS_LOG_WARN("GetIndirectEntryFromKey failed for table: " << tableName
+                     << ", error: " << MatchErrorCodeToStr(rc));
+        return -1;
+    }
+    return 0;
+}
+
+int P4CoreV1model::GetIndirectWsEntryFromKey(const std::string& tableName, const std::vector<bm::MatchKeyParam>& matchKey, bm::MatchTableIndirectWS::Entry* entry, int priority)
+{
+   
+    bm::MatchErrorCode rc = this->mt_indirect_ws_get_entry_from_key(0, tableName, matchKey, entry, priority);
+    if (rc != bm::MatchErrorCode::SUCCESS)
+    {
+        NS_LOG_WARN("GetIndirectWsEntryFromKey failed for table: " << tableName
+                     << ", error: " << MatchErrorCodeToStr(rc));
+        return -1;
+    }
+    return 0;
+}
 
 
 } // namespace ns3
