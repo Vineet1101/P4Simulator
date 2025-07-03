@@ -1467,7 +1467,7 @@ int P4CoreV1model::GetIndirectWsEntryFromKey(
   }
   return 0;
 }
-
+// ========== Counter Operations ============
 int P4CoreV1model::ReadTableCounters(const std::string &tableName,
                                      bm::entry_handle_t handle, uint64_t *bytes,
                                      uint64_t *packets) {
@@ -1505,164 +1505,168 @@ int P4CoreV1model::WriteTableCounters(const std::string &tableName,
   }
   return 0;
 }
-// bm::Counter::CounterErrorCode
-// P4CoreV1model::ReadCounter(const std::string &counterName, size_t index,
-//                            bm::MatchTableAbstract::counter_value_t *bytes,
-//                            bm::MatchTableAbstract::counter_value_t *packets)
-// {
-//     auto rc = this->read_counters(0, counterName, index, bytes, packets);  //
-//     cxt_id = 0 if (rc != bm::Counter::CounterErrorCode::SUCCESS)
-//     {
-//         NS_LOG_WARN("ReadCounter failed for counter " << counterName
-//                                                       << ", index " << index
-//                                                       << ", reason: " <<
-//                                                       CounterErrorCodeToStr(rc));
-//     }
-//     return rc;
-// }
+int P4CoreV1model::ReadCounter(
+    const std::string &counterName, size_t index,
+    bm::MatchTableAbstract::counter_value_t *bytes,
+    bm::MatchTableAbstract::counter_value_t *packets) {
+  auto rc =
+      this->read_counters(0, counterName, index, bytes, packets); // cxt_id = 0
+  if (rc == bm::Counter::CounterErrorCode::SUCCESS) {
+    NS_LOG_INFO("ReadCounter succeeded for counter ["
+                << counterName << "] at index " << index << ": " << *bytes
+                << " bytes, " << *packets << " packets");
+    return 0;
+  } else {
+    NS_LOG_WARN("ReadCounter failed for counter ["
+                << counterName << "] at index " << index
+                << ", reason: " << CounterErrorCodeToStr(rc));
+    return -1;
+  }
+}
 
-// bm::Counter::CounterErrorCode
-// P4CoreV1model::ResetCounter(const std::string &counterName)
-// {
-//     auto rc = this->reset_counters(0, counterName);
-//     if (rc != bm::Counter::CounterErrorCode::SUCCESS)
-//     {
-//         NS_LOG_WARN("ResetCounter failed for counter " << counterName
-//                                                        << ", reason: " <<
-//                                                        CounterErrorCodeToStr(rc));
-//     }
-//     return rc;
-// }
+int P4CoreV1model::ResetCounter(const std::string &counterName) {
+  auto rc = this->reset_counters(0, counterName); // cxt_id = 0
+  if (rc == bm::Counter::CounterErrorCode::SUCCESS) {
+    NS_LOG_INFO("ResetCounter succeeded for counter [" << counterName << "]");
+    return 0;
+  } else {
+    NS_LOG_WARN("ResetCounter failed for counter ["
+                << counterName << "], reason: " << CounterErrorCodeToStr(rc));
+    return -1;
+  }
+}
 
-// bm::Counter::CounterErrorCode
-// P4CoreV1model::WriteCounter(const std::string &counterName, size_t index,
-//                             bm::MatchTableAbstract::counter_value_t bytes,
-//                             bm::MatchTableAbstract::counter_value_t packets)
-// {
-//     auto rc = this->write_counters(0, counterName, index, bytes, packets);
-//     if (rc != bm::Counter::CounterErrorCode::SUCCESS)
-//     {
-//         NS_LOG_WARN("WriteCounter failed for counter " << counterName
-//                                                        << ", index " << index
-//                                                        << ", reason: " <<
-//                                                        CounterErrorCodeToStr(rc));
-//     }
-//     return rc;
-// }
+int P4CoreV1model::WriteCounter(
+    const std::string &counterName, size_t index,
+    bm::MatchTableAbstract::counter_value_t bytes,
+    bm::MatchTableAbstract::counter_value_t packets) {
+  auto rc =
+      this->write_counters(0, counterName, index, bytes, packets); // cxt_id = 0
+  if (rc == bm::Counter::CounterErrorCode::SUCCESS) {
+    NS_LOG_INFO("WriteCounter succeeded for counter ["
+                << counterName << "] at index " << index << ": " << bytes
+                << " bytes, " << packets << " packets");
+    return 0;
+  } else {
+    NS_LOG_WARN("WriteCounter failed for counter ["
+                << counterName << "] at index " << index
+                << ", reason: " << CounterErrorCodeToStr(rc));
+    return -1;
+  }
+}
 
-// bm::MatchErrorCode
-// P4CoreV1model::SetMeterRates(const std::string &tableName,
-//                              bm::entry_handle_t handle,
-//                              const std::vector<bm::Meter::rate_config_t>
-//                              &configs)
-// {
-//     bm::MatchErrorCode rc = this->mt_set_meter_rates(0, tableName, handle,
-//     configs); if (rc != bm::MatchErrorCode::SUCCESS)
-//     {
-//         NS_LOG_WARN("SetMeterRates failed: " << MatchErrorCodeToStr(rc));
-//     }
-//     return rc;
-// }
+// ============= Meter Operations ============
 
-// bm::MatchErrorCode
-// P4CoreV1model::GetMeterRates(const std::string &tableName,
-//                              bm::entry_handle_t handle,
-//                              std::vector<bm::Meter::rate_config_t> *configs)
-// {
-//     bm::MatchErrorCode rc = this->mt_get_meter_rates(0, tableName, handle,
-//     configs); if (rc != bm::MatchErrorCode::SUCCESS)
-//     {
-//         NS_LOG_WARN("GetMeterRates failed: " << MatchErrorCodeToStr(rc));
-//     }
-//     return rc;
-// }
+int P4CoreV1model::SetMeterRates(
+    const std::string &tableName, bm::entry_handle_t handle,
+    const std::vector<bm::Meter::rate_config_t> &configs) {
 
-// bm::MatchErrorCode
-// P4CoreV1model::ResetMeterRates(const std::string &tableName,
-//                                bm::entry_handle_t handle)
-// {
-//     bm::MatchErrorCode rc = this->mt_reset_meter_rates(0, tableName, handle);
-//     if (rc != bm::MatchErrorCode::SUCCESS)
-//     {
-//         NS_LOG_WARN("ResetMeterRates failed: " << MatchErrorCodeToStr(rc));
-//     }
-//     return rc;
-// }
+  bm::MatchErrorCode rc =
+      this->mt_set_meter_rates(0, tableName, handle, configs);
 
-// bm::Meter::MeterErrorCode
-// P4CoreV1model::SetMeterArrayRates(const std::string &meterName,
-//                                   const std::vector<bm::Meter::rate_config_t>
-//                                   &configs)
-// {
-//     bm::Meter::MeterErrorCode rc = this->meter_array_set_rates(0, meterName,
-//     configs); if (rc != bm::Meter::MeterErrorCode::SUCCESS)
-//     {
-//         NS_LOG_WARN("SetMeterArrayRates failed for meter " << meterName
-//                                                            << ", reason: " <<
-//                                                            MeterErrorCodeToStr(rc));
-//     }
-//     return rc;
-// }
+  if (rc != bm::MatchErrorCode::SUCCESS) {
+    NS_LOG_WARN("SetMeterRates failed for table "
+                << tableName << ", handle " << handle
+                << ", reason: " << MatchErrorCodeToStr(rc));
+    return -1;
+  }
 
-// bm::Meter::MeterErrorCode
-// P4CoreV1model::SetMeterRates(const std::string &meterName, size_t idx,
-//                              const std::vector<bm::Meter::rate_config_t>
-//                              &configs)
-// {
-//     bm::Meter::MeterErrorCode rc = this->meter_set_rates(0, meterName, idx,
-//     configs); if (rc != bm::Meter::MeterErrorCode::SUCCESS)
-//     {
-//         NS_LOG_WARN("SetMeterRates failed for meter " << meterName << ",
-//         index " << idx
-//                                                       << ", reason: " <<
-//                                                       MeterErrorCodeToStr(rc));
-//     }
-//     return rc;
-// }
+  return 0;
+}
 
-// bm::Meter::MeterErrorCode
-// P4CoreV1model::GetMeterRates(const std::string &meterName, size_t idx,
-//                              std::vector<bm::Meter::rate_config_t> *configs)
-// {
-//     bm::Meter::MeterErrorCode rc = this->meter_get_rates(0, meterName, idx,
-//     configs); if (rc != bm::Meter::MeterErrorCode::SUCCESS)
-//     {
-//         NS_LOG_WARN("GetMeterRates failed for meter " << meterName << ",
-//         index " << idx
-//                                                       << ", reason: " <<
-//                                                       MeterErrorCodeToStr(rc));
-//     }
-//     return rc;
-// }
+int P4CoreV1model::GetMeterRates(
+    const std::string &tableName, bm::entry_handle_t handle,
+    std::vector<bm::Meter::rate_config_t> *configs) {
 
-// bm::Meter::MeterErrorCode
-// P4CoreV1model::ResetMeterRates(const std::string &meterName, size_t idx)
-// {
-//     bm::Meter::MeterErrorCode rc = this->meter_reset_rates(0, meterName,
-//     idx); if (rc != bm::Meter::MeterErrorCode::SUCCESS)
-//     {
-//         NS_LOG_WARN("ResetMeterRates failed for meter " << meterName << ",
-//         index " << idx
-//                                                         << ", reason: " <<
-//                                                         MeterErrorCodeToStr(rc));
-//     }
-//     return rc;
-// }
-// int
-// P4CoreV1model::RegisterRead(const std::string &registerName, size_t index,
-// bm::Data *value)
-// {
+  bm::MatchErrorCode rc =
+      this->mt_get_meter_rates(0, tableName, handle, configs);
 
-//     bm::RegisterErrorCode rc = this->register_read(0, tableName, index,
-//     value); if (rc != bm::RegisterErrorCode::SUCCESS)
-//     {
-//         NS_LOG_WARN("RegisterRead failed for register " << tableName << " at
-//         index " << index
-//                      << " with error: " << RegisterErrorCodeToStr(rc));
-//         return -1;
-//     }
-//     return 0;
-// }
+  if (rc != bm::MatchErrorCode::SUCCESS) {
+    NS_LOG_WARN("GetMeterRates failed for table "
+                << tableName << ", handle " << handle
+                << ", reason: " << MatchErrorCodeToStr(rc));
+    return -1;
+  }
+
+  return 0;
+}
+
+int P4CoreV1model::ResetMeterRates(const std::string &tableName,
+                                   bm::entry_handle_t handle) {
+
+  bm::MatchErrorCode rc = this->mt_reset_meter_rates(0, tableName, handle);
+
+  if (rc != bm::MatchErrorCode::SUCCESS) {
+    NS_LOG_WARN("ResetMeterRates failed for table "
+                << tableName << ", handle " << handle
+                << ", reason: " << MatchErrorCodeToStr(rc));
+    return -1;
+  }
+
+  return 0;
+}
+
+int P4CoreV1model::SetMeterArrayRates(
+    const std::string &meterName,
+    const std::vector<bm::Meter::rate_config_t> &configs) {
+  bm::Meter::MeterErrorCode rc =
+      this->meter_array_set_rates(0, meterName, configs);
+
+  if (rc != bm::Meter::MeterErrorCode::SUCCESS) {
+    NS_LOG_WARN("SetMeterArrayRates failed for meter "
+                << meterName << ", reason: " << MeterErrorCodeToStr(rc));
+    return -1;
+  }
+
+  return 0;
+}
+
+int P4CoreV1model::SetMeterRates(
+    const std::string &meterName, size_t idx,
+    const std::vector<bm::Meter::rate_config_t> *configs) {
+  bm::Meter::MeterErrorCode rc =
+      this->meter_set_rates(0, meterName, idx, configs);
+
+  if (rc != bm::Meter::MeterErrorCode::SUCCESS) {
+    NS_LOG_WARN("SetMeterRates failed for meter "
+                << meterName << ", index " << idx
+                << ", reason: " << MeterErrorCodeToStr(rc));
+    return -1;
+  }
+
+  return 0;
+}
+
+int P4CoreV1model::GetMeterRates(
+    const std::string &meterName, size_t idx,
+    std::vector<bm::Meter::rate_config_t> *configs) {
+  bm::Meter::MeterErrorCode rc =
+      this->meter_get_rates(0, meterName, idx, configs);
+
+  if (rc != bm::Meter::MeterErrorCode::SUCCESS) {
+    NS_LOG_WARN("GetMeterRates failed for meter "
+                << meterName << ", index " << idx
+                << ", reason: " << MeterErrorCodeToStr(rc));
+    return -1;
+  }
+
+  return 0;
+}
+
+int P4CoreV1model::ResetMeterRates(const std::string &meterName, size_t idx) {
+  bm::Meter::MeterErrorCode rc = this->meter_reset_rates(0, meterName, idx);
+
+  if (rc != bm::Meter::MeterErrorCode::SUCCESS) {
+    NS_LOG_WARN("ResetMeterRates failed for meter "
+                << meterName << ", index " << idx
+                << ", reason: " << MeterErrorCodeToStr(rc));
+    return -1;
+  }
+
+  return 0;
+}
+
+// ============ Register Operations =============
 int P4CoreV1model::RegisterRead(const std::string &registerName, size_t index,
                                 bm::Data *value) {
 

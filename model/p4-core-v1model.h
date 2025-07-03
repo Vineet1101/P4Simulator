@@ -423,57 +423,152 @@ public:
   int WriteTableCounters(const std::string &tableName,
                          bm::entry_handle_t handle, uint64_t bytes,
                          uint64_t packets);
-  // bm::Counter::CounterErrorCode ReadCounter(const std::string &counterName,
-  // size_t index,
-  //                                       bm::MatchTableAbstract::counter_value_t
-  //                                       *bytes,
-  //                                       bm::MatchTableAbstract::counter_value_t
-  //                                       *packets);
+  /**
 
-  // bm::Counter::CounterErrorCode ResetCounter(const std::string &counterName);
+  *@brief Read the byte and packet count from a named counter at a given index.
 
-  // bm::Counter::CounterErrorCode WriteCounter(const std::string &counterName,
-  // size_t index,
-  //                                        bm::MatchTableAbstract::counter_value_t
-  //                                        bytes,
-  //                                        bm::MatchTableAbstract::counter_value_t
-  //                                        packets);
+  *@param counterName Name of the counter array.
 
-  // // ======= Meter Functions  =======
-  // bm::MatchErrorCode SetMeterRates(const std::string &tableName,
-  //                                  bm::entry_handle_t handle,
-  //                                  const
-  //                                  std::vector<bm::Meter::rate_config_t>
-  //                                  &configs);
+  *@param index Index within the counter array.
 
-  // bm::MatchErrorCode GetMeterRates(const std::string &tableName,
-  //                                  bm::entry_handle_t handle,
-  //                                  std::vector<bm::Meter::rate_config_t>
-  //                                  *configs);
+  *@param[out] bytes Pointer to store the byte count.
 
-  // bm::MatchErrorCode ResetMeterRates(const std::string &tableName,
-  //                                    bm::entry_handle_t handle);
+  *@param[out] packets Pointer to store the packet count.
 
-  // bm::Meter::MeterErrorCode SetMeterArrayRates(const std::string &meterName,
-  //                                            const
-  //                                            std::vector<bm::Meter::rate_config_t>
-  //                                            &configs);
+  *@return 0 on success, -1 on failure.
+  */
+  int ReadCounter(const std::string &counterName, size_t index,
+                  bm::MatchTableAbstract::counter_value_t *bytes,
+                  bm::MatchTableAbstract::counter_value_t *packets);
 
-  // bm::Meter::MeterErrorCode SetMeterRates(const std::string &meterName,
-  // size_t idx,
-  //                                       const
-  //                                       std::vector<bm::Meter::rate_config_t>
-  //                                       &configs);
+  /**
 
-  // bm::Meter::MeterErrorCode GetMeterRates(const std::string &meterName,
-  // size_t idx,
-  //                                       std::vector<bm::Meter::rate_config_t>
-  //                                       *configs);
+  *@brief Reset all values in a named counter array to zero.
 
-  // bm::Meter::MeterErrorCode ResetMeterRates(const std::string &meterName,
-  // size_t idx);
+  *@param counterName Name of the counter array to reset.
 
-  // ======= Register Operations Functions  =======
+  *@return 0 on success, -1 on failure.
+  */
+  int ResetCounter(const std::string &counterName);
+
+  /**
+
+  *@brief Manually write values to a counter array at a given index.
+
+  *@param counterName Name of the counter array.
+
+  *@param index Index within the counter array.
+
+  *@param bytes Number of bytes to write.
+
+  *@param packets Number of packets to write.
+
+  *@return 0 on success, -1 on failure.
+  */
+  int WriteCounter(const std::string &counterName, size_t index,
+                   bm::MatchTableAbstract::counter_value_t bytes,
+                   bm::MatchTableAbstract::counter_value_t packets);
+
+  // ============= Meter Operations ============
+
+  /**
+
+  *@brief Set meter rates for a specific match table entry.
+
+  *@param tableName Name of the match table.
+
+  *@param handle Entry handle in the table.
+
+  *@param configs Rate configuration vector.
+
+  *@return 0 on success, -1 on failure.
+  */
+  int SetMeterRates(const std::string &tableName, bm::entry_handle_t handle,
+                    const std::vector<bm::Meter::rate_config_t> &configs);
+
+  /**
+
+  *@brief Get meter rates for a specific match table entry.
+
+  *@param tableName Name of the match table.
+
+  *@param handle Entry handle in the table.
+
+  *@param[out] configs Pointer to hold the retrieved rate configurations.
+
+  *@return 0 on success, -1 on failure.
+  */
+  int GetMeterRates(const std::string &tableName, bm::entry_handle_t handle,
+                    std::vector<bm::Meter::rate_config_t> *configs);
+
+  /**
+
+  *@brief Reset meter rates for a specific match table entry.
+
+  *@param tableName Name of the match table.
+
+  *@param handle Entry handle in the table.
+
+  *@return 0 on success, -1 on failure.
+  */
+  int ResetMeterRates(const std::string &tableName, bm::entry_handle_t handle);
+
+  /**
+
+  *@brief Set the rate configuration for an entire meter array.
+
+  *@param meterName Name of the meter array.
+
+  *@param configs Rate configuration vector to apply.
+
+  *@return 0 on success, -1 on failure.
+  */
+  int SetMeterArrayRates(const std::string &meterName,
+                         const std::vector<bm::Meter::rate_config_t> &configs);
+
+  /**
+
+  *@brief Set meter rates for a specific index in a meter array.
+
+  *@param meterName Name of the meter array.
+
+  *@param idx Index within the meter array.
+
+  *@param configs Rate configuration vector.
+
+  *@return 0 on success, -1 on failure.
+  */
+  int SetMeterRates(const std::string &meterName, size_t idx,
+                    const std::vector<bm::Meter::rate_config_t> *configs);
+
+  /**
+
+  *@brief Get meter rate configuration for a specific index in a meter array.
+
+  *@param meterName Name of the meter array.
+
+  *@param idx Index within the meter array.
+
+  *@param[out] configs Pointer to store the retrieved rate configurations.
+
+  *@return 0 on success, -1 on failure.
+  */
+  int GetMeterRates(const std::string &meterName, size_t idx,
+                    std::vector<bm::Meter::rate_config_t> *configs);
+
+  /**
+
+  *@brief Reset meter rate configuration at a given index in a meter array.
+
+  *@param meterName Name of the meter array.
+
+  *@param idx Index within the meter array.
+
+  *@return 0 on success, -1 on failure.
+  */
+  int ResetMeterRates(const std::string &meterName, size_t idx);
+
+  // ======= Register Operations   =======
   int RegisterRead(const std::string &registerName, size_t index,
                    bm::Data *value);
 

@@ -1153,7 +1153,14 @@ void P4Controller::ResetCounters(uint32_t index, const std::string &tableName) {
     return;
   }
 
-  core->ResetTableCounters(tableName);
+  int status = core->ResetTableCounters(tableName);
+  if (status == 0) {
+    NS_LOG_INFO("Reset counters for table [" << tableName << "] on switch "
+                                             << index);
+  } else {
+    NS_LOG_ERROR("Failed to reset counters for table ["
+                 << tableName << "] on switch " << index);
+  }
 }
 
 void P4Controller::WriteCounters(uint32_t index, const std::string &tableName,
@@ -1170,232 +1177,271 @@ void P4Controller::WriteCounters(uint32_t index, const std::string &tableName,
     return;
   }
 
-  core->WriteTableCounters(tableName, handle, bytes, packets);
+  int status = core->WriteTableCounters(tableName, handle, bytes, packets);
+  if (status == 0) {
+    NS_LOG_INFO("Wrote counters for entry handle "
+                << handle << " in table [" << tableName << "] on switch "
+                << index << ": bytes = " << bytes << ", packets = " << packets);
+  } else {
+    NS_LOG_ERROR("Failed to write counters for entry handle "
+                 << handle << " in table [" << tableName << "] on switch "
+                 << index);
+  }
 }
 
-// void
-// P4Controller::ReadCounter(uint32_t index, const std::string& counterName,
-// size_t counterIndex)
-// {
-//     if (index >= m_connectedSwitches.size())
-//     {
-//         NS_LOG_WARN("Invalid switch index " << index);
-//         return;
-//     }
+void P4Controller::ReadCounter(uint32_t index, const std::string &counterName,
+                               size_t counterIndex) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
 
-//     P4CoreV1model* core = m_connectedSwitches[index]->GetV1ModelCore();
-//     if (!core)
-//     {
-//         NS_LOG_WARN("No V1Model core found for switch " << index);
-//         return;
-//     }
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
 
-//     bm::MatchTableAbstract::counter_value_t bytes, packets;
-//     auto rc = core->ReadCounter(counterName, counterIndex, &bytes, &packets);
-//     if (rc == bm::Counter::CounterErrorCode::SUCCESS)
-//     {
-//         NS_LOG_INFO("ReadCounter for " << counterName << "[" << counterIndex
-//         << "]: " << bytes
-//                                        << " bytes, " << packets << "
-//                                        packets");
-//     }
-// }
+  bm::MatchTableAbstract::counter_value_t bytes, packets;
+  auto rc = core->ReadCounter(counterName, counterIndex, &bytes, &packets);
 
-// void
-// P4Controller::ResetCounter(uint32_t index, const std::string& counterName)
-// {
-//     if (index >= m_connectedSwitches.size())
-//     {
-//         NS_LOG_WARN("Invalid switch index " << index);
-//         return;
-//     }
+  if (rc == bm::Counter::CounterErrorCode::SUCCESS) {
+    NS_LOG_INFO("ReadCounter for [" << counterName << "] at index "
+                                    << counterIndex << " on switch " << index
+                                    << ": " << bytes << " bytes, " << packets
+                                    << " packets");
+  } else {
+    NS_LOG_ERROR("Failed to read counter ["
+                 << counterName << "] at index " << counterIndex
+                 << " on switch " << index << ": " << static_cast<int>(rc));
+  }
+}
 
-//     P4CoreV1model* core = m_connectedSwitches[index]->GetV1ModelCore();
-//     if (!core)
-//     {
-//         NS_LOG_WARN("No V1Model core found for switch " << index);
-//         return;
-//     }
+void P4Controller::ResetCounter(uint32_t index,
+                                const std::string &counterName) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
 
-//     core->ResetCounter(counterName);
-// }
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
 
-// void
-// P4Controller::WriteCounter(uint32_t index,
-//                            const std::string& counterName,
-//                            size_t counterIndex,
-//                            bm::MatchTableAbstract::counter_value_t bytes,
-//                            bm::MatchTableAbstract::counter_value_t packets)
-// {
-//     if (index >= m_connectedSwitches.size())
-//     {
-//         NS_LOG_WARN("Invalid switch index " << index);
-//         return;
-//     }
+  int status = core->ResetCounter(counterName);
+  if (status == 0) {
+    NS_LOG_INFO("Reset counter [" << counterName << "] on switch " << index);
+  } else {
+    NS_LOG_ERROR("Failed to reset counter [" << counterName << "] on switch "
+                                             << index);
+  }
+}
 
-//     P4CoreV1model* core = m_connectedSwitches[index]->GetV1ModelCore();
-//     if (!core)
-//     {
-//         NS_LOG_WARN("No V1Model core found for switch " << index);
-//         return;
-//     }
+void P4Controller::WriteCounter(
+    uint32_t index, const std::string &counterName, size_t counterIndex,
+    bm::MatchTableAbstract::counter_value_t bytes,
+    bm::MatchTableAbstract::counter_value_t packets) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
 
-//     core->WriteCounter(counterName, counterIndex, bytes, packets);
-// }
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
 
-// void
-// P4Controller::SetMeterRates(uint32_t index,
-//                             const std::string& tableName,
-//                             bm::entry_handle_t handle,
-//                             const std::vector<bm::Meter::rate_config_t>&
-//                             configs)
-// {
-//     if (index >= m_connectedSwitches.size())
-//     {
-//         NS_LOG_WARN("Invalid switch index " << index);
-//         return;
-//     }
-//     P4CoreV1model* core = m_connectedSwitches[index]->GetV1ModelCore();
-//     if (!core)
-//     {
-//         NS_LOG_ERROR("No V1Model core found for switch " << index);
-//         return;
-//     }
-//     core->SetMeterRates(tableName, handle, configs);
-// }
+  int status = core->WriteCounter(counterName, counterIndex, bytes, packets);
+  if (status == 0) {
+    NS_LOG_INFO("Wrote counter [" << counterName << "] at index "
+                                  << counterIndex << " on switch " << index
+                                  << ": " << bytes << " bytes, " << packets
+                                  << " packets");
+  } else {
+    NS_LOG_ERROR("Failed to write counter [" << counterName << "] at index "
+                                             << counterIndex << " on switch "
+                                             << index);
+  }
+}
 
-// void
-// P4Controller::GetMeterRates(uint32_t index, const std::string& tableName,
-// bm::entry_handle_t handle)
-// {
-//     if (index >= m_connectedSwitches.size())
-//     {
-//         NS_LOG_WARN("Invalid switch index " << index);
-//         return;
-//     }
-//     P4CoreV1model* core = m_connectedSwitches[index]->GetV1ModelCore();
-//     if (!core)
-//     {
-//         NS_LOG_ERROR("No V1Model core found for switch " << index);
-//         return;
-//     }
+// ========== Meter Operations ===========
 
-//     std::vector<bm::Meter::rate_config_t> configs;
-//     bm::MatchErrorCode rc = core->GetMeterRates(tableName, handle, &configs);
-//     if (rc == bm::MatchErrorCode::SUCCESS)
-//     {
-//         for (const auto& conf : configs)
-//         {
-//             NS_LOG_INFO("Meter rate config - Cir: " << conf.info_rate
-//                                                     << ", Cburst: " <<
-//                                                     conf.burst_size);
-//         }
-//     }
-// }
+void P4Controller::SetMeterRates(
+    uint32_t index, const std::string &tableName, bm::entry_handle_t handle,
+    const std::vector<bm::Meter::rate_config_t> &configs) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
 
-// void
-// P4Controller::ResetMeterRates(uint32_t index,
-//                               const std::string& tableName,
-//                               bm::entry_handle_t handle)
-// {
-//     if (index >= m_connectedSwitches.size())
-//     {
-//         NS_LOG_WARN("Invalid switch index " << index);
-//         return;
-//     }
-//     P4CoreV1model* core = m_connectedSwitches[index]->GetV1ModelCore();
-//     if (!core)
-//     {
-//         NS_LOG_ERROR("No V1Model core found for switch " << index);
-//         return;
-//     }
-//     core->ResetMeterRates(tableName, handle);
-// }
-// void
-// P4Controller::MeterArraySetRates(uint32_t index,
-//                                   const std::string& meterName,
-//                                   const
-//                                   std::vector<bm::Meter::rate_config_t>&
-//                                   configs)
-// {
-//     if (index >= m_connectedSwitches.size())
-//     {
-//         NS_LOG_WARN("Invalid switch index " << index);
-//         return;
-//     }
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
 
-//     P4CoreV1model* core = m_connectedSwitches[index]->GetV1ModelCore();
-//     if (!core)
-//     {
-//         NS_LOG_WARN("No V1Model core found for switch " << index);
-//         return;
-//     }
+  bool success = core->SetMeterRates(tableName, handle, configs) == 0;
+  if (success) {
+    NS_LOG_INFO("SetMeterRates succeeded for table ["
+                << tableName << "] on switch " << index);
+  } else {
+    NS_LOG_WARN("SetMeterRates failed for table [" << tableName
+                                                   << "] on switch " << index);
+  }
+}
 
-//     core->SetMeterArrayRates(meterName, configs);
-// }
-// void
-// P4Controller::MeterSetRates(uint32_t index,
-//                              const std::string& meterName,
-//                              size_t idx,
-//                              const std::vector<bm::Meter::rate_config_t>&
-//                              configs)
-// {
-//     if (index >= m_connectedSwitches.size())
-//     {
-//         NS_LOG_WARN("Invalid switch index " << index);
-//         return;
-//     }
+void P4Controller::GetMeterRates(uint32_t index, const std::string &tableName,
+                                 bm::entry_handle_t handle) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
 
-//     P4CoreV1model* core = m_connectedSwitches[index]->GetV1ModelCore();
-//     if (!core)
-//     {
-//         NS_LOG_WARN("No V1Model core found for switch " << index);
-//         return;
-//     }
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
 
-//     core->SetMeterRates(meterName, idx, configs);
-// }
-// void
-// P4Controller::MeterGetRates(uint32_t index,
-//                              const std::string& meterName,
-//                              size_t idx)
-// {
-//     if (index >= m_connectedSwitches.size())
-//     {
-//         NS_LOG_WARN("Invalid switch index " << index);
-//         return;
-//     }
+  std::vector<bm::Meter::rate_config_t> configs;
+  bool success = core->GetMeterRates(tableName, handle, &configs) == 0;
+  if (success) {
+    NS_LOG_INFO("Meter rates for [" << tableName << "] handle " << handle
+                                    << " on switch " << index << ":");
+    for (const auto &cfg : configs) {
+      NS_LOG_INFO("  CIR=" << cfg.info_rate << ", PBS=" << cfg.burst_size);
+    }
+  } else {
+    NS_LOG_WARN("GetMeterRates failed for table [" << tableName
+                                                   << "] on switch " << index);
+  }
+}
 
-//     P4CoreV1model* core = m_connectedSwitches[index]->GetV1ModelCore();
-//     if (!core)
-//     {
-//         NS_LOG_WARN("No V1Model core found for switch " << index);
-//         return;
-//     }
+void P4Controller::ResetMeterRates(uint32_t index, const std::string &tableName,
+                                   bm::entry_handle_t handle) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
 
-//     std::vector<bm::Meter::rate_config_t> configs;
-//     core->GetMeterRates(meterName, idx, &configs);
-// }
-// void
-// P4Controller::MeterResetRates(uint32_t index,
-//                                const std::string& meterName,
-//                                size_t idx)
-// {
-//     if (index >= m_connectedSwitches.size())
-//     {
-//         NS_LOG_WARN("Invalid switch index " << index);
-//         return;
-//     }
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
 
-//     P4CoreV1model* core = m_connectedSwitches[index]->GetV1ModelCore();
-//     if (!core)
-//     {
-//         NS_LOG_WARN("No V1Model core found for switch " << index);
-//         return;
-//     }
+  bool success = core->ResetMeterRates(tableName, handle) == 0;
+  if (success) {
+    NS_LOG_INFO("ResetMeterRates succeeded for table ["
+                << tableName << "] on switch " << index);
+  } else {
+    NS_LOG_WARN("ResetMeterRates failed for table ["
+                << tableName << "] on switch " << index);
+  }
+}
 
-//     core->ResetMeterRates(meterName, idx);
-// }
+void P4Controller::SetMeterArrayRates(
+    uint32_t index, const std::string &meterName,
+    const std::vector<bm::Meter::rate_config_t> &configs) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  bool success = core->SetMeterArrayRates(meterName, configs) == 0;
+  if (success) {
+    NS_LOG_INFO("SetMeterArrayRates succeeded for meter ["
+                << meterName << "] on switch " << index);
+  } else {
+    NS_LOG_WARN("SetMeterArrayRates failed for meter ["
+                << meterName << "] on switch " << index);
+  }
+}
+
+void P4Controller::SetMeterRates(
+    uint32_t index, const std::string &meterName, size_t idx,
+    const std::vector<bm::Meter::rate_config_t> &configs) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  bool success = core->SetMeterRates(meterName, idx, configs) == 0;
+  if (success) {
+    NS_LOG_INFO("SetMeterRates succeeded for meter ["
+                << meterName << "] index " << idx << " on switch " << index);
+  } else {
+    NS_LOG_WARN("SetMeterRates failed for meter ["
+                << meterName << "] index " << idx << " on switch " << index);
+  }
+}
+
+void P4Controller::GetMeterRates(uint32_t index, const std::string &meterName,
+                                 size_t idx) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  std::vector<bm::Meter::rate_config_t> configs;
+  bool success = core->GetMeterRates(meterName, idx, &configs) == 0;
+  if (success) {
+    NS_LOG_INFO("Meter rates for [" << meterName << "] index " << idx
+                                    << " on switch " << index << ":");
+    for (const auto &cfg : configs) {
+      NS_LOG_INFO("  CIR=" << cfg.info_rate << ", PBS=" << cfg.burst_size);
+    }
+  } else {
+    NS_LOG_WARN("GetMeterRates failed for meter ["
+                << meterName << "] index " << idx << " on switch " << index);
+  }
+}
+
+void P4Controller::ResetMeterRates(uint32_t index, const std::string &meterName,
+                                   size_t idx) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  bool success = core->ResetMeterRates(meterName, idx) == 0;
+  if (success) {
+    NS_LOG_INFO("ResetMeterRates succeeded for meter ["
+                << meterName << "] index " << idx << " on switch " << index);
+  } else {
+    NS_LOG_WARN("ResetMeterRates failed for meter ["
+                << meterName << "] index " << idx << " on switch " << index);
+  }
+}
+
+// ======= Register  Functions  =======
 void P4Controller::RegisterRead(uint32_t index, const std::string &registerName,
                                 size_t regIndex, bm::Data *value) {
   NS_LOG_FUNCTION(this << index << registerName << regIndex);
