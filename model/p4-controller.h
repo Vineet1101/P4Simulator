@@ -300,30 +300,89 @@ public:
   PrintIndirectWsEntryFromKey(uint32_t index, const std::string &tableName,
                               const std::vector<bm::MatchKeyParam> &matchKey);
 
-  // counter APIs
+  // ================= Counter Operations ===================
+
   void ReadCounters(uint32_t index, const std::string &tableName,
                     bm::entry_handle_t handle);
   void ResetCounters(uint32_t index, const std::string &tableName);
   void WriteCounters(uint32_t index, const std::string &tableName,
                      bm::entry_handle_t handle, uint64_t bytes,
                      uint64_t packets);
-  // void ReadCounter(uint32_t index, const std::string &counterName, size_t
-  // counterIndex); void ResetCounter(uint32_t index, const std::string
-  // &counterName); void WriteCounter(uint32_t index, const std::string
-  // &counterName, size_t counterIndex,
-  //                   bm::MatchTableAbstract::counter_value_t bytes,
-  //                   bm::MatchTableAbstract::counter_value_t packets);
+  void ReadCounter(uint32_t index, const std::string &counterName,
+                   size_t counterIndex);
+  void ResetCounter(uint32_t index, const std::string &counterName);
+  void WriteCounter(uint32_t index, const std::string &counterName,
+                    size_t counterIndex,
+                    bm::MatchTableAbstract::counter_value_t bytes,
+                    bm::MatchTableAbstract::counter_value_t packets);
 
   // // ======= Meter Functions  =======
-  // void SetMeterRates(uint32_t index, const std::string &tableName,
-  //                    bm::entry_handle_t handle,
-  //                    const std::vector<bm::Meter::rate_config_t> &configs);
+  /**
+   * @brief Set meter rates for a specific table entry.
+   * @param index Index of the target switch.
+   * @param tableName Name of the match-action table.
+   * @param handle Entry handle to apply meter rates.
+   * @param configs Vector of meter rate configurations.
+   */
+  void SetMeterRates(uint32_t index, const std::string &tableName,
+                     bm::entry_handle_t handle,
+                     const std::vector<bm::Meter::rate_config_t> &configs);
 
-  // void GetMeterRates(uint32_t index, const std::string &tableName,
-  //                    bm::entry_handle_t handle);
+  /**
+   * @brief Get meter rates for a specific table entry.
+   * @param index Index of the target switch.
+   * @param tableName Name of the match-action table.
+   * @param handle Entry handle to retrieve meter rates from.
+   */
+  void GetMeterRates(uint32_t index, const std::string &tableName,
+                     bm::entry_handle_t handle);
 
-  // void ResetMeterRates(uint32_t index, const std::string &tableName,
-  //                      bm::entry_handle_t handle);
+  /**
+   * @brief Reset meter rates for a specific table entry.
+   * @param index Index of the target switch.
+   * @param tableName Name of the match-action table.
+   * @param handle Entry handle to reset meter rates.
+   */
+  void ResetMeterRates(uint32_t index, const std::string &tableName,
+                       bm::entry_handle_t handle);
+
+  /**
+   * @brief Set meter rates for an entire meter array.
+   * @param index Index of the target switch.
+   * @param meterName Name of the meter array.
+   * @param configs Meter rate configuration vector.
+   */
+  void SetMeterArrayRates(uint32_t index, const std::string &meterName,
+                          const std::vector<bm::Meter::rate_config_t> &configs);
+
+  /**
+   * @brief Set meter rates for a specific meter index.
+   * @param index Index of the target switch.
+   * @param meterName Name of the meter.
+   * @param meterIndex Index within the meter array.
+   * @param configs Meter rate configuration vector.
+   */
+  void SetMeterRates(uint32_t index, const std::string &meterName,
+                     size_t meterIndex,
+                     const std::vector<bm::Meter::rate_config_t> &configs);
+
+  /**
+   * @brief Get meter rates for a specific meter index.
+   * @param index Index of the target switch.
+   * @param meterName Name of the meter.
+   * @param meterIndex Index within the meter array.
+   */
+  void GetMeterRates(uint32_t index, const std::string &meterName,
+                     size_t meterIndex);
+
+  /**
+   * @brief Reset meter rates for a specific meter index.
+   * @param index Index of the target switch.
+   * @param meterName Name of the meter.
+   * @param meterIndex Index within the meter array.
+   */
+  void ResetMeterRates(uint32_t index, const std::string &meterName,
+                       size_t meterIndex);
 
   // ======= Register  Functions  =======
   void RegisterRead(uint32_t index, const std::string &registerName,
