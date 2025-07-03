@@ -22,6 +22,7 @@
 
 #include "ns3/p4-queue.h"
 #include "ns3/p4-switch-core.h"
+
 #include <bm/bm_sim/counters.h>
 
 #define SSWITCH_VIRTUAL_QUEUE_NUM_V1MODEL 8
@@ -189,33 +190,181 @@ public:
    */
   int SetAllEgressQueueRates(uint64_t ratePps);
 
+  //========== Flow Table Operations =========
+  /**
+   * @brief Retrieves the number of entries in a match table
+   * @param tableName Name of the match table
+   */
   int GetNumEntries(const std::string &tableName);
-
+  /**
+   * @brief Clears all entries in a match table
+   * @param tableName Name of the match table
+   * @param resetDefault Whether to also reset the default entry
+   */
   int ClearFlowTableEntries(const std::string &tableName, bool resetDefault);
-
+  /**
+   * @brief Adds an entry to a match table with a match key, action, and
+   * optional priority
+   * @param tableName Name of the match table
+   * @param matchKey Match key for the entry
+   * @param actionName Name of the action to invoke
+   * @param actionData Parameters for the action
+   * @param handleOut Pointer to store the resulting entry handle
+   * @param priority Optional priority value (used for ternary/LPM tables)
+   */
   int AddFlowEntry(const std::string &tableName,
                    const std::vector<bm::MatchKeyParam> &matchKey,
                    const std::string &actionName, bm::ActionData &&actionData,
                    bm::entry_handle_t *handle, int priority = -1);
-
+  /**
+   * @brief Sets the default action for a match table
+   * @param tableName Name of the match table
+   * @param actionName Name of the default action to apply
+   * @param actionData Parameters for the default action
+   */
   int SetDefaultAction(const std::string &tableName,
                        const std::string &actionName,
                        bm::ActionData &&actionData);
+  /**
+   * @brief Resets the default entry for a match table to its original
+   * configuration
+   * @param tableName Name of the match table
+   */
   int ResetDefaultEntry(const std::string &tableName);
-
+  /**
+   * @brief Deletes a specific entry from a match table
+   * @param tableName Name of the match table
+   * @param handle Entry handle identifying the rule to delete
+   */
   int DeleteFlowEntry(const std::string &tableName, bm::entry_handle_t handle);
-
+  /**
+   * @brief Modifies an existing match table entry with a new action and
+   * parameters
+   * @param tableName Name of the match table
+   * @param handle Entry handle identifying the rule to modify
+   * @param actionName Name of the new action to assign
+   * @param actionData Parameters for the new action
+   */
   int ModifyFlowEntry(const std::string &tableName, bm::entry_handle_t handle,
                       const std::string &actionName, bm::ActionData actionData);
+  /**
+   * @brief Sets a time-to-live (TTL) in milliseconds for a specific match table
+   * entry
+   * @param tableName Name of the match table
+   * @param handle Entry handle identifying the rule
+   * @param ttlMs Timeout duration in milliseconds
+   */
   int SetEntryTtl(const std::string &tableName, bm::entry_handle_t handle,
                   unsigned int ttlMs);
+
+  //  ======== Action Profile Operations ===========
+
+  int AddActionProfileMember(const std::string &profileName,
+                             const std::string &actionName,
+                             bm::ActionData &&actionData,
+                             bm::ActionProfile::mbr_hdl_t *outHandle);
+
+  int DeleteActionProfileMember(const std::string &profileName,
+                                bm::ActionProfile::mbr_hdl_t memberHandle);
+
+  int ModifyActionProfileMember(const std::string &profileName,
+                                bm::ActionProfile::mbr_hdl_t memberHandle,
+                                const std::string &actionName,
+                                bm::ActionData &&actionData);
+  int CreateActionProfileGroup(const std::string &profileName,
+                               bm::ActionProfile::grp_hdl_t *outHandle);
+  int DeleteActionProfileGroup(const std::string &profileName,
+                               bm::ActionProfile::grp_hdl_t groupHandle);
+  int AddMemberToGroup(const std::string &profileName,
+                       bm::ActionProfile::mbr_hdl_t memberHandle,
+                       bm::ActionProfile::grp_hdl_t groupHandle);
+  int RemoveMemberFromGroup(const std::string &profileName,
+                            bm::ActionProfile::mbr_hdl_t memberHandle,
+                            bm::ActionProfile::grp_hdl_t groupHandle);
+
+  int GetActionProfileMembers(const std::string &profileName,
+                              std::vector<bm::ActionProfile::Member> *members);
+
+  int GetActionProfileMember(const std::string &profileName,
+                             bm::ActionProfile::mbr_hdl_t memberHandle,
+                             bm::ActionProfile::Member *member);
+
+  int GetActionProfileGroups(const std::string &profileName,
+                             std::vector<bm::ActionProfile::Group> *groups);
+
+  int GetActionProfileGroup(const std::string &profileName,
+                            bm::ActionProfile::grp_hdl_t groupHandle,
+                            bm::ActionProfile::Group *group);
+
+  // =========== Indirect Table Operations ==============
+  int AddIndirectEntry(const std::string &tableName,
+                       const std::vector<bm::MatchKeyParam> &matchKey,
+                       bm::ActionProfile::mbr_hdl_t memberHandle,
+                       bm::entry_handle_t *outHandle, int priority = 1);
+
+  int ModifyIndirectEntry(const std::string &tableName,
+                          bm::entry_handle_t entryHandle,
+                          bm::ActionProfile::mbr_hdl_t memberHandle);
+
+  int DeleteIndirectEntry(const std::string &tableName,
+                          bm::entry_handle_t entryHandle);
+
+  int SetIndirectEntryTtl(const std::string &tableName,
+                          bm::entry_handle_t handle, unsigned int ttlMs);
+
+  int SetIndirectDefaultMember(const std::string &tableName,
+                               bm::ActionProfile::mbr_hdl_t memberHandle);
+
+  int ResetIndirectDefaultEntry(const std::string &tableName);
+
+  int AddIndirectWsEntry(const std::string &tableName,
+                         const std::vector<bm::MatchKeyParam> &matchKey,
+                         bm::ActionProfile::grp_hdl_t groupHandle,
+                         bm::entry_handle_t *outHandle, int priority = 1);
+
+  int ModifyIndirectWsEntry(const std::string &tableName,
+                            bm::entry_handle_t handle,
+                            bm::ActionProfile::grp_hdl_t groupHandle);
+
+  int SetIndirectWsDefaultGroup(const std::string &tableName,
+                                bm::ActionProfile::grp_hdl_t groupHandle);
+
+  // ======== Flow Table Entry Retrieval Operations ===========
+
+  /**
+   * @brief Retrieves all entries from a match table
+   * @param tableName Name of the match table
+   * @param entriesOut Pointer to a vector where the retrieved entries will be
+   * stored
+   * @return 0 on success, -1 on failure
+   */
   std::vector<bm::MatchTable::Entry>
   GetFlowEntries(const std::string &tableName);
+  /**
+   * @brief Retrieves all entries from an indirect match table
+   * @param tableName Name of the indirect match table
+   * @param entriesOut Pointer to a vector where the retrieved entries will be
+   * stored
+   * @return 0 on success, -1 on failure
+   */
   std::vector<bm::MatchTableIndirect::Entry>
   GetIndirectFlowEntries(const std::string &tableName);
+  /**
+   * @brief Retrieves all entries from an indirect wide-switch match table
+   * @param tableName Name of the indirect wide-switch match table
+   * @param entriesOut Pointer to a vector where the retrieved entries will be
+   * stored
+   * @return 0 on success, -1 on failure
+   */
   std::vector<bm::MatchTableIndirectWS::Entry>
   GetIndirectWsFlowEntries(const std::string &tableName);
-
+  /**
+   * @brief Retrieves a specific entry from a match table by handle
+   * @param tableName Name of the match table
+   * @param handle Entry handle identifying the rule
+   * @param entryOut Pointer to store the retrieved entry
+   * @return 0 on success, -1 on failure
+   */
   int GetEntry(const std::string &tableName, bm::entry_handle_t handle,
                bm::MatchTable::Entry *entry);
   int GetIndirectEntry(const std::string &tableName, bm::entry_handle_t handle,
@@ -356,6 +505,12 @@ public:
   int Serialize(std::ostream *out);
 
   int LoadNewConfig(const std::string &newConfig);
+
+  int SwapConfigs();
+
+  int GetConfig(std::string *configOut);
+
+  int GetConfigMd5(std::string *md5Out);
 
 protected:
   /**
