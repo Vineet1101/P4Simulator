@@ -83,31 +83,6 @@ public:
    */
   void SetP4SwitchFlowTablePath(size_t index, const std::string &flowTablePath);
 
-  /**
-   * @brief Retrieve a specific P4 switch from the controller.
-   *
-   * @param index Index of the P4 switch in the controller's collection.
-   * @return Pointer to the requested P4SwitchInterface.
-   */
-  //  P4SwitchInterface *GetP4Switch (size_t index);
-
-  /**
-   * @brief Add a new P4 switch to the controller.
-   *
-   * @return Pointer to the newly added P4SwitchInterface.
-   */
-  //   P4SwitchInterface *AddP4Switch ();
-
-  /**
-   * @brief Get the total number of P4 switches managed by the controller.
-   *
-   * @return Number of P4 switches.
-   */
-  unsigned int GetP4SwitchNum() const {
-    return 1;
-    //  return p4SwitchInterfaces_.size ();
-  }
-
   void PrintTableEntryCount(uint32_t index, const std::string &tableName);
   /**
    *  @brief Clears the table entries from the given switch and table
@@ -130,6 +105,183 @@ public:
   void SetEntryTtl(uint32_t index, const std::string &tableName,
                    bm::entry_handle_t handle, unsigned int ttlMs);
 
+  // ======== Action Profile Operations ===========
+
+  void AddActionProfileMember(uint32_t index, const std::string &profileName,
+                              const std::string &actionName,
+                              bm::ActionData &&actionData);
+
+  void DeleteActionProfileMember(uint32_t index, const std::string &profileName,
+                                 bm::ActionProfile::mbr_hdl_t memberHandle);
+
+  void ModifyActionProfileMember(uint32_t index, const std::string &profileName,
+                                 bm::ActionProfile::mbr_hdl_t memberHandle,
+                                 const std::string &actionName,
+                                 bm::ActionData &&actionData);
+  /**
+   * @brief Creates a new group in the specified action profile.
+   * @param index Index of the switch to operate on
+   * @param profileName Name of the action profile
+   * @param outHandle Pointer to the group handle that will be set on success
+   */
+  void CreateActionProfileGroup(uint32_t index, const std::string &profileName,
+                                bm::ActionProfile::grp_hdl_t *outHandle);
+
+  /**
+   * @brief Deletes a group in the specified action profile.
+   * @param index Index of the switch to operate on
+   * @param profileName Name of the action profile
+   * @param groupHandle Handle of the group to be deleted
+   */
+  void DeleteActionProfileGroup(uint32_t index, const std::string &profileName,
+                                bm::ActionProfile::grp_hdl_t groupHandle);
+
+  /**
+   * @brief Adds a member to a group in an action profile.
+   * @param index Index of the switch to operate on
+   * @param profileName Name of the action profile
+   * @param memberHandle Handle of the member to add
+   * @param groupHandle Handle of the group to which the member should be added
+   */
+  void AddMemberToGroup(uint32_t index, const std::string &profileName,
+                        bm::ActionProfile::mbr_hdl_t memberHandle,
+                        bm::ActionProfile::grp_hdl_t groupHandle);
+  /**
+   * @brief Removes a member from a group in an action profile.
+   * @param index Index of the switch to operate on
+   * @param profileName Name of the action profile
+   * @param memberHandle Handle of the member to remove
+   * @param groupHandle Handle of the group from which the member is removed
+   */
+  void RemoveMemberFromGroup(uint32_t index, const std::string &profileName,
+                             bm::ActionProfile::mbr_hdl_t memberHandle,
+                             bm::ActionProfile::grp_hdl_t groupHandle);
+
+  /**
+   * @brief Retrieves all members in an action profile.
+   * @param index Index of the switch to operate on
+   * @param profileName Name of the action profile
+   */
+  void GetActionProfileMembers(uint32_t index, const std::string &profileName);
+
+  /**
+   * @brief Retrieves a specific member from an action profile.
+   * @param index Index of the switch to operate on
+   * @param profileName Name of the action profile
+   * @param memberHandle Handle of the member to retrieve
+   */
+  void GetActionProfileMember(uint32_t index, const std::string &profileName,
+                              bm::ActionProfile::mbr_hdl_t memberHandle);
+  /**
+   * @brief Retrieves all groups in an action profile.
+   * @param index Index of the switch to operate on
+   * @param profileName Name of the action profile
+   */
+  void GetActionProfileGroups(uint32_t index, const std::string &profileName);
+
+  /**
+   * @brief Retrieves a specific group from an action profile.
+   * @param index Index of the switch to operate on
+   * @param profileName Name of the action profile
+   * @param groupHandle Handle of the group to retrieve
+   */
+  void GetActionProfileGroup(uint32_t index, const std::string &profileName,
+                             bm::ActionProfile::grp_hdl_t groupHandle);
+
+  // ========== Indirect Table Operations ============
+  /**
+   * @brief Adds an entry to an indirect match table.
+   * @param index Switch index
+   * @param tableName Match table name
+   * @param matchKey Match key vector
+   * @param memberHandle Handle of action profile member
+   * @param outHandle Output entry handle
+   * @param priority Optional priority value (default = 1)
+   */
+  void AddIndirectEntry(uint32_t index, const std::string &tableName,
+                        const std::vector<bm::MatchKeyParam> &matchKey,
+                        bm::ActionProfile::mbr_hdl_t memberHandle,
+                        bm::entry_handle_t *outHandle, int priority = 1);
+
+  /**
+   * @brief Modifies an existing entry in an indirect match table.
+   * @param index Switch index
+   * @param tableName Match table name
+   * @param entryHandle Entry handle to modify
+   * @param memberHandle New member handle
+   */
+  void ModifyIndirectEntry(uint32_t index, const std::string &tableName,
+                           bm::entry_handle_t entryHandle,
+                           bm::ActionProfile::mbr_hdl_t memberHandle);
+
+  /**
+   * @brief Deletes an entry from an indirect match table.
+   * @param index Switch index
+   * @param tableName Match table name
+   * @param entryHandle Handle of entry to delete
+   */
+  void DeleteIndirectEntry(uint32_t index, const std::string &tableName,
+                           bm::entry_handle_t entryHandle);
+  /**
+   * @brief Sets the TTL (timeout in ms) for an indirect match table entry.
+   * @param index Switch index
+   * @param tableName Match table name
+   * @param handle Entry handle
+   * @param ttlMs Timeout in milliseconds
+   */
+  void SetIndirectEntryTtl(uint32_t index, const std::string &tableName,
+                           bm::entry_handle_t handle, unsigned int ttlMs);
+
+  /**
+   * @brief Sets the default member for an indirect match table.
+   * @param index Switch index
+   * @param tableName Match table name
+   * @param memberHandle Member handle to set as default
+   */
+  void SetIndirectDefaultMember(uint32_t index, const std::string &tableName,
+                                bm::ActionProfile::mbr_hdl_t memberHandle);
+
+  /**
+   * @brief Resets the default entry in an indirect match table.
+   * @param index Switch index
+   * @param tableName Match table name
+   */
+  void ResetIndirectDefaultEntry(uint32_t index, const std::string &tableName);
+
+  /**
+   * @brief Adds an entry to an indirect wide-switch match table.
+   * @param index Switch index
+   * @param tableName Match table name
+   * @param matchKey Match key vector
+   * @param groupHandle Group handle to associate with the entry
+   * @param outHandle Pointer to receive the assigned entry handle
+   * @param priority Match priority (default = 1)
+   */
+  void AddIndirectWsEntry(uint32_t index, const std::string &tableName,
+                          const std::vector<bm::MatchKeyParam> &matchKey,
+                          bm::ActionProfile::grp_hdl_t groupHandle,
+                          bm::entry_handle_t *outHandle, int priority = 1);
+  /**
+   * @brief Modifies an indirect WS entry to use a different group handle.
+   * @param index Switch index
+   * @param tableName Match table name
+   * @param handle Entry handle to modify
+   * @param groupHandle New group handle
+   */
+  void ModifyIndirectWsEntry(uint32_t index, const std::string &tableName,
+                             bm::entry_handle_t handle,
+                             bm::ActionProfile::grp_hdl_t groupHandle);
+
+  /**
+   * @brief Sets the default group for an indirect wide-switch match table.
+   * @param index Switch index
+   * @param tableName Match table name
+   * @param groupHandle Group handle to use as default
+   */
+  void SetIndirectWsDefaultGroup(uint32_t index, const std::string &tableName,
+                                 bm::ActionProfile::grp_hdl_t groupHandle);
+
+  // ========= Flow Table Entry Retrieval Operations ========
   void PrintFlowEntries(uint32_t index, const std::string &tableName);
   void PrintIndirectFlowEntries(uint32_t index, const std::string &tableName);
   void PrintIndirectWsFlowEntries(uint32_t index, const std::string &tableName);
@@ -148,7 +300,7 @@ public:
   PrintIndirectWsEntryFromKey(uint32_t index, const std::string &tableName,
                               const std::vector<bm::MatchKeyParam> &matchKey);
 
-  // ========= Counter Functions ==========
+  // counter APIs
   void ReadCounters(uint32_t index, const std::string &tableName,
                     bm::entry_handle_t handle);
   void ResetCounters(uint32_t index, const std::string &tableName);
@@ -173,7 +325,7 @@ public:
   // void ResetMeterRates(uint32_t index, const std::string &tableName,
   //                      bm::entry_handle_t handle);
 
-  // ======= Register Operations Functions  =======
+  // ======= Register  Functions  =======
   void RegisterRead(uint32_t index, const std::string &registerName,
                     size_t regIndex, bm::Data *value);
 
@@ -187,6 +339,7 @@ public:
                           const bm::Data &value);
 
   void RegisterReset(uint32_t index, const std::string &registerName);
+
   // ======= Parse Value Set Functions  =======
   void ParseVsetAdd(uint32_t index, const std::string &vsetName,
                     const bm::ByteContainer &value);
@@ -202,6 +355,12 @@ public:
   void Serialize(uint32_t index, std::ostream *out);
 
   void LoadNewConfig(uint32_t index, const std::string &newConfig);
+
+  void SwapConfigs(uint32_t index);
+
+  void GetConfig(uint32_t index);
+
+  void GetConfigMd5(uint32_t index);
 
 private:
   /**

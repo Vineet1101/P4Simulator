@@ -983,6 +983,332 @@ int P4CoreV1model::SetEntryTtl(const std::string &tableName,
 
   return 0;
 }
+
+// ======== Action Profile Operations ===========
+
+int P4CoreV1model::AddActionProfileMember(
+    const std::string &profileName, const std::string &actionName,
+    bm::ActionData &&actionData, bm::ActionProfile::mbr_hdl_t *outHandle) {
+
+  bm::MatchErrorCode rc = this->mt_act_prof_add_member(
+      0, profileName, actionName, std::move(actionData), outHandle);
+
+  if (rc != bm::MatchErrorCode::SUCCESS) {
+    NS_LOG_WARN("AddActionProfileMember failed for profile "
+                << profileName << ", action " << actionName);
+    NS_LOG_WARN("Error: " << MatchErrorCodeToStr(rc));
+    return -1;
+  }
+
+  return 0;
+}
+
+int P4CoreV1model::DeleteActionProfileMember(
+    const std::string &profileName, bm::ActionProfile::mbr_hdl_t memberHandle) {
+
+  bm::MatchErrorCode rc =
+      this->mt_act_prof_delete_member(0, profileName, memberHandle);
+
+  if (rc != bm::MatchErrorCode::SUCCESS) {
+    NS_LOG_WARN("DeleteActionProfileMember failed for profile "
+                << profileName << ", member handle " << memberHandle);
+    NS_LOG_WARN("Error: " << MatchErrorCodeToStr(rc));
+    return -1;
+  }
+
+  return 0;
+}
+
+int P4CoreV1model::ModifyActionProfileMember(
+    const std::string &profileName, bm::ActionProfile::mbr_hdl_t memberHandle,
+    const std::string &actionName, bm::ActionData &&actionData) {
+
+  bm::MatchErrorCode rc = this->mt_act_prof_modify_member(
+      0, profileName, memberHandle, actionName, std::move(actionData));
+
+  if (rc != bm::MatchErrorCode::SUCCESS) {
+    NS_LOG_WARN("ModifyActionProfileMember failed for profile "
+                << profileName << ", member handle " << memberHandle
+                << ", action " << actionName);
+    NS_LOG_WARN("Error: " << MatchErrorCodeToStr(rc));
+    return -1;
+  }
+
+  return 0;
+}
+
+int P4CoreV1model::CreateActionProfileGroup(
+    const std::string &profileName, bm::ActionProfile::grp_hdl_t *outHandle) {
+
+  bm::MatchErrorCode rc =
+      this->mt_act_prof_create_group(0, profileName, outHandle);
+
+  if (rc != bm::MatchErrorCode::SUCCESS) {
+    NS_LOG_WARN("CreateActionProfileGroup failed for profile " << profileName);
+    NS_LOG_WARN("Error: " << MatchErrorCodeToStr(rc));
+    return -1;
+  }
+  return 0;
+}
+
+int P4CoreV1model::DeleteActionProfileGroup(
+    const std::string &profileName, bm::ActionProfile::grp_hdl_t groupHandle) {
+
+  bm::MatchErrorCode rc =
+      this->mt_act_prof_delete_group(0, profileName, groupHandle);
+
+  if (rc != bm::MatchErrorCode::SUCCESS) {
+    NS_LOG_WARN("DeleteActionProfileGroup failed for profile " << profileName);
+    NS_LOG_WARN("Error: " << MatchErrorCodeToStr(rc));
+    return -1;
+  }
+  return 0;
+}
+
+int P4CoreV1model::AddMemberToGroup(const std::string &profileName,
+                                    bm::ActionProfile::mbr_hdl_t memberHandle,
+                                    bm::ActionProfile::grp_hdl_t groupHandle) {
+
+  bm::MatchErrorCode rc = this->mt_act_prof_add_member_to_group(
+      0, profileName, memberHandle, groupHandle);
+
+  if (rc != bm::MatchErrorCode::SUCCESS) {
+    NS_LOG_WARN("AddMemberToGroup failed for profile " << profileName);
+    NS_LOG_WARN("Error: " << MatchErrorCodeToStr(rc));
+    return -1;
+  }
+  return 0;
+}
+int P4CoreV1model::RemoveMemberFromGroup(
+    const std::string &profileName, bm::ActionProfile::mbr_hdl_t memberHandle,
+    bm::ActionProfile::grp_hdl_t groupHandle) {
+
+  bm::MatchErrorCode rc = this->mt_act_prof_remove_member_from_group(
+      0, profileName, memberHandle, groupHandle);
+
+  if (rc != bm::MatchErrorCode::SUCCESS) {
+    NS_LOG_WARN("RemoveMemberFromGroup failed for profile " << profileName);
+    NS_LOG_WARN("Error: " << MatchErrorCodeToStr(rc));
+    return -1;
+  }
+  return 0;
+}
+
+int P4CoreV1model::GetActionProfileMembers(
+    const std::string &profileName,
+    std::vector<bm::ActionProfile::Member> *members) {
+
+  *members = this->mt_act_prof_get_members(0, profileName);
+  return 0;
+}
+
+int P4CoreV1model::GetActionProfileMember(
+    const std::string &profileName, bm::ActionProfile::mbr_hdl_t memberHandle,
+    bm::ActionProfile::Member *member) {
+
+  bm::MatchErrorCode rc =
+      this->mt_act_prof_get_member(0, profileName, memberHandle, member);
+
+  if (rc != bm::MatchErrorCode::SUCCESS) {
+    NS_LOG_WARN("GetActionProfileMember failed for profile " << profileName);
+    NS_LOG_WARN("Error: " << MatchErrorCodeToStr(rc));
+    return -1;
+  }
+  return 0;
+}
+int P4CoreV1model::GetActionProfileGroups(
+    const std::string &profileName,
+    std::vector<bm::ActionProfile::Group> *groups) {
+
+  *groups = this->mt_act_prof_get_groups(0, profileName);
+  return 0;
+}
+
+int P4CoreV1model::GetActionProfileGroup(
+    const std::string &profileName, bm::ActionProfile::grp_hdl_t groupHandle,
+    bm::ActionProfile::Group *group) {
+
+  bm::MatchErrorCode rc =
+      this->mt_act_prof_get_group(0, profileName, groupHandle, group);
+
+  if (rc != bm::MatchErrorCode::SUCCESS) {
+    NS_LOG_WARN("GetActionProfileGroup failed for profile "
+                << profileName << " and group handle " << groupHandle);
+    NS_LOG_WARN("Error: " << MatchErrorCodeToStr(rc));
+    return -1;
+  }
+
+  return 0;
+}
+
+// =========== Indirect Table Operations ============
+int P4CoreV1model::AddIndirectEntry(
+    const std::string &tableName,
+    const std::vector<bm::MatchKeyParam> &matchKey,
+    bm::ActionProfile::mbr_hdl_t memberHandle, bm::entry_handle_t *outHandle,
+    int priority) {
+
+  bm::MatchErrorCode rc = this->mt_indirect_add_entry(
+      0, tableName, matchKey, memberHandle, outHandle, priority);
+
+  if (rc != bm::MatchErrorCode::SUCCESS) {
+    NS_LOG_WARN("AddIndirectEntry failed for table " << tableName);
+    NS_LOG_WARN("mt_indirect_add_entry() failed with code: "
+                << static_cast<int>(rc) << " (" << MatchErrorCodeToStr(rc)
+                << ")");
+    return -1;
+  }
+
+  return 0;
+}
+
+int P4CoreV1model::ModifyIndirectEntry(
+    const std::string &tableName, bm::entry_handle_t entryHandle,
+    bm::ActionProfile::mbr_hdl_t memberHandle) {
+
+  bm::MatchErrorCode rc =
+      this->mt_indirect_modify_entry(0, tableName, entryHandle, memberHandle);
+
+  if (rc != bm::MatchErrorCode::SUCCESS) {
+    NS_LOG_WARN("ModifyIndirectEntry failed for table "
+                << tableName << " and entry handle " << entryHandle);
+    NS_LOG_WARN("mt_indirect_modify_entry() failed with code: "
+                << static_cast<int>(rc) << " (" << MatchErrorCodeToStr(rc)
+                << ")");
+    return -1;
+  }
+
+  return 0;
+}
+
+int P4CoreV1model::DeleteIndirectEntry(const std::string &tableName,
+                                       bm::entry_handle_t entryHandle) {
+
+  bm::MatchErrorCode rc =
+      this->mt_indirect_delete_entry(0, tableName, entryHandle);
+
+  if (rc != bm::MatchErrorCode::SUCCESS) {
+    NS_LOG_WARN("DeleteIndirectEntry failed for table "
+                << tableName << " and entry handle " << entryHandle);
+    NS_LOG_WARN("mt_indirect_delete_entry() failed with code: "
+                << static_cast<int>(rc) << " (" << MatchErrorCodeToStr(rc)
+                << ")");
+    return -1;
+  }
+
+  return 0;
+}
+int P4CoreV1model::SetIndirectEntryTtl(const std::string &tableName,
+                                       bm::entry_handle_t handle,
+                                       unsigned int ttlMs) {
+
+  bm::MatchErrorCode rc =
+      this->mt_indirect_set_entry_ttl(0, tableName, handle, ttlMs);
+
+  if (rc != bm::MatchErrorCode::SUCCESS) {
+    NS_LOG_WARN("SetIndirectEntryTtl failed for table "
+                << tableName << ", handle " << handle);
+    NS_LOG_WARN("mt_indirect_set_entry_ttl() failed with code: "
+                << static_cast<int>(rc) << " (" << MatchErrorCodeToStr(rc)
+                << ")");
+    return -1;
+  }
+
+  return 0;
+}
+
+int P4CoreV1model::SetIndirectDefaultMember(
+    const std::string &tableName, bm::ActionProfile::mbr_hdl_t memberHandle) {
+
+  bm::MatchErrorCode rc =
+      this->mt_indirect_set_default_member(0, tableName, memberHandle);
+
+  if (rc != bm::MatchErrorCode::SUCCESS) {
+    NS_LOG_WARN("SetIndirectDefaultMember failed for table "
+                << tableName << ", member " << memberHandle);
+    NS_LOG_WARN("mt_indirect_set_default_member() failed with code: "
+                << static_cast<int>(rc) << " (" << MatchErrorCodeToStr(rc)
+                << ")");
+    return -1;
+  }
+
+  return 0;
+}
+
+int P4CoreV1model::ResetIndirectDefaultEntry(const std::string &tableName) {
+
+  bm::MatchErrorCode rc = this->mt_indirect_reset_default_entry(0, tableName);
+
+  if (rc != bm::MatchErrorCode::SUCCESS) {
+    NS_LOG_WARN("ResetIndirectDefaultEntry failed for table " << tableName);
+    NS_LOG_WARN("mt_indirect_reset_default_entry() failed with code: "
+                << static_cast<int>(rc) << " (" << MatchErrorCodeToStr(rc)
+                << ")");
+    return -1;
+  }
+
+  return 0;
+}
+int P4CoreV1model::AddIndirectWsEntry(
+    const std::string &tableName,
+    const std::vector<bm::MatchKeyParam> &matchKey,
+    bm::ActionProfile::grp_hdl_t groupHandle, bm::entry_handle_t *outHandle,
+    int priority) {
+
+  bm::MatchErrorCode rc = this->mt_indirect_ws_add_entry(
+      0, tableName, matchKey, groupHandle, outHandle, priority);
+
+  if (rc != bm::MatchErrorCode::SUCCESS) {
+    NS_LOG_WARN("AddIndirectWsEntry failed for table "
+                << tableName << ", group = " << groupHandle);
+    NS_LOG_WARN("mt_indirect_ws_add_entry() failed with code: "
+                << static_cast<int>(rc) << " (" << MatchErrorCodeToStr(rc)
+                << ")");
+    return -1;
+  }
+
+  return 0;
+}
+
+int P4CoreV1model::ModifyIndirectWsEntry(
+    const std::string &tableName, bm::entry_handle_t handle,
+    bm::ActionProfile::grp_hdl_t groupHandle) {
+
+  bm::MatchErrorCode rc =
+      this->mt_indirect_ws_modify_entry(0, tableName, handle, groupHandle);
+
+  if (rc != bm::MatchErrorCode::SUCCESS) {
+    NS_LOG_WARN("ModifyIndirectWsEntry failed for table "
+                << tableName << ", handle = " << handle
+                << ", group = " << groupHandle);
+    NS_LOG_WARN("mt_indirect_ws_modify_entry() failed with code: "
+                << static_cast<int>(rc) << " (" << MatchErrorCodeToStr(rc)
+                << ")");
+    return -1;
+  }
+
+  return 0;
+}
+
+int P4CoreV1model::SetIndirectWsDefaultGroup(
+    const std::string &tableName, bm::ActionProfile::grp_hdl_t groupHandle) {
+
+  bm::MatchErrorCode rc =
+      this->mt_indirect_ws_set_default_group(0, tableName, groupHandle);
+
+  if (rc != bm::MatchErrorCode::SUCCESS) {
+    NS_LOG_WARN("SetIndirectWsDefaultGroup failed for table "
+                << tableName << ", group = " << groupHandle);
+    NS_LOG_WARN("mt_indirect_ws_set_default_group() failed with code: "
+                << static_cast<int>(rc) << " (" << MatchErrorCodeToStr(rc)
+                << ")");
+    return -1;
+  }
+
+  return 0;
+}
+
+// ======== Flow Table Entry Retrieval Operations ===========
 std::vector<bm::MatchTable::Entry>
 P4CoreV1model::GetFlowEntries(const std::string &tableName) {
 
@@ -1461,6 +1787,28 @@ int P4CoreV1model::LoadNewConfig(const std::string &newConfig) {
         "LoadNewConfig failed with error: " << RuntimeErrorCodeToStr(rc));
     return -1;
   }
+  return 0;
+}
+int P4CoreV1model::SwapConfigs() {
+  bm::RuntimeInterface::ErrorCode rc = this->swap_configs();
+  if (rc != bm::RuntimeInterface::SUCCESS) {
+    NS_LOG_WARN("SwapConfigs failed with error: " << RuntimeErrorCodeToStr(rc));
+    return -1;
+  }
+  return 0;
+}
+
+int P4CoreV1model::GetConfig(std::string *configOut) {
+  if (!configOut)
+    return -1;
+  *configOut = this->get_config();
+  return 0;
+}
+
+int P4CoreV1model::GetConfigMd5(std::string *md5Out) {
+  if (!md5Out)
+    return -1;
+  *md5Out = this->get_config_md5();
   return 0;
 }
 

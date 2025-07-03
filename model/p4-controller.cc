@@ -293,6 +293,549 @@ void P4Controller::SetEntryTtl(uint32_t index, const std::string &tableName,
   }
 }
 
+// ======== Action Profile Operations ===========
+
+void P4Controller::AddActionProfileMember(uint32_t index,
+                                          const std::string &profileName,
+                                          const std::string &actionName,
+                                          bm::ActionData &&actionData) {
+  NS_LOG_FUNCTION(this << index << profileName << actionName);
+
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  auto core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_ERROR("V1Model core not found for switch " << index);
+    return;
+  }
+
+  bm::ActionProfile::mbr_hdl_t mbrHandle;
+  int status = core->AddActionProfileMember(profileName, actionName,
+                                            std::move(actionData), &mbrHandle);
+
+  if (status == 0) {
+    NS_LOG_INFO("Added action profile member to profile ["
+                << profileName << "] on switch " << index
+                << ", got handle: " << mbrHandle);
+  } else {
+    NS_LOG_ERROR("Failed to add member to action profile ["
+                 << profileName << "] on switch " << index);
+  }
+}
+
+void P4Controller::DeleteActionProfileMember(
+    uint32_t index, const std::string &profileName,
+    bm::ActionProfile::mbr_hdl_t memberHandle) {
+  NS_LOG_FUNCTION(this << index << profileName << memberHandle);
+
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  auto core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_ERROR("V1Model core not found for switch " << index);
+    return;
+  }
+
+  int status = core->DeleteActionProfileMember(profileName, memberHandle);
+
+  if (status == 0) {
+    NS_LOG_INFO("Deleted action profile member "
+                << memberHandle << " from profile [" << profileName
+                << "] on switch " << index);
+  } else {
+    NS_LOG_ERROR("Failed to delete member " << memberHandle << " from profile ["
+                                            << profileName << "] on switch "
+                                            << index);
+  }
+}
+
+void P4Controller::ModifyActionProfileMember(
+    uint32_t index, const std::string &profileName,
+    bm::ActionProfile::mbr_hdl_t memberHandle, const std::string &actionName,
+    bm::ActionData &&actionData) {
+  NS_LOG_FUNCTION(this << index << profileName << memberHandle << actionName);
+
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  auto core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_ERROR("V1Model core not found for switch " << index);
+    return;
+  }
+
+  int status = core->ModifyActionProfileMember(
+      profileName, memberHandle, actionName, std::move(actionData));
+
+  if (status == 0) {
+    NS_LOG_INFO("Modified member " << memberHandle << " in profile ["
+                                   << profileName << "] to action ["
+                                   << actionName << "] on switch " << index);
+  } else {
+    NS_LOG_ERROR("Failed to modify member " << memberHandle << " in profile ["
+                                            << profileName << "] on switch "
+                                            << index);
+  }
+}
+
+void P4Controller::CreateActionProfileGroup(
+    uint32_t index, const std::string &profileName,
+    bm::ActionProfile::grp_hdl_t *outHandle) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  int status = core->CreateActionProfileGroup(profileName, outHandle);
+  if (status == 0) {
+    NS_LOG_INFO("Created action profile group in profile ["
+                << profileName << "] on switch " << index
+                << ", handle: " << *outHandle);
+  } else {
+    NS_LOG_ERROR("Failed to create group in action profile ["
+                 << profileName << "] on switch " << index);
+  }
+}
+
+void P4Controller::DeleteActionProfileGroup(
+    uint32_t index, const std::string &profileName,
+    bm::ActionProfile::grp_hdl_t groupHandle) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  int status = core->DeleteActionProfileGroup(profileName, groupHandle);
+  if (status == 0) {
+    NS_LOG_INFO("Deleted group " << groupHandle << " from action profile ["
+                                 << profileName << "] on switch " << index);
+  } else {
+    NS_LOG_ERROR("Failed to delete group "
+                 << groupHandle << " from action profile [" << profileName
+                 << "] on switch " << index);
+  }
+}
+
+void P4Controller::AddMemberToGroup(uint32_t index,
+                                    const std::string &profileName,
+                                    bm::ActionProfile::mbr_hdl_t memberHandle,
+                                    bm::ActionProfile::grp_hdl_t groupHandle) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  int status = core->AddMemberToGroup(profileName, memberHandle, groupHandle);
+  if (status == 0) {
+    NS_LOG_INFO("Added member " << memberHandle << " to group " << groupHandle
+                                << " in action profile [" << profileName
+                                << "] on switch " << index);
+  } else {
+    NS_LOG_ERROR("Failed to add member "
+                 << memberHandle << " to group " << groupHandle
+                 << " in action profile [" << profileName << "] on switch "
+                 << index);
+  }
+}
+void P4Controller::RemoveMemberFromGroup(
+    uint32_t index, const std::string &profileName,
+    bm::ActionProfile::mbr_hdl_t memberHandle,
+    bm::ActionProfile::grp_hdl_t groupHandle) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  int status =
+      core->RemoveMemberFromGroup(profileName, memberHandle, groupHandle);
+  if (status == 0) {
+    NS_LOG_INFO("Removed member " << memberHandle << " from group "
+                                  << groupHandle << " in profile ["
+                                  << profileName << "] on switch " << index);
+  } else {
+    NS_LOG_ERROR("Failed to remove member "
+                 << memberHandle << " from group " << groupHandle
+                 << " in profile [" << profileName << "] on switch " << index);
+  }
+}
+
+void P4Controller::GetActionProfileMembers(uint32_t index,
+                                           const std::string &profileName) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  std::vector<bm::ActionProfile::Member> members;
+  int status = core->GetActionProfileMembers(profileName, &members);
+  if (status == 0) {
+    NS_LOG_INFO("Got " << members.size() << " members from profile ["
+                       << profileName << "] on switch " << index);
+  } else {
+    NS_LOG_ERROR("Failed to get members from profile ["
+                 << profileName << "] on switch " << index);
+  }
+}
+
+void P4Controller::GetActionProfileMember(
+    uint32_t index, const std::string &profileName,
+    bm::ActionProfile::mbr_hdl_t memberHandle) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  bm::ActionProfile::Member member;
+  int status = core->GetActionProfileMember(profileName, memberHandle, &member);
+  if (status == 0) {
+    NS_LOG_INFO("Retrieved member " << memberHandle << " from profile ["
+                                    << profileName << "] on switch " << index);
+  } else {
+    NS_LOG_ERROR("Failed to get member " << memberHandle << " from profile ["
+                                         << profileName << "] on switch "
+                                         << index);
+  }
+}
+void P4Controller::GetActionProfileGroups(uint32_t index,
+                                          const std::string &profileName) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  std::vector<bm::ActionProfile::Group> groups;
+  int status = core->GetActionProfileGroups(profileName, &groups);
+
+  if (status == 0) {
+    NS_LOG_INFO("Retrieved " << groups.size() << " groups from action profile ["
+                             << profileName << "] on switch " << index);
+  } else {
+    NS_LOG_ERROR("Failed to retrieve groups from profile ["
+                 << profileName << "] on switch " << index);
+  }
+}
+
+void P4Controller::GetActionProfileGroup(
+    uint32_t index, const std::string &profileName,
+    bm::ActionProfile::grp_hdl_t groupHandle) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  bm::ActionProfile::Group group;
+  int status = core->GetActionProfileGroup(profileName, groupHandle, &group);
+
+  if (status == 0) {
+    NS_LOG_INFO("Retrieved group handle "
+                << groupHandle << " from action profile [" << profileName
+                << "] on switch " << index);
+  } else {
+    NS_LOG_ERROR("Failed to retrieve group handle "
+                 << groupHandle << " from profile [" << profileName
+                 << "] on switch " << index);
+  }
+}
+
+// ========== Indirect Table Operations ============
+void P4Controller::AddIndirectEntry(
+    uint32_t index, const std::string &tableName,
+    const std::vector<bm::MatchKeyParam> &matchKey,
+    bm::ActionProfile::mbr_hdl_t memberHandle, bm::entry_handle_t *outHandle,
+    int priority) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  int status = core->AddIndirectEntry(tableName, matchKey, memberHandle,
+                                      outHandle, priority);
+
+  if (status == 0) {
+    NS_LOG_INFO("Added indirect entry to table ["
+                << tableName << "] with handle " << *outHandle
+                << " and member handle " << memberHandle << " on switch "
+                << index);
+  } else {
+    NS_LOG_ERROR("Failed to add indirect entry to table ["
+                 << tableName << "] on switch " << index);
+  }
+}
+
+void P4Controller::ModifyIndirectEntry(
+    uint32_t index, const std::string &tableName,
+    bm::entry_handle_t entryHandle, bm::ActionProfile::mbr_hdl_t memberHandle) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  int status = core->ModifyIndirectEntry(tableName, entryHandle, memberHandle);
+
+  if (status == 0) {
+    NS_LOG_INFO("Modified indirect entry "
+                << entryHandle << " in table [" << tableName << "] to member "
+                << memberHandle << " on switch " << index);
+  } else {
+    NS_LOG_ERROR("Failed to modify indirect entry "
+                 << entryHandle << " in table [" << tableName << "] on switch "
+                 << index);
+  }
+}
+
+void P4Controller::DeleteIndirectEntry(uint32_t index,
+                                       const std::string &tableName,
+                                       bm::entry_handle_t entryHandle) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  int status = core->DeleteIndirectEntry(tableName, entryHandle);
+
+  if (status == 0) {
+    NS_LOG_INFO("Deleted indirect entry " << entryHandle << " from table ["
+                                          << tableName << "] on switch "
+                                          << index);
+  } else {
+    NS_LOG_ERROR("Failed to delete indirect entry "
+                 << entryHandle << " from table [" << tableName
+                 << "] on switch " << index);
+  }
+}
+void P4Controller::SetIndirectEntryTtl(uint32_t index,
+                                       const std::string &tableName,
+                                       bm::entry_handle_t handle,
+                                       unsigned int ttlMs) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  int status = core->SetIndirectEntryTtl(tableName, handle, ttlMs);
+
+  if (status == 0) {
+    NS_LOG_INFO("Set TTL = " << ttlMs << "ms for indirect entry " << handle
+                             << " in table [" << tableName << "] on switch "
+                             << index);
+  } else {
+    NS_LOG_ERROR("Failed to set TTL for indirect entry "
+                 << handle << " in table [" << tableName << "] on switch "
+                 << index);
+  }
+}
+
+void P4Controller::SetIndirectDefaultMember(
+    uint32_t index, const std::string &tableName,
+    bm::ActionProfile::mbr_hdl_t memberHandle) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  int status = core->SetIndirectDefaultMember(tableName, memberHandle);
+
+  if (status == 0) {
+    NS_LOG_INFO("Set default member " << memberHandle << " for table ["
+                                      << tableName << "] on switch " << index);
+  } else {
+    NS_LOG_ERROR("Failed to set default member " << memberHandle
+                                                 << " for table [" << tableName
+                                                 << "] on switch " << index);
+  }
+}
+
+void P4Controller::ResetIndirectDefaultEntry(uint32_t index,
+                                             const std::string &tableName) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  int status = core->ResetIndirectDefaultEntry(tableName);
+
+  if (status == 0) {
+    NS_LOG_INFO("Reset indirect default entry for table ["
+                << tableName << "] on switch " << index);
+  } else {
+    NS_LOG_ERROR("Failed to reset indirect default entry for table ["
+                 << tableName << "] on switch " << index);
+  }
+}
+void P4Controller::AddIndirectWsEntry(
+    uint32_t index, const std::string &tableName,
+    const std::vector<bm::MatchKeyParam> &matchKey,
+    bm::ActionProfile::grp_hdl_t groupHandle, bm::entry_handle_t *outHandle,
+    int priority) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  int status = core->AddIndirectWsEntry(tableName, matchKey, groupHandle,
+                                        outHandle, priority);
+
+  if (status == 0) {
+    NS_LOG_INFO("Added indirect WS entry with group "
+                << groupHandle << " to table [" << tableName << "] on switch "
+                << index << ", assigned handle: " << *outHandle);
+  } else {
+    NS_LOG_ERROR("Failed to add indirect WS entry to table ["
+                 << tableName << "] on switch " << index);
+  }
+}
+
+void P4Controller::ModifyIndirectWsEntry(
+    uint32_t index, const std::string &tableName, bm::entry_handle_t handle,
+    bm::ActionProfile::grp_hdl_t groupHandle) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  int status = core->ModifyIndirectWsEntry(tableName, handle, groupHandle);
+
+  if (status == 0) {
+    NS_LOG_INFO("Modified indirect WS entry "
+                << handle << " in table [" << tableName << "] to group "
+                << groupHandle << " on switch " << index);
+  } else {
+    NS_LOG_ERROR("Failed to modify indirect WS entry in table ["
+                 << tableName << "] on switch " << index);
+  }
+}
+
+void P4Controller::SetIndirectWsDefaultGroup(
+    uint32_t index, const std::string &tableName,
+    bm::ActionProfile::grp_hdl_t groupHandle) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  int status = core->SetIndirectWsDefaultGroup(tableName, groupHandle);
+
+  if (status == 0) {
+    NS_LOG_INFO("Set default group " << groupHandle
+                                     << " for indirect WS table [" << tableName
+                                     << "] on switch " << index);
+  } else {
+    NS_LOG_ERROR("Failed to set default group for table ["
+                 << tableName << "] on switch " << index);
+  }
+}
+
+// ========= Flow Table Entry Retrieval Operations ==========
 void P4Controller::PrintFlowEntries(uint32_t index,
                                     const std::string &tableName) {
   NS_LOG_FUNCTION(this << index << tableName);
@@ -318,7 +861,7 @@ void P4Controller::PrintFlowEntries(uint32_t index,
   for (const auto &entry : entries) {
     std::ostringstream oss;
     oss << "  Handle: " << entry.handle << ", Priority: " << entry.priority
-        << ", Action: " << entry.action_fn->get_name();
+        << ", Action: ";
     NS_LOG_INFO(oss.str());
   }
 
@@ -1172,6 +1715,76 @@ void P4Controller::LoadNewConfig(uint32_t index, const std::string &newConfig) {
     NS_LOG_INFO("LoadNewConfig succeeded for switch " << index);
   } else {
     NS_LOG_ERROR("LoadNewConfig failed for switch " << index);
+  }
+}
+
+void P4Controller::SwapConfigs(uint32_t index) {
+  NS_LOG_FUNCTION(this << index);
+
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  auto core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_ERROR("V1Model core not found for switch " << index);
+    return;
+  }
+
+  int status = core->SwapConfigs();
+  if (status == 0) {
+    NS_LOG_INFO("SwapConfigs succeeded on switch " << index);
+  } else {
+    NS_LOG_ERROR("SwapConfigs failed on switch " << index);
+  }
+}
+
+void P4Controller::GetConfig(uint32_t index) {
+  NS_LOG_FUNCTION(this << index);
+
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  auto core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_ERROR("V1Model core not found for switch " << index);
+    return;
+  }
+
+  std::string config;
+  int status = core->GetConfig(&config);
+  if (status == 0) {
+    NS_LOG_INFO("GetConfig succeeded for switch " << index);
+    NS_LOG_INFO("  Config string: " << config);
+  } else {
+    NS_LOG_ERROR("GetConfig failed for switch " << index);
+  }
+}
+
+void P4Controller::GetConfigMd5(uint32_t index) {
+  NS_LOG_FUNCTION(this << index);
+
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  auto core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_ERROR("V1Model core not found for switch " << index);
+    return;
+  }
+
+  std::string md5;
+  int status = core->GetConfigMd5(&md5);
+  if (status == 0) {
+    NS_LOG_INFO("GetConfigMd5 succeeded for switch " << index);
+    NS_LOG_INFO("  Config MD5: " << md5);
+  } else {
+    NS_LOG_ERROR("GetConfigMd5 failed for switch " << index);
   }
 }
 
