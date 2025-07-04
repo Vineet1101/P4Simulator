@@ -98,6 +98,7 @@ build_lib(
         ${libpoint-to-point}
         ${third_party_libs}
     TEST_SOURCES # equivalent to module_test.source
+        test/p4-controller-test-suite.cc
         # test/p4sim-test-suite.cc
         # test/format-utils-test-suite.cc
         # test/p4-topology-reader-test-suite.cc

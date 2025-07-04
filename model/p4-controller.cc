@@ -1,6 +1,5 @@
-#include "ns3/p4-controller.h"
-
 #include "ns3/log.h"
+#include "ns3/p4-controller.h"
 
 #include <iostream>
 
@@ -100,6 +99,31 @@ P4Controller::PrintTableEntryCount(uint32_t index, const std::string& tableName)
 
     int num = core->GetNumEntries(tableName);
     NS_LOG_INFO("Switch " << index << " - Table [" << tableName << "] has " << num << " entries.");
+}
+
+uint32_t
+P4Controller::GetTableEntryCount(uint32_t index, const std::string& tableName)
+{
+    NS_LOG_FUNCTION(index << tableName);
+
+    if (index >= m_connectedSwitches.size())
+    {
+        NS_LOG_WARN("Invalid switch index " << index);
+        return 0;
+    }
+
+    Ptr<P4SwitchNetDevice> sw = m_connectedSwitches[index];
+    P4CoreV1model* core = sw->GetV1ModelCore();
+
+    if (!core)
+    {
+        NS_LOG_WARN("Switch " << index << " has no v1model core (core is null)");
+        return 0;
+    }
+
+    int num = core->GetNumEntries(tableName);
+    NS_LOG_INFO("Switch " << index << " - Table [" << tableName << "] has " << num << " entries.");
+    return num;
 }
 
 void
@@ -361,12 +385,11 @@ P4Controller::SetEntryTtl(uint32_t index,
 
 // ======== Action Profile Operations ===========
 
-
 void
 P4Controller::AddActionProfileMember(uint32_t index,
-                                     const std::string &profileName,
-                                     const std::string &actionName,
-                                     bm::ActionData &&actionData)
+                                     const std::string& profileName,
+                                     const std::string& actionName,
+                                     bm::ActionData&& actionData)
 {
     NS_LOG_FUNCTION(this << index << profileName << actionName);
 
@@ -384,24 +407,24 @@ P4Controller::AddActionProfileMember(uint32_t index,
     }
 
     bm::ActionProfile::mbr_hdl_t mbrHandle;
-    int status = core->AddActionProfileMember(profileName, actionName, std::move(actionData), &mbrHandle);
+    int status =
+        core->AddActionProfileMember(profileName, actionName, std::move(actionData), &mbrHandle);
 
     if (status == 0)
     {
-        NS_LOG_INFO("Added action profile member to profile [" << profileName
-                                                               << "] on switch " << index
-                                                               << ", got handle: " << mbrHandle);
+        NS_LOG_INFO("Added action profile member to profile ["
+                    << profileName << "] on switch " << index << ", got handle: " << mbrHandle);
     }
     else
     {
-        NS_LOG_ERROR("Failed to add member to action profile [" << profileName
-                                                                << "] on switch " << index);
+        NS_LOG_ERROR("Failed to add member to action profile [" << profileName << "] on switch "
+                                                                << index);
     }
 }
 
 void
 P4Controller::DeleteActionProfileMember(uint32_t index,
-                                        const std::string &profileName,
+                                        const std::string& profileName,
                                         bm::ActionProfile::mbr_hdl_t memberHandle)
 {
     NS_LOG_FUNCTION(this << index << profileName << memberHandle);
@@ -428,17 +451,17 @@ P4Controller::DeleteActionProfileMember(uint32_t index,
     }
     else
     {
-        NS_LOG_ERROR("Failed to delete member " << memberHandle << " from profile ["
-                                                << profileName << "] on switch " << index);
+        NS_LOG_ERROR("Failed to delete member " << memberHandle << " from profile [" << profileName
+                                                << "] on switch " << index);
     }
 }
 
 void
 P4Controller::ModifyActionProfileMember(uint32_t index,
-                                        const std::string &profileName,
+                                        const std::string& profileName,
                                         bm::ActionProfile::mbr_hdl_t memberHandle,
-                                        const std::string &actionName,
-                                        bm::ActionData &&actionData)
+                                        const std::string& actionName,
+                                        bm::ActionData&& actionData)
 {
     NS_LOG_FUNCTION(this << index << profileName << memberHandle << actionName);
 
@@ -455,7 +478,10 @@ P4Controller::ModifyActionProfileMember(uint32_t index,
         return;
     }
 
-    int status = core->ModifyActionProfileMember(profileName, memberHandle, actionName, std::move(actionData));
+    int status = core->ModifyActionProfileMember(profileName,
+                                                 memberHandle,
+                                                 actionName,
+                                                 std::move(actionData));
 
     if (status == 0)
     {
@@ -464,8 +490,8 @@ P4Controller::ModifyActionProfileMember(uint32_t index,
     }
     else
     {
-        NS_LOG_ERROR("Failed to modify member " << memberHandle << " in profile ["
-                                                << profileName << "] on switch " << index);
+        NS_LOG_ERROR("Failed to modify member " << memberHandle << " in profile [" << profileName
+                                                << "] on switch " << index);
     }
 }
 
@@ -490,13 +516,13 @@ P4Controller::CreateActionProfileGroup(uint32_t index,
     int status = core->CreateActionProfileGroup(profileName, outHandle);
     if (status == 0)
     {
-        NS_LOG_INFO("Created action profile group in profile [" << profileName
-                      << "] on switch " << index << ", handle: " << *outHandle);
+        NS_LOG_INFO("Created action profile group in profile ["
+                    << profileName << "] on switch " << index << ", handle: " << *outHandle);
     }
     else
     {
-        NS_LOG_ERROR("Failed to create group in action profile [" << profileName
-                       << "] on switch " << index);
+        NS_LOG_ERROR("Failed to create group in action profile [" << profileName << "] on switch "
+                                                                  << index);
     }
 }
 
@@ -522,12 +548,12 @@ P4Controller::DeleteActionProfileGroup(uint32_t index,
     if (status == 0)
     {
         NS_LOG_INFO("Deleted group " << groupHandle << " from action profile [" << profileName
-                      << "] on switch " << index);
+                                     << "] on switch " << index);
     }
     else
     {
         NS_LOG_ERROR("Failed to delete group " << groupHandle << " from action profile ["
-                       << profileName << "] on switch " << index);
+                                               << profileName << "] on switch " << index);
     }
 }
 
@@ -554,14 +580,17 @@ P4Controller::AddMemberToGroup(uint32_t index,
     if (status == 0)
     {
         NS_LOG_INFO("Added member " << memberHandle << " to group " << groupHandle
-                      << " in action profile [" << profileName << "] on switch " << index);
+                                    << " in action profile [" << profileName << "] on switch "
+                                    << index);
     }
     else
     {
         NS_LOG_ERROR("Failed to add member " << memberHandle << " to group " << groupHandle
-                       << " in action profile [" << profileName << "] on switch " << index);
+                                             << " in action profile [" << profileName
+                                             << "] on switch " << index);
     }
 }
+
 void
 P4Controller::RemoveMemberFromGroup(uint32_t index,
                                     const std::string& profileName,
@@ -585,18 +614,18 @@ P4Controller::RemoveMemberFromGroup(uint32_t index,
     if (status == 0)
     {
         NS_LOG_INFO("Removed member " << memberHandle << " from group " << groupHandle
-                     << " in profile [" << profileName << "] on switch " << index);
+                                      << " in profile [" << profileName << "] on switch " << index);
     }
     else
     {
-        NS_LOG_ERROR("Failed to remove member " << memberHandle << " from group "
-                      << groupHandle << " in profile [" << profileName << "] on switch " << index);
+        NS_LOG_ERROR("Failed to remove member " << memberHandle << " from group " << groupHandle
+                                                << " in profile [" << profileName << "] on switch "
+                                                << index);
     }
 }
 
 void
-P4Controller::GetActionProfileMembers(uint32_t index,
-                                      const std::string& profileName)
+P4Controller::GetActionProfileMembers(uint32_t index, const std::string& profileName)
 {
     if (index >= m_connectedSwitches.size())
     {
@@ -615,13 +644,13 @@ P4Controller::GetActionProfileMembers(uint32_t index,
     int status = core->GetActionProfileMembers(profileName, &members);
     if (status == 0)
     {
-        NS_LOG_INFO("Got " << members.size() << " members from profile ["
-                     << profileName << "] on switch " << index);
+        NS_LOG_INFO("Got " << members.size() << " members from profile [" << profileName
+                           << "] on switch " << index);
     }
     else
     {
-        NS_LOG_ERROR("Failed to get members from profile [" << profileName
-                      << "] on switch " << index);
+        NS_LOG_ERROR("Failed to get members from profile [" << profileName << "] on switch "
+                                                            << index);
     }
 }
 
@@ -647,18 +676,18 @@ P4Controller::GetActionProfileMember(uint32_t index,
     int status = core->GetActionProfileMember(profileName, memberHandle, &member);
     if (status == 0)
     {
-        NS_LOG_INFO("Retrieved member " << memberHandle << " from profile ["
-                     << profileName << "] on switch " << index);
+        NS_LOG_INFO("Retrieved member " << memberHandle << " from profile [" << profileName
+                                        << "] on switch " << index);
     }
     else
     {
-        NS_LOG_ERROR("Failed to get member " << memberHandle << " from profile ["
-                      << profileName << "] on switch " << index);
+        NS_LOG_ERROR("Failed to get member " << memberHandle << " from profile [" << profileName
+                                             << "] on switch " << index);
     }
 }
+
 void
-P4Controller::GetActionProfileGroups(uint32_t index,
-                                     const std::string& profileName)
+P4Controller::GetActionProfileGroups(uint32_t index, const std::string& profileName)
 {
     if (index >= m_connectedSwitches.size())
     {
@@ -678,13 +707,13 @@ P4Controller::GetActionProfileGroups(uint32_t index,
 
     if (status == 0)
     {
-        NS_LOG_INFO("Retrieved " << groups.size() << " groups from action profile ["
-                     << profileName << "] on switch " << index);
+        NS_LOG_INFO("Retrieved " << groups.size() << " groups from action profile [" << profileName
+                                 << "] on switch " << index);
     }
     else
     {
-        NS_LOG_ERROR("Failed to retrieve groups from profile [" << profileName
-                      << "] on switch " << index);
+        NS_LOG_ERROR("Failed to retrieve groups from profile [" << profileName << "] on switch "
+                                                                << index);
     }
 }
 
@@ -712,15 +741,14 @@ P4Controller::GetActionProfileGroup(uint32_t index,
     if (status == 0)
     {
         NS_LOG_INFO("Retrieved group handle " << groupHandle << " from action profile ["
-                     << profileName << "] on switch " << index);
+                                              << profileName << "] on switch " << index);
     }
     else
     {
-        NS_LOG_ERROR("Failed to retrieve group handle " << groupHandle
-                      << " from profile [" << profileName << "] on switch " << index);
+        NS_LOG_ERROR("Failed to retrieve group handle " << groupHandle << " from profile ["
+                                                        << profileName << "] on switch " << index);
     }
 }
-
 
 // ========== Indirect Table Operations ============
 void
@@ -749,11 +777,13 @@ P4Controller::AddIndirectEntry(uint32_t index,
     if (status == 0)
     {
         NS_LOG_INFO("Added indirect entry to table [" << tableName << "] with handle " << *outHandle
-                     << " and member handle " << memberHandle << " on switch " << index);
+                                                      << " and member handle " << memberHandle
+                                                      << " on switch " << index);
     }
     else
     {
-        NS_LOG_ERROR("Failed to add indirect entry to table [" << tableName << "] on switch " << index);
+        NS_LOG_ERROR("Failed to add indirect entry to table [" << tableName << "] on switch "
+                                                               << index);
     }
 }
 
@@ -781,12 +811,13 @@ P4Controller::ModifyIndirectEntry(uint32_t index,
     if (status == 0)
     {
         NS_LOG_INFO("Modified indirect entry " << entryHandle << " in table [" << tableName
-                     << "] to member " << memberHandle << " on switch " << index);
+                                               << "] to member " << memberHandle << " on switch "
+                                               << index);
     }
     else
     {
-        NS_LOG_ERROR("Failed to modify indirect entry " << entryHandle << " in table ["
-                      << tableName << "] on switch " << index);
+        NS_LOG_ERROR("Failed to modify indirect entry " << entryHandle << " in table [" << tableName
+                                                        << "] on switch " << index);
     }
 }
 
@@ -813,19 +844,20 @@ P4Controller::DeleteIndirectEntry(uint32_t index,
     if (status == 0)
     {
         NS_LOG_INFO("Deleted indirect entry " << entryHandle << " from table [" << tableName
-                     << "] on switch " << index);
+                                              << "] on switch " << index);
     }
     else
     {
         NS_LOG_ERROR("Failed to delete indirect entry " << entryHandle << " from table ["
-                      << tableName << "] on switch " << index);
+                                                        << tableName << "] on switch " << index);
     }
 }
+
 void
 P4Controller::SetIndirectEntryTtl(uint32_t index,
-                                   const std::string& tableName,
-                                   bm::entry_handle_t handle,
-                                   unsigned int ttlMs)
+                                  const std::string& tableName,
+                                  bm::entry_handle_t handle,
+                                  unsigned int ttlMs)
 {
     if (index >= m_connectedSwitches.size())
     {
@@ -844,13 +876,13 @@ P4Controller::SetIndirectEntryTtl(uint32_t index,
 
     if (status == 0)
     {
-        NS_LOG_INFO("Set TTL = " << ttlMs << "ms for indirect entry " << handle
-                                 << " in table [" << tableName << "] on switch " << index);
+        NS_LOG_INFO("Set TTL = " << ttlMs << "ms for indirect entry " << handle << " in table ["
+                                 << tableName << "] on switch " << index);
     }
     else
     {
-        NS_LOG_ERROR("Failed to set TTL for indirect entry " << handle << " in table ["
-                                                             << tableName << "] on switch " << index);
+        NS_LOG_ERROR("Failed to set TTL for indirect entry " << handle << " in table [" << tableName
+                                                             << "] on switch " << index);
     }
 }
 
@@ -876,7 +908,8 @@ P4Controller::SetIndirectDefaultMember(uint32_t index,
 
     if (status == 0)
     {
-        NS_LOG_INFO("Set default member " << memberHandle << " for table [" << tableName << "] on switch " << index);
+        NS_LOG_INFO("Set default member " << memberHandle << " for table [" << tableName
+                                          << "] on switch " << index);
     }
     else
     {
@@ -886,8 +919,7 @@ P4Controller::SetIndirectDefaultMember(uint32_t index,
 }
 
 void
-P4Controller::ResetIndirectDefaultEntry(uint32_t index,
-                                        const std::string& tableName)
+P4Controller::ResetIndirectDefaultEntry(uint32_t index, const std::string& tableName)
 {
     if (index >= m_connectedSwitches.size())
     {
@@ -906,20 +938,23 @@ P4Controller::ResetIndirectDefaultEntry(uint32_t index,
 
     if (status == 0)
     {
-        NS_LOG_INFO("Reset indirect default entry for table [" << tableName << "] on switch " << index);
+        NS_LOG_INFO("Reset indirect default entry for table [" << tableName << "] on switch "
+                                                               << index);
     }
     else
     {
-        NS_LOG_ERROR("Failed to reset indirect default entry for table [" << tableName << "] on switch " << index);
+        NS_LOG_ERROR("Failed to reset indirect default entry for table ["
+                     << tableName << "] on switch " << index);
     }
 }
+
 void
 P4Controller::AddIndirectWsEntry(uint32_t index,
-                                  const std::string& tableName,
-                                  const std::vector<bm::MatchKeyParam>& matchKey,
-                                  bm::ActionProfile::grp_hdl_t groupHandle,
-                                  bm::entry_handle_t* outHandle,
-                                  int priority)
+                                 const std::string& tableName,
+                                 const std::vector<bm::MatchKeyParam>& matchKey,
+                                 bm::ActionProfile::grp_hdl_t groupHandle,
+                                 bm::entry_handle_t* outHandle,
+                                 int priority)
 {
     if (index >= m_connectedSwitches.size())
     {
@@ -938,22 +973,22 @@ P4Controller::AddIndirectWsEntry(uint32_t index,
 
     if (status == 0)
     {
-        NS_LOG_INFO("Added indirect WS entry with group " << groupHandle
-                      << " to table [" << tableName << "] on switch " << index
-                      << ", assigned handle: " << *outHandle);
+        NS_LOG_INFO("Added indirect WS entry with group " << groupHandle << " to table ["
+                                                          << tableName << "] on switch " << index
+                                                          << ", assigned handle: " << *outHandle);
     }
     else
     {
-        NS_LOG_ERROR("Failed to add indirect WS entry to table [" << tableName
-                                                                 << "] on switch " << index);
+        NS_LOG_ERROR("Failed to add indirect WS entry to table [" << tableName << "] on switch "
+                                                                  << index);
     }
 }
 
 void
 P4Controller::ModifyIndirectWsEntry(uint32_t index,
-                                     const std::string& tableName,
-                                     bm::entry_handle_t handle,
-                                     bm::ActionProfile::grp_hdl_t groupHandle)
+                                    const std::string& tableName,
+                                    bm::entry_handle_t handle,
+                                    bm::ActionProfile::grp_hdl_t groupHandle)
 {
     if (index >= m_connectedSwitches.size())
     {
@@ -973,11 +1008,13 @@ P4Controller::ModifyIndirectWsEntry(uint32_t index,
     if (status == 0)
     {
         NS_LOG_INFO("Modified indirect WS entry " << handle << " in table [" << tableName
-                                                  << "] to group " << groupHandle << " on switch " << index);
+                                                  << "] to group " << groupHandle << " on switch "
+                                                  << index);
     }
     else
     {
-        NS_LOG_ERROR("Failed to modify indirect WS entry in table [" << tableName << "] on switch " << index);
+        NS_LOG_ERROR("Failed to modify indirect WS entry in table [" << tableName << "] on switch "
+                                                                     << index);
     }
 }
 
@@ -1003,12 +1040,13 @@ P4Controller::SetIndirectWsDefaultGroup(uint32_t index,
 
     if (status == 0)
     {
-        NS_LOG_INFO("Set default group " << groupHandle << " for indirect WS table ["
-                                         << tableName << "] on switch " << index);
+        NS_LOG_INFO("Set default group " << groupHandle << " for indirect WS table [" << tableName
+                                         << "] on switch " << index);
     }
     else
     {
-        NS_LOG_ERROR("Failed to set default group for table [" << tableName << "] on switch " << index);
+        NS_LOG_ERROR("Failed to set default group for table [" << tableName << "] on switch "
+                                                               << index);
     }
 }
 
@@ -1040,8 +1078,7 @@ P4Controller::PrintFlowEntries(uint32_t index, const std::string& tableName)
     for (const auto& entry : entries)
     {
         std::ostringstream oss;
-        oss << "  Handle: " << entry.handle << ", Priority: " << entry.priority
-            << ", Action: ";
+        oss << "  Handle: " << entry.handle << ", Priority: " << entry.priority << ", Action: ";
         NS_LOG_INFO(oss.str());
     }
 
@@ -1378,7 +1415,8 @@ P4Controller::ResetCounters(uint32_t index, const std::string& tableName)
     }
     else
     {
-        NS_LOG_ERROR("Failed to reset counters for table [" << tableName << "] on switch " << index);
+        NS_LOG_ERROR("Failed to reset counters for table [" << tableName << "] on switch "
+                                                            << index);
     }
 }
 
@@ -1405,21 +1443,19 @@ P4Controller::WriteCounters(uint32_t index,
     int status = core->WriteTableCounters(tableName, handle, bytes, packets);
     if (status == 0)
     {
-        NS_LOG_INFO("Wrote counters for entry handle " << handle << " in table ["
-                                                       << tableName << "] on switch " << index
-                                                       << ": bytes = " << bytes << ", packets = " << packets);
+        NS_LOG_INFO("Wrote counters for entry handle "
+                    << handle << " in table [" << tableName << "] on switch " << index
+                    << ": bytes = " << bytes << ", packets = " << packets);
     }
     else
     {
-        NS_LOG_ERROR("Failed to write counters for entry handle " << handle << " in table ["
-                                                                  << tableName << "] on switch " << index);
+        NS_LOG_ERROR("Failed to write counters for entry handle "
+                     << handle << " in table [" << tableName << "] on switch " << index);
     }
 }
 
 void
-P4Controller::ReadCounter(uint32_t index,
-                          const std::string& counterName,
-                          size_t counterIndex)
+P4Controller::ReadCounter(uint32_t index, const std::string& counterName, size_t counterIndex)
 {
     if (index >= m_connectedSwitches.size())
     {
@@ -1502,13 +1538,13 @@ P4Controller::WriteCounter(uint32_t index,
     if (status == 0)
     {
         NS_LOG_INFO("Wrote counter [" << counterName << "] at index " << counterIndex
-                                      << " on switch " << index << ": " << bytes
-                                      << " bytes, " << packets << " packets");
+                                      << " on switch " << index << ": " << bytes << " bytes, "
+                                      << packets << " packets");
     }
     else
     {
-        NS_LOG_ERROR("Failed to write counter [" << counterName << "] at index "
-                                                 << counterIndex << " on switch " << index);
+        NS_LOG_ERROR("Failed to write counter [" << counterName << "] at index " << counterIndex
+                                                 << " on switch " << index);
     }
 }
 
@@ -1516,9 +1552,9 @@ P4Controller::WriteCounter(uint32_t index,
 
 void
 P4Controller::SetMeterRates(uint32_t index,
-                            const std::string &tableName,
+                            const std::string& tableName,
                             bm::entry_handle_t handle,
-                            const std::vector<bm::Meter::rate_config_t> &configs)
+                            const std::vector<bm::Meter::rate_config_t>& configs)
 {
     if (index >= m_connectedSwitches.size())
     {
@@ -1526,7 +1562,7 @@ P4Controller::SetMeterRates(uint32_t index,
         return;
     }
 
-    P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+    P4CoreV1model* core = m_connectedSwitches[index]->GetV1ModelCore();
     if (!core)
     {
         NS_LOG_WARN("No V1Model core found for switch " << index);
@@ -1545,9 +1581,7 @@ P4Controller::SetMeterRates(uint32_t index,
 }
 
 void
-P4Controller::GetMeterRates(uint32_t index,
-                            const std::string &tableName,
-                            bm::entry_handle_t handle)
+P4Controller::GetMeterRates(uint32_t index, const std::string& tableName, bm::entry_handle_t handle)
 {
     if (index >= m_connectedSwitches.size())
     {
@@ -1555,7 +1589,7 @@ P4Controller::GetMeterRates(uint32_t index,
         return;
     }
 
-    P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+    P4CoreV1model* core = m_connectedSwitches[index]->GetV1ModelCore();
     if (!core)
     {
         NS_LOG_WARN("No V1Model core found for switch " << index);
@@ -1566,11 +1600,11 @@ P4Controller::GetMeterRates(uint32_t index,
     bool success = core->GetMeterRates(tableName, handle, &configs) == 0;
     if (success)
     {
-        NS_LOG_INFO("Meter rates for [" << tableName << "] handle " << handle << " on switch " << index << ":");
-        for (const auto &cfg : configs)
+        NS_LOG_INFO("Meter rates for [" << tableName << "] handle " << handle << " on switch "
+                                        << index << ":");
+        for (const auto& cfg : configs)
         {
-            NS_LOG_INFO("  CIR=" << cfg.info_rate << 
-                         ", PBS=" << cfg.burst_size);
+            NS_LOG_INFO("  CIR=" << cfg.info_rate << ", PBS=" << cfg.burst_size);
         }
     }
     else
@@ -1581,8 +1615,8 @@ P4Controller::GetMeterRates(uint32_t index,
 
 void
 P4Controller::ResetMeterRates(uint32_t index,
-                               const std::string &tableName,
-                               bm::entry_handle_t handle)
+                              const std::string& tableName,
+                              bm::entry_handle_t handle)
 {
     if (index >= m_connectedSwitches.size())
     {
@@ -1590,7 +1624,7 @@ P4Controller::ResetMeterRates(uint32_t index,
         return;
     }
 
-    P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+    P4CoreV1model* core = m_connectedSwitches[index]->GetV1ModelCore();
     if (!core)
     {
         NS_LOG_WARN("No V1Model core found for switch " << index);
@@ -1600,7 +1634,8 @@ P4Controller::ResetMeterRates(uint32_t index,
     bool success = core->ResetMeterRates(tableName, handle) == 0;
     if (success)
     {
-        NS_LOG_INFO("ResetMeterRates succeeded for table [" << tableName << "] on switch " << index);
+        NS_LOG_INFO("ResetMeterRates succeeded for table [" << tableName << "] on switch "
+                                                            << index);
     }
     else
     {
@@ -1610,8 +1645,8 @@ P4Controller::ResetMeterRates(uint32_t index,
 
 void
 P4Controller::SetMeterArrayRates(uint32_t index,
-                                 const std::string &meterName,
-                                 const std::vector<bm::Meter::rate_config_t> &configs)
+                                 const std::string& meterName,
+                                 const std::vector<bm::Meter::rate_config_t>& configs)
 {
     if (index >= m_connectedSwitches.size())
     {
@@ -1619,7 +1654,7 @@ P4Controller::SetMeterArrayRates(uint32_t index,
         return;
     }
 
-    P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+    P4CoreV1model* core = m_connectedSwitches[index]->GetV1ModelCore();
     if (!core)
     {
         NS_LOG_WARN("No V1Model core found for switch " << index);
@@ -1629,19 +1664,21 @@ P4Controller::SetMeterArrayRates(uint32_t index,
     bool success = core->SetMeterArrayRates(meterName, configs) == 0;
     if (success)
     {
-        NS_LOG_INFO("SetMeterArrayRates succeeded for meter [" << meterName << "] on switch " << index);
+        NS_LOG_INFO("SetMeterArrayRates succeeded for meter [" << meterName << "] on switch "
+                                                               << index);
     }
     else
     {
-        NS_LOG_WARN("SetMeterArrayRates failed for meter [" << meterName << "] on switch " << index);
+        NS_LOG_WARN("SetMeterArrayRates failed for meter [" << meterName << "] on switch "
+                                                            << index);
     }
 }
 
 void
 P4Controller::SetMeterRates(uint32_t index,
-                            const std::string &meterName,
+                            const std::string& meterName,
                             size_t idx,
-                            const std::vector<bm::Meter::rate_config_t> &configs)
+                            const std::vector<bm::Meter::rate_config_t>& configs)
 {
     if (index >= m_connectedSwitches.size())
     {
@@ -1649,7 +1686,7 @@ P4Controller::SetMeterRates(uint32_t index,
         return;
     }
 
-    P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+    P4CoreV1model* core = m_connectedSwitches[index]->GetV1ModelCore();
     if (!core)
     {
         NS_LOG_WARN("No V1Model core found for switch " << index);
@@ -1659,18 +1696,18 @@ P4Controller::SetMeterRates(uint32_t index,
     bool success = core->SetMeterRates(meterName, idx, configs) == 0;
     if (success)
     {
-        NS_LOG_INFO("SetMeterRates succeeded for meter [" << meterName << "] index " << idx << " on switch " << index);
+        NS_LOG_INFO("SetMeterRates succeeded for meter [" << meterName << "] index " << idx
+                                                          << " on switch " << index);
     }
     else
     {
-        NS_LOG_WARN("SetMeterRates failed for meter [" << meterName << "] index " << idx << " on switch " << index);
+        NS_LOG_WARN("SetMeterRates failed for meter [" << meterName << "] index " << idx
+                                                       << " on switch " << index);
     }
 }
 
 void
-P4Controller::GetMeterRates(uint32_t index,
-                            const std::string &meterName,
-                            size_t idx)
+P4Controller::GetMeterRates(uint32_t index, const std::string& meterName, size_t idx)
 {
     if (index >= m_connectedSwitches.size())
     {
@@ -1678,7 +1715,7 @@ P4Controller::GetMeterRates(uint32_t index,
         return;
     }
 
-    P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+    P4CoreV1model* core = m_connectedSwitches[index]->GetV1ModelCore();
     if (!core)
     {
         NS_LOG_WARN("No V1Model core found for switch " << index);
@@ -1689,22 +1726,22 @@ P4Controller::GetMeterRates(uint32_t index,
     bool success = core->GetMeterRates(meterName, idx, &configs) == 0;
     if (success)
     {
-        NS_LOG_INFO("Meter rates for [" << meterName << "] index " << idx << " on switch " << index << ":");
-        for (const auto &cfg : configs)
+        NS_LOG_INFO("Meter rates for [" << meterName << "] index " << idx << " on switch " << index
+                                        << ":");
+        for (const auto& cfg : configs)
         {
             NS_LOG_INFO("  CIR=" << cfg.info_rate << ", PBS=" << cfg.burst_size);
         }
     }
     else
     {
-        NS_LOG_WARN("GetMeterRates failed for meter [" << meterName << "] index " << idx << " on switch " << index);
+        NS_LOG_WARN("GetMeterRates failed for meter [" << meterName << "] index " << idx
+                                                       << " on switch " << index);
     }
 }
 
 void
-P4Controller::ResetMeterRates(uint32_t index,
-                               const std::string &meterName,
-                               size_t idx)
+P4Controller::ResetMeterRates(uint32_t index, const std::string& meterName, size_t idx)
 {
     if (index >= m_connectedSwitches.size())
     {
@@ -1712,7 +1749,7 @@ P4Controller::ResetMeterRates(uint32_t index,
         return;
     }
 
-    P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+    P4CoreV1model* core = m_connectedSwitches[index]->GetV1ModelCore();
     if (!core)
     {
         NS_LOG_WARN("No V1Model core found for switch " << index);
@@ -1722,18 +1759,22 @@ P4Controller::ResetMeterRates(uint32_t index,
     bool success = core->ResetMeterRates(meterName, idx) == 0;
     if (success)
     {
-        NS_LOG_INFO("ResetMeterRates succeeded for meter [" << meterName << "] index " << idx << " on switch " << index);
+        NS_LOG_INFO("ResetMeterRates succeeded for meter [" << meterName << "] index " << idx
+                                                            << " on switch " << index);
     }
     else
     {
-        NS_LOG_WARN("ResetMeterRates failed for meter [" << meterName << "] index " << idx << " on switch " << index);
+        NS_LOG_WARN("ResetMeterRates failed for meter [" << meterName << "] index " << idx
+                                                         << " on switch " << index);
     }
 }
 
 // ======= Register  Functions  =======
 void
-P4Controller::RegisterRead(uint32_t index, const std::string &registerName,
-                           size_t regIndex, bm::Data *value)
+P4Controller::RegisterRead(uint32_t index,
+                           const std::string& registerName,
+                           size_t regIndex,
+                           bm::Data* value)
 {
     NS_LOG_FUNCTION(this << index << registerName << regIndex);
 
@@ -1744,7 +1785,7 @@ P4Controller::RegisterRead(uint32_t index, const std::string &registerName,
     }
 
     Ptr<P4SwitchNetDevice> sw = m_connectedSwitches[index];
-    P4CoreV1model *core = sw->GetV1ModelCore();
+    P4CoreV1model* core = sw->GetV1ModelCore();
 
     if (!core)
     {
@@ -1757,7 +1798,8 @@ P4Controller::RegisterRead(uint32_t index, const std::string &registerName,
     if (status == 0)
     {
         NS_LOG_INFO("RegisterRead succeeded: switch " << index << ", register [" << registerName
-                     << "], index " << regIndex << ", value = " << value);
+                                                      << "], index " << regIndex
+                                                      << ", value = " << value);
     }
     else
     {
@@ -1767,8 +1809,10 @@ P4Controller::RegisterRead(uint32_t index, const std::string &registerName,
 }
 
 void
-P4Controller::RegisterWrite(uint32_t index, const std::string &registerName,
-                            size_t regIndex, const bm::Data &value)
+P4Controller::RegisterWrite(uint32_t index,
+                            const std::string& registerName,
+                            size_t regIndex,
+                            const bm::Data& value)
 {
     NS_LOG_FUNCTION(this << index << registerName << regIndex << value);
 
@@ -1779,7 +1823,7 @@ P4Controller::RegisterWrite(uint32_t index, const std::string &registerName,
     }
 
     Ptr<P4SwitchNetDevice> sw = m_connectedSwitches[index];
-    P4CoreV1model *core = sw->GetV1ModelCore();
+    P4CoreV1model* core = sw->GetV1ModelCore();
 
     if (!core)
     {
@@ -1792,7 +1836,8 @@ P4Controller::RegisterWrite(uint32_t index, const std::string &registerName,
     if (status == 0)
     {
         NS_LOG_INFO("RegisterWrite succeeded: switch " << index << ", register [" << registerName
-                     << "], index " << regIndex << ", value = " << value);
+                                                       << "], index " << regIndex
+                                                       << ", value = " << value);
     }
     else
     {
@@ -1802,7 +1847,7 @@ P4Controller::RegisterWrite(uint32_t index, const std::string &registerName,
 }
 
 void
-P4Controller::RegisterReadAll(uint32_t index, const std::string &registerName)
+P4Controller::RegisterReadAll(uint32_t index, const std::string& registerName)
 {
     NS_LOG_FUNCTION(this << index << registerName);
 
@@ -1813,7 +1858,7 @@ P4Controller::RegisterReadAll(uint32_t index, const std::string &registerName)
     }
 
     Ptr<P4SwitchNetDevice> sw = m_connectedSwitches[index];
-    P4CoreV1model *core = sw->GetV1ModelCore();
+    P4CoreV1model* core = sw->GetV1ModelCore();
 
     if (!core)
     {
@@ -1825,19 +1870,23 @@ P4Controller::RegisterReadAll(uint32_t index, const std::string &registerName)
 
     if (!values.empty())
     {
-        NS_LOG_INFO("RegisterReadAll succeeded for register [" << registerName << "] on switch " << index
-                     << ". Number of values: " << values.size());
+        NS_LOG_INFO("RegisterReadAll succeeded for register ["
+                    << registerName << "] on switch " << index
+                    << ". Number of values: " << values.size());
     }
     else
     {
-        NS_LOG_ERROR("RegisterReadAll failed or returned empty for register [" << registerName
-                                                                               << "] on switch " << index);
+        NS_LOG_ERROR("RegisterReadAll failed or returned empty for register ["
+                     << registerName << "] on switch " << index);
     }
 }
 
 void
-P4Controller::RegisterWriteRange(uint32_t index, const std::string &registerName,
-                                 size_t startIndex, size_t endIndex, const bm::Data &value)
+P4Controller::RegisterWriteRange(uint32_t index,
+                                 const std::string& registerName,
+                                 size_t startIndex,
+                                 size_t endIndex,
+                                 const bm::Data& value)
 {
     NS_LOG_FUNCTION(this << index << registerName << startIndex << endIndex << value);
 
@@ -1848,7 +1897,7 @@ P4Controller::RegisterWriteRange(uint32_t index, const std::string &registerName
     }
 
     Ptr<P4SwitchNetDevice> sw = m_connectedSwitches[index];
-    P4CoreV1model *core = sw->GetV1ModelCore();
+    P4CoreV1model* core = sw->GetV1ModelCore();
 
     if (!core)
     {
@@ -1860,18 +1909,20 @@ P4Controller::RegisterWriteRange(uint32_t index, const std::string &registerName
 
     if (status == 0)
     {
-        NS_LOG_INFO("RegisterWriteRange succeeded: switch " << index << ", register [" << registerName
-                     << "], indices [" << startIndex << "-" << endIndex << "], value = " << value);
+        NS_LOG_INFO("RegisterWriteRange succeeded: switch "
+                    << index << ", register [" << registerName << "], indices [" << startIndex
+                    << "-" << endIndex << "], value = " << value);
     }
     else
     {
-        NS_LOG_ERROR("RegisterWriteRange failed for switch " << index << ", register [" << registerName
-                                                            << "], indices [" << startIndex << "-" << endIndex << "]");
+        NS_LOG_ERROR("RegisterWriteRange failed for switch "
+                     << index << ", register [" << registerName << "], indices [" << startIndex
+                     << "-" << endIndex << "]");
     }
 }
 
 void
-P4Controller::RegisterReset(uint32_t index, const std::string &registerName)
+P4Controller::RegisterReset(uint32_t index, const std::string& registerName)
 {
     NS_LOG_FUNCTION(this << index << registerName);
 
@@ -1882,7 +1933,7 @@ P4Controller::RegisterReset(uint32_t index, const std::string &registerName)
     }
 
     Ptr<P4SwitchNetDevice> sw = m_connectedSwitches[index];
-    P4CoreV1model *core = sw->GetV1ModelCore();
+    P4CoreV1model* core = sw->GetV1ModelCore();
 
     if (!core)
     {
@@ -1894,15 +1945,18 @@ P4Controller::RegisterReset(uint32_t index, const std::string &registerName)
 
     if (status == 0)
     {
-        NS_LOG_INFO("RegisterReset succeeded for register [" << registerName << "] on switch " << index);
+        NS_LOG_INFO("RegisterReset succeeded for register [" << registerName << "] on switch "
+                                                             << index);
     }
     else
     {
-        NS_LOG_ERROR("RegisterReset failed for register [" << registerName << "] on switch " << index);
+        NS_LOG_ERROR("RegisterReset failed for register [" << registerName << "] on switch "
+                                                           << index);
     }
 }
+
 void
-P4Controller::ParseVsetGet(uint32_t index, const std::string &vsetName)
+P4Controller::ParseVsetGet(uint32_t index, const std::string& vsetName)
 {
     NS_LOG_FUNCTION(this << index << vsetName);
 
@@ -1936,9 +1990,11 @@ P4Controller::ParseVsetGet(uint32_t index, const std::string &vsetName)
         NS_LOG_ERROR("ParseVsetGet failed for switch " << index << ", vset [" << vsetName << "]");
     }
 }
+
 void
-P4Controller::ParseVsetAdd(uint32_t index, const std::string &vsetName,
-                           const bm::ByteContainer &value)
+P4Controller::ParseVsetAdd(uint32_t index,
+                           const std::string& vsetName,
+                           const bm::ByteContainer& value)
 {
     NS_LOG_FUNCTION(this << index << vsetName << value.to_hex());
 
@@ -1968,8 +2024,9 @@ P4Controller::ParseVsetAdd(uint32_t index, const std::string &vsetName,
 }
 
 void
-P4Controller::ParseVsetRemove(uint32_t index, const std::string &vsetName,
-                              const bm::ByteContainer &value)
+P4Controller::ParseVsetRemove(uint32_t index,
+                              const std::string& vsetName,
+                              const bm::ByteContainer& value)
 {
     NS_LOG_FUNCTION(this << index << vsetName << value.to_hex());
 
@@ -1994,12 +2051,13 @@ P4Controller::ParseVsetRemove(uint32_t index, const std::string &vsetName,
     }
     else
     {
-        NS_LOG_ERROR("ParseVsetRemove failed for switch " << index << ", vset [" << vsetName << "]");
+        NS_LOG_ERROR("ParseVsetRemove failed for switch " << index << ", vset [" << vsetName
+                                                          << "]");
     }
 }
 
 void
-P4Controller::ParseVsetClear(uint32_t index, const std::string &vsetName)
+P4Controller::ParseVsetClear(uint32_t index, const std::string& vsetName)
 {
     NS_LOG_FUNCTION(this << index << vsetName);
 
@@ -2019,7 +2077,8 @@ P4Controller::ParseVsetClear(uint32_t index, const std::string &vsetName)
     int status = core->ParseVsetClear(vsetName);
     if (status == 0)
     {
-        NS_LOG_INFO("ParseVsetClear succeeded for switch " << index << ", vset [" << vsetName << "]");
+        NS_LOG_INFO("ParseVsetClear succeeded for switch " << index << ", vset [" << vsetName
+                                                           << "]");
     }
     else
     {
@@ -2057,7 +2116,7 @@ P4Controller::ResetState(uint32_t index)
 }
 
 void
-P4Controller::Serialize(uint32_t index, std::ostream *out)
+P4Controller::Serialize(uint32_t index, std::ostream* out)
 {
     NS_LOG_FUNCTION(this << index);
 
@@ -2086,7 +2145,7 @@ P4Controller::Serialize(uint32_t index, std::ostream *out)
 }
 
 void
-P4Controller::LoadNewConfig(uint32_t index, const std::string &newConfig)
+P4Controller::LoadNewConfig(uint32_t index, const std::string& newConfig)
 {
     NS_LOG_FUNCTION(this << index);
 
