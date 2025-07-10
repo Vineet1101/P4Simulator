@@ -248,7 +248,7 @@ void P4ControllerActionProfileTestCase::DoRun() {
     NS_TEST_EXPECT_MSG_EQ(member, 0, "Action profile member creation failed");
 
     controller.DeleteActionProfileMember(0, profile, member);
-    controller.PrintActionProfileMembers(0, profileMember)
+    controller.PrintActionProfileMembers(0, profile);
 
     // // Modify the member
     // bm::ActionData modData;
@@ -261,7 +261,7 @@ void P4ControllerActionProfileTestCase::DoRun() {
     // controller.DeleteActionProfileMember(index, profile, member);
   });
 
-  Simulator::Stop(Seconds(3.0));
+  Simulator::Stop(Seconds(2.0));
   Simulator::Run();
   Simulator::Destroy();
 }

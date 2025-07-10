@@ -548,29 +548,27 @@ void P4Controller::PrintActionProfileMembers(uint32_t index,
   std::vector<bm::ActionProfile::Member> members;
   int status = core->GetActionProfileMembers(profileName, &members);
   if (status == 0) {
-    NS_LOG_INFO("=============    Printing ActionProfile members ============");
+    std::cout << "=============    Printing ActionProfile members ============"
+              << std::endl;
 
     for (const auto &member : members) {
-      std::ostringstream oss;
 
-      oss << "  Member Handle: " << member.mbr;
+      std::cout << "  Member Handle: " << member.mbr;
 
       // Action name (if available)
       if (member.action_fn) {
-        oss << ", Action Name: " << member.action_fn->get_name();
+        std::cout << ", Action Name: " << member.action_fn->get_name();
       } else {
-        oss << ", Action Name: [nullptr]";
+        std::cout << ", Action Name: [nullptr]";
       }
 
       // Action parameters
-      oss << ", Action Params: [ ";
+      std::cout << ", Action Params: [ ";
       for (const auto &param : member.action_data.action_data) {
         // ADD a method to print param
-        oss << param.get_string() << " ";
+        std::cout << param.get_string() << " " << std::endl;
       }
-      oss << "]";
-
-      NS_LOG_INFO(oss.str());
+      std::cout << "]" << std::endl;
     }
   } else {
     NS_LOG_ERROR("Failed to get members from profile ["
