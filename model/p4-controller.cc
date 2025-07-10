@@ -237,8 +237,9 @@ void P4Controller::DeleteFlowEntry(uint32_t index, const std::string &tableName,
   int status = core->DeleteFlowEntry(tableName, handle);
 
   if (status == 0) {
-    std::cout << "Successfully deleted entry (handle = " << handle
-              << ") from table [" << tableName << "] on switch " << index;
+    NS_LOG_INFO("Successfully deleted entry (handle = "
+                << handle << ") from table [" << tableName << "] on switch "
+                << index);
   } else {
     NS_LOG_ERROR("Failed to delete entry from table ["
                  << tableName << "] on switch " << index
@@ -299,20 +300,22 @@ void P4Controller::SetEntryTtl(uint32_t index, const std::string &tableName,
   int status = core->SetEntryTtl(tableName, handle, ttlMs);
 
   if (status == 0) {
-    std::cout << "Set TTL = " << ttlMs << "ms for entry handle " << handle
-              << " in table [" << tableName << "] on switch " << index;
+    NS_LOG_INFO("Set TTL = " << ttlMs << "ms for entry handle " << handle
+                             << " in table [" << tableName << "] on switch "
+                             << index);
   } else {
-    std::cout << "Failed to set TTL for entry handle " << handle
-              << " in table [" << tableName << "] on switch " << index;
+    NS_LOG_ERROR("Failed to set TTL for entry handle "
+                 << handle << " in table [" << tableName << "] on switch "
+                 << index);
   }
 }
 
 // ======== Action Profile Operations ===========
 
-void P4Controller::AddActionProfileMember(uint32_t index,
-                                          const std::string &profileName,
-                                          const std::string &actionName,
-                                          bm::ActionData &&actionData) {
+void P4Controller::AddActionProfileMember(
+    uint32_t index, const std::string &profileName,
+    const std::string &actionName, bm::ActionData &&actionData,
+    bm::ActionProfile::mbr_hdl_t mbrHandle) {
   NS_LOG_FUNCTION(this << index << profileName << actionName);
 
   if (index >= m_connectedSwitches.size()) {
@@ -326,7 +329,6 @@ void P4Controller::AddActionProfileMember(uint32_t index,
     return;
   }
 
-  bm::ActionProfile::mbr_hdl_t mbrHandle;
   int status = core->AddActionProfileMember(profileName, actionName,
                                             std::move(actionData), &mbrHandle);
 
@@ -505,8 +507,33 @@ void P4Controller::RemoveMemberFromGroup(
   }
 }
 
-void P4Controller::GetActionProfileMembers(uint32_t index,
-                                           const std::string &profileName) {
+std::vector<bm::ActionProfile::Member>
+P4Controller::GetActionProfileMembers(uint32_t index,
+                                      const std::string &profileName) {
+  std::vector<bm::ActionProfile::Member> members;
+
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return members;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return members;
+  }
+
+  int status = core->GetActionProfileMembers(profileName, &members);
+  if (status == 0) {
+    return members;
+  } else {
+    NS_LOG_ERROR("Failed to get members from profile ["
+                 << profileName << "] on switch " << index);
+    return members;
+  }
+}
+void P4Controller::PrintActionProfileMembers(uint32_t index,
+                                             const std::string &profileName) {
   if (index >= m_connectedSwitches.size()) {
     NS_LOG_WARN("Invalid switch index " << index);
     return;
@@ -521,14 +548,35 @@ void P4Controller::GetActionProfileMembers(uint32_t index,
   std::vector<bm::ActionProfile::Member> members;
   int status = core->GetActionProfileMembers(profileName, &members);
   if (status == 0) {
-    NS_LOG_INFO("Got " << members.size() << " members from profile ["
-                       << profileName << "] on switch " << index);
+    NS_LOG_INFO("=============    Printing ActionProfile members ============");
+
+    for (const auto &member : members) {
+      std::ostringstream oss;
+
+      oss << "  Member Handle: " << member.mbr;
+
+      // Action name (if available)
+      if (member.action_fn) {
+        oss << ", Action Name: " << member.action_fn->get_name();
+      } else {
+        oss << ", Action Name: [nullptr]";
+      }
+
+      // Action parameters
+      oss << ", Action Params: [ ";
+      for (const auto &param : member.action_data.action_data) {
+        // ADD a method to print param
+        oss << param.get_string() << " ";
+      }
+      oss << "]";
+
+      NS_LOG_INFO(oss.str());
+    }
   } else {
     NS_LOG_ERROR("Failed to get members from profile ["
                  << profileName << "] on switch " << index);
   }
 }
-
 void P4Controller::GetActionProfileMember(
     uint32_t index, const std::string &profileName,
     bm::ActionProfile::mbr_hdl_t memberHandle) {

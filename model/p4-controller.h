@@ -165,10 +165,12 @@ public:
    * @param profileName The name of the action profile.
    * @param actionName The name of the action associated with the member.
    * @param actionData The parameters for the action.
+   * @param mbrHandle The handle of the member to add.
    */
   void AddActionProfileMember(uint32_t index, const std::string &profileName,
                               const std::string &actionName,
-                              bm::ActionData &&actionData);
+                              bm::ActionData &&actionData,
+                              bm::ActionProfile::mbr_hdl_t mbrHandle);
 
   /**
    * @brief Deletes a member from an action profile on a switch.
@@ -229,13 +231,20 @@ public:
   void RemoveMemberFromGroup(uint32_t index, const std::string &profileName,
                              bm::ActionProfile::mbr_hdl_t memberHandle,
                              bm::ActionProfile::grp_hdl_t groupHandle);
-
+  /**
+   * @brief Prints all members in an action profile.
+   * @param index Index of the switch to operate on
+   * @param profileName Name of the action profile
+   */
+  void PrintActionProfileMembers(uint32_t index,
+                                 const std::string &profileName);
   /**
    * @brief Retrieves all members in an action profile.
    * @param index Index of the switch to operate on
    * @param profileName Name of the action profile
    */
-  void GetActionProfileMembers(uint32_t index, const std::string &profileName);
+  std::vector<bm::ActionProfile::Member>
+  GetActionProfileMembers(uint32_t index, const std::string &profileName);
 
   /**
    * @brief Retrieves a specific member from an action profile.
