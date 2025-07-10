@@ -148,6 +148,7 @@ class P4SwitchNetDevice : public NetDevice
                        int outPort,
                        uint16_t protocol,
                        const Address& destination);
+    P4CoreV1model* GetV1ModelCore() const;
 
     // inherited from NetDevice base class.
     void SetIfIndex(const uint32_t index) override;
