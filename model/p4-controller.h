@@ -47,6 +47,12 @@ public:
   void RegisterSwitch(ns3::Ptr<ns3::P4SwitchNetDevice> sw);
 
   /**
+   * @brief Connect controller to switch's trace sources
+   * @param switchIndex Index of the switch in m_connectedSwitches
+   */
+  void ConnectToSwitchEvents(uint32_t switchIndex);
+  void HandleSwitchEvent(uint32_t switchId, const std::string &message);
+  /**
    * @brief Gives the count of the p4 switches registered with the controller
    */
   uint32_t GetN();

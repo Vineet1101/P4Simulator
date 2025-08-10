@@ -1,7 +1,7 @@
 #include "ns3/p4-controller.h"
 
+#include "ns3/core-module.h"
 #include "ns3/log.h"
-
 #include <iostream>
 
 namespace ns3 {
@@ -26,6 +26,36 @@ void P4Controller::RegisterSwitch(ns3::Ptr<ns3::P4SwitchNetDevice> sw) {
 }
 
 uint32_t P4Controller::GetN() { return m_connectedSwitches.size(); }
+
+void P4Controller::ConnectToSwitchEvents(uint32_t index) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  Ptr<P4SwitchNetDevice> sw = m_connectedSwitches[index];
+  P4CoreV1model *core = sw->GetV1ModelCore();
+
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  std::ostringstream path;
+  path << "/NodeList/" << sw->GetNode()->GetId() << "/DeviceList/"
+       << sw->GetIfIndex()
+       << "/$ns3::P4SwitchNetDevice/$ns3::P4CoreV1model/SwitchEvent";
+
+  Config::ConnectWithoutContext(
+      path.str(), MakeCallback(&P4Controller::HandleSwitchEvent, this));
+
+  NS_LOG_INFO("Connected to SwitchEvent trace source for switch " << index);
+}
+
+void P4Controller::HandleSwitchEvent(uint32_t switchId,
+                                     const std::string &message) {
+  NS_LOG_INFO("[Controller] Event from switch " << switchId << ": " << message);
+}
 
 void P4Controller::ViewAllSwitchFlowTableInfo() {
   NS_LOG_INFO("\n==== Viewing All P4 Switch Flow Tables ====\n");
@@ -469,9 +499,9 @@ void P4Controller::AddMemberToGroup(uint32_t index,
 
   int status = core->AddMemberToGroup(profileName, memberHandle, groupHandle);
   if (status == 0) {
-    NS_LOG_INFO("Added member " << memberHandle << " to group " << groupHandle
-                                << " in action profile [" << profileName
-                                << "] on switch " << index);
+    std::cout << "Added member " << memberHandle << " to group " << groupHandle
+              << " in action profile [" << profileName << "] on switch "
+              << index;
   } else {
     NS_LOG_ERROR("Failed to add member "
                  << memberHandle << " to group " << groupHandle
@@ -600,6 +630,45 @@ void P4Controller::GetActionProfileMember(
                                          << index);
   }
 }
+void P4Controller::PrintActionProfileGroups(uint32_t index,
+                                            const std::string &profileName) {
+  if (index >= m_connectedSwitches.size()) {
+    NS_LOG_WARN("Invalid switch index " << index);
+    return;
+  }
+
+  P4CoreV1model *core = m_connectedSwitches[index]->GetV1ModelCore();
+  if (!core) {
+    NS_LOG_WARN("No V1Model core found for switch " << index);
+    return;
+  }
+
+  std::vector<bm::ActionProfile::Group> groups;
+  int status = core->GetActionProfileGroups(profileName, &groups);
+
+  if (status == 0) {
+    NS_LOG_INFO("Retrieved " << groups.size()
+                             << " group(s) from action profile [" << profileName
+                             << "] on switch " << index);
+
+    for (const auto &group : groups) {
+
+      std::cout << "  Group ID: " << group.grp << ", Members: [" << std::endl;
+
+      for (size_t i = 0; i < group.mbr_handles.size(); ++i) {
+        std::cout << group.mbr_handles[i];
+        if (i != group.mbr_handles.size() - 1) {
+          std::cout << ", ";
+        }
+      }
+      std::cout << "]" << std::endl;
+    }
+  } else {
+    std::cout << "Failed to retrieve groups from profile [" << profileName
+              << "] on switch " << index;
+  }
+}
+
 void P4Controller::GetActionProfileGroups(uint32_t index,
                                           const std::string &profileName) {
   if (index >= m_connectedSwitches.size()) {
