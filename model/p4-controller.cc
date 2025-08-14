@@ -34,17 +34,15 @@ void P4Controller::ConnectToSwitchEvents(uint32_t index) {
   }
 
   Ptr<P4SwitchNetDevice> sw = m_connectedSwitches[index];
-  P4CoreV1model *core = sw->GetV1ModelCore();
 
-  if (!core) {
-    NS_LOG_WARN("No V1Model core found for switch " << index);
+  if (!sw) {
+    NS_LOG_WARN("No switch found for " << index);
     return;
   }
 
   std::ostringstream path;
   path << "/NodeList/" << sw->GetNode()->GetId() << "/DeviceList/"
-       << sw->GetIfIndex()
-       << "/$ns3::P4SwitchNetDevice/$ns3::P4CoreV1model/SwitchEvent";
+       << sw->GetIfIndex() << "/$ns3::P4SwitchNetDevice/SwitchEvent";
 
   Config::ConnectWithoutContext(
       path.str(), MakeCallback(&P4Controller::HandleSwitchEvent, this));

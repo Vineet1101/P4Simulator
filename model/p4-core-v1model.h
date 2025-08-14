@@ -872,13 +872,6 @@ public:
    */
   int GetConfigMd5(std::string *md5Out);
 
-  /**
-   * @brief Emit a switch event to connected listeners.
-   * @param switchId Switch ID that generated the event.
-   * @param message The event description.
-   */
-  void EmitSwitchEvent(uint32_t switchId, const std::string &message);
-
 protected:
   /**
    * @brief The egress thread mapper for dequeue process of queue buffer
@@ -924,9 +917,6 @@ private:
   bm::Queue<std::unique_ptr<bm::Packet>> output_buffer;
 
   bool m_firstPacket;
-
-  // Trace source for switch events
-  TracedCallback<uint32_t, std::string> m_switchEvent;
 };
 
 } // namespace ns3

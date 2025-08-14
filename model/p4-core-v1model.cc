@@ -64,18 +64,6 @@ REGISTER_HASH(hash_ex_v1model);
 REGISTER_HASH(bmv2_hash_v1model);
 
 extern int import_primitives();
-TypeId P4CoreV1model::GetTypeId(void) {
-  static TypeId tid =
-      TypeId("ns3::P4CoreV1model")
-          .SetParent<Object>()
-          .SetGroupName("P4")
-          .AddTraceSource(
-              "SwitchEvent",
-              "Fired when the P4 core generates an event for the controller.",
-              MakeTraceSourceAccessor(&P4CoreV1model::m_switchEvent),
-              "ns3::TracedCallback::Uint32String");
-  return tid;
-}
 P4CoreV1model::P4CoreV1model(P4SwitchNetDevice *net_device, bool enable_swap,
                              bool enableTracing, uint64_t packet_rate,
                              size_t input_buffer_size_low,
@@ -1822,12 +1810,6 @@ int P4CoreV1model::GetConfigMd5(std::string *md5Out) {
     return -1;
   *md5Out = this->get_config_md5();
   return 0;
-}
-
-void P4CoreV1model::EmitSwitchEvent(uint32_t switchId,
-                                    const std::string &message) {
-  NS_LOG_FUNCTION(this << switchId << message);
-  m_switchEvent(switchId, message);
 }
 
 } // namespace ns3

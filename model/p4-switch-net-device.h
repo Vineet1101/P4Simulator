@@ -249,7 +249,7 @@ private:
   NetDevice::ReceiveCallback m_rxCallback; //!< Receive callback
   NetDevice::PromiscReceiveCallback
       m_promiscRxCallback; //!< Promiscuous mode receive callback
-  TracedCallback<uint32_t, std::string> m_switchEvent;
+  TracedCallback<uint32_t, const std::string &> m_switchEvent;
 };
 
 } // namespace ns3

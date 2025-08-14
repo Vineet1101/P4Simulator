@@ -518,14 +518,4 @@ void P4SwitchNetDevice::EmitSwitchEvent(uint32_t id, const std::string &msg) {
   m_switchEvent(id, msg);
 }
 
-void P4SwitchNetDevice::ConnectCoreEvent() {
-
-  if (m_v1modelSwitch) {
-    // Connect core's event to our forwarding function
-    m_v1modelSwitch->TraceConnectWithoutContext(
-        "SwitchEvent", MakeCallback(&P4SwitchNetDevice::EmitSwitchEvent, this));
-  } else {
-    NS_LOG_WARN("No core model to connect switch event");
-  }
-}
 } // namespace ns3
