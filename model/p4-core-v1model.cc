@@ -64,7 +64,6 @@ REGISTER_HASH(hash_ex_v1model);
 REGISTER_HASH(bmv2_hash_v1model);
 
 extern int import_primitives();
-
 P4CoreV1model::P4CoreV1model(P4SwitchNetDevice *net_device, bool enable_swap,
                              bool enableTracing, uint64_t packet_rate,
                              size_t input_buffer_size_low,
@@ -953,7 +952,6 @@ int P4CoreV1model::ModifyFlowEntry(const std::string &tableName,
                                    bm::entry_handle_t handle,
                                    const std::string &actionName,
                                    bm::ActionData actionData) {
-
   bm::MatchErrorCode rc = this->mt_modify_entry(
       0, tableName, handle, actionName, std::move(actionData));
 
@@ -1040,7 +1038,7 @@ int P4CoreV1model::CreateActionProfileGroup(
 
   bm::MatchErrorCode rc =
       this->mt_act_prof_create_group(0, profileName, outHandle);
-
+  std::cout << "THe control flow is reaching here";
   if (rc != bm::MatchErrorCode::SUCCESS) {
     NS_LOG_WARN("CreateActionProfileGroup failed for profile " << profileName);
     NS_LOG_WARN("Error: " << MatchErrorCodeToStr(rc));

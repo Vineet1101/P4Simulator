@@ -47,8 +47,13 @@ public:
   void RegisterSwitch(ns3::Ptr<ns3::P4SwitchNetDevice> sw);
 
   /**
+   * @brief Connect controller to switch's trace sources
+   * @param switchIndex Index of the switch in m_connectedSwitches
+   */
+  void ConnectToSwitchEvents(uint32_t switchIndex);
+  void HandleSwitchEvent(uint32_t switchId, const std::string &message);
+  /**
    * @brief Gives the count of the p4 switches registered with the controller
-   *
    */
   uint32_t GetN();
 
@@ -61,14 +66,12 @@ public:
   /**
    * @brief View detailed flow table, counter, register, and meter information
    *        for a specific P4 switch.
-   *
    * @param index Index of the P4 switch in the controller's collection.
    */
   void ViewP4SwitchFlowTableInfo(uint32_t index);
   /**
    * @brief Set the path for viewing flow table information of a specific P4
    * switch.
-   *
    * @param index Index of the P4 switch in the controller's collection.
    * @param viewFlowTablePath File path for viewing flow table information.
    */
@@ -77,13 +80,33 @@ public:
 
   /**
    * @brief Set the path for populating the flow table of a specific P4 switch.
-   *
    * @param index Index of the P4 switch in the controller's collection.
    * @param flowTablePath File path for populating flow table entries.
    */
   void SetP4SwitchFlowTablePath(size_t index, const std::string &flowTablePath);
+
+  /**
+   * @brief Retrieves the number of entries currently present in a given match
+   * table
+   * @param index Index of the target switch in the controller's connected
+   * switches list.
+   * @param tableName Name of the match table whose entry count is to be
+   * retrieved.
+   * @return The number of entries in the specified table, or -1 if the table
+   * name is invalid or the switch index is out of range.
+   */
   int GetTableEntryCount(uint32_t index, const std::string &tableName);
+
+  /**
+   * @brief Logs the number of entries present in a given match table to the
+   * ns-3 log.
+   * @param index Index of the target switch in the controller's connected
+   * switches list.
+   * @param tableName Name of the match table whose entry count is to be
+   * printed.
+   */
   void PrintTableEntryCount(uint32_t index, const std::string &tableName);
+
   /**
    *  @brief Clears the table entries from the given switch and table
    */
@@ -255,6 +278,12 @@ public:
   void GetActionProfileMember(uint32_t index, const std::string &profileName,
                               bm::ActionProfile::mbr_hdl_t memberHandle);
   /**
+   * @brief Prints all groups in an action profile.
+   * @param index Index of the switch to operate on
+   * @param profileName Name of the action profile
+   */
+  void PrintActionProfileGroups(uint32_t index, const std::string &profileName);
+  /**
    * @brief Retrieves all groups in an action profile.
    * @param index Index of the switch to operate on
    * @param profileName Name of the action profile
@@ -364,41 +393,170 @@ public:
                                  bm::ActionProfile::grp_hdl_t groupHandle);
 
   // ========= Flow Table Entry Retrieval Operations ========
+
+  /**
+   * @brief Logs all direct match table flow entries from the specified switch
+   * and table.
+   * @param index Index of the target switch in the controller's connected
+   * switches list.
+   * @param tableName Name of the match table whose entries are to be printed.
+   */
   void PrintFlowEntries(uint32_t index, const std::string &tableName);
+
+  /**
+   * @brief Logs all indirect match table flow entries from the specified switch
+   * and table.
+   * @param index Index of the target switch in the controller's connected
+   * switches list.
+   * @param tableName Name of the indirect match table whose entries are to be
+   * printed.
+   */
   void PrintIndirectFlowEntries(uint32_t index, const std::string &tableName);
+
+  /**
+   * @brief Logs all indirect (with selector) match table flow entries from the
+   * specified switch and table.
+   * @param index Index of the target switch in the controller's connected
+   * switches list.
+   * @param tableName Name of the indirect-with-selector match table whose
+   * entries are to be printed.
+   */
   void PrintIndirectWsFlowEntries(uint32_t index, const std::string &tableName);
+
+  /**
+   * @brief Logs a specific direct match table entry by its handle.
+   * @param index Index of the target switch in the controller's connected
+   * switches list.
+   * @param tableName Name of the match table containing the entry.
+   * @param handle Handle of the entry to be printed.
+   */
   void PrintEntry(uint32_t index, const std::string &tableName,
                   bm::entry_handle_t handle);
+
+  /**
+   * @brief Logs the default entry for a direct match table.
+   * @param index Index of the target switch in the controller's connected
+   * switches list.
+   * @param tableName Name of the match table whose default entry is to be
+   * printed.
+   */
   void PrintDefaultEntry(uint32_t index, const std::string &tableName);
+
+  /**
+   * @brief Logs the default entry for an indirect match table.
+   * @param index Index of the target switch in the controller's connected
+   * switches list.
+   * @param tableName Name of the indirect match table whose default entry is to
+   * be printed.
+   */
   void PrintIndirectDefaultEntry(uint32_t index, const std::string &tableName);
+
+  /**
+   * @brief Logs the default entry for an indirect (with selector) match table.
+   * @param index Index of the target switch in the controller's connected
+   * switches list.
+   * @param tableName Name of the indirect-with-selector match table whose
+   * default entry is to be printed.
+   */
   void PrintIndirectWsDefaultEntry(uint32_t index,
                                    const std::string &tableName);
+
+  /**
+   * @brief Logs a direct match table entry found by matching on a given key.
+   * @param index Index of the target switch in the controller's connected
+   * switches list.
+   * @param tableName Name of the match table to search in.
+   * @param matchKey Vector of match key parameters used to locate the entry.
+   */
   void PrintEntryFromKey(uint32_t index, const std::string &tableName,
                          const std::vector<bm::MatchKeyParam> &matchKey);
+
+  /**
+   * @brief Logs an indirect match table entry found by matching on a given key.
+   * @param index Index of the target switch in the controller's connected
+   * switches list.
+   * @param tableName Name of the indirect match table to search in.
+   * @param matchKey Vector of match key parameters used to locate the entry.
+   */
   void
   PrintIndirectEntryFromKey(uint32_t index, const std::string &tableName,
                             const std::vector<bm::MatchKeyParam> &matchKey);
+
+  /**
+   * @brief Logs an indirect (with selector) match table entry found by matching
+   * on a given key.
+   * @param index Index of the target switch in the controller's connected
+   * switches list.
+   * @param tableName Name of the indirect-with-selector match table to search
+   * in.
+   * @param matchKey Vector of match key parameters used to locate the entry.
+   */
   void
   PrintIndirectWsEntryFromKey(uint32_t index, const std::string &tableName,
                               const std::vector<bm::MatchKeyParam> &matchKey);
 
   // ================= Counter Operations ===================
 
+  /**
+   * @brief Reads the counter values (bytes and packets) for a specific table
+   * entry.
+   * @param index Index of the switch in the connected switches list.
+   * @param tableName Name of the table containing the counter.
+   * @param handle Entry handle identifying the specific table entry.
+   */
   void ReadCounters(uint32_t index, const std::string &tableName,
                     bm::entry_handle_t handle);
+
+  /**
+   * @brief Resets all counters for a specific table to zero.
+   * @param index Index of the switch in the connected switches list.
+   * @param tableName Name of the table whose counters should be reset.
+   */
   void ResetCounters(uint32_t index, const std::string &tableName);
+
+  /**
+   * @brief Writes specific counter values for a given table entry.
+   * @param index Index of the switch in the connected switches list.
+   * @param tableName Name of the table containing the counter.
+   * @param handle Entry handle identifying the specific table entry.
+   * @param bytes Number of bytes to set for the counter.
+   * @param packets Number of packets to set for the counter.
+   */
   void WriteCounters(uint32_t index, const std::string &tableName,
                      bm::entry_handle_t handle, uint64_t bytes,
                      uint64_t packets);
+
+  /**
+   * @brief Reads the counter value for a specific counter object by name and
+   * index.
+   * @param index Index of the switch in the connected switches list.
+   * @param counterName Name of the counter to read.
+   * @param counterIndex Index of the counter entry to read.
+   */
   void ReadCounter(uint32_t index, const std::string &counterName,
                    size_t counterIndex);
+
+  /**
+   * @brief Resets the counter value for a specific counter object to zero.
+   * @param index Index of the switch in the connected switches list.
+   * @param counterName Name of the counter to reset.
+   */
   void ResetCounter(uint32_t index, const std::string &counterName);
+
+  /**
+   * @brief Writes specific values to a counter object.
+   * @param index Index of the switch in the connected switches list.
+   * @param counterName Name of the counter to write to.
+   * @param counterIndex Index of the counter entry to update.
+   * @param bytes Number of bytes to set for the counter.
+   * @param packets Number of packets to set for the counter.
+   */
   void WriteCounter(uint32_t index, const std::string &counterName,
                     size_t counterIndex,
                     bm::MatchTableAbstract::counter_value_t bytes,
                     bm::MatchTableAbstract::counter_value_t packets);
 
-  // // ======= Meter Functions  =======
+  //  ======= Meter Functions  =======
   /**
    * @brief Set meter rates for a specific table entry.
    * @param index Index of the target switch.
@@ -467,18 +625,53 @@ public:
                        size_t meterIndex);
 
   // ======= Register  Functions  =======
+
+  /**
+   * @brief Reads the value from a specific register index in the switch.
+   * @param index Index of the target switch in the connected switches list.
+   * @param registerName Name of the register to read from.
+   * @param regIndex Index within the register array to read.
+   * @param value Pointer to a bm::Data object where the read value will be
+   * stored.
+   */
   void RegisterRead(uint32_t index, const std::string &registerName,
                     size_t regIndex, bm::Data *value);
 
+  /**
+   * @brief Writes a value to a specific register index in the switch.
+   * @param index Index of the target switch in the connected switches list.
+   * @param registerName Name of the register to write to.
+   * @param regIndex Index within the register array to write.
+   * @param value The value to write into the specified register entry.
+   */
   void RegisterWrite(uint32_t index, const std::string &registerName,
                      size_t regIndex, const bm::Data &value);
 
+  /**
+   * @brief Reads all entries from a register in the switch.
+   * @param index Index of the target switch in the connected switches list.
+   * @param registerName Name of the register to read from.
+   */
   void RegisterReadAll(uint32_t index, const std::string &registerName);
 
+  /**
+   * @brief Writes the same value to a range of register indices in the switch.
+   * @param index Index of the target switch in the connected switches list.
+   * @param registerName Name of the register to write to.
+   * @param startIndex Starting index of the range to write.
+   * @param endIndex Ending index of the range to write.
+   * @param value The value to write into each register entry in the specified
+   * range.
+   */
   void RegisterWriteRange(uint32_t index, const std::string &registerName,
                           size_t startIndex, size_t endIndex,
                           const bm::Data &value);
 
+  /**
+   * @brief Resets all entries in a register to their default values.
+   * @param index Index of the target switch in the connected switches list.
+   * @param registerName Name of the register to reset.
+   */
   void RegisterReset(uint32_t index, const std::string &registerName);
 
   // ======= Parse Value Set Functions  =======

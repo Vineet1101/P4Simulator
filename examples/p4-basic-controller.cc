@@ -371,42 +371,19 @@ int main(int argc, char *argv[]) {
           DynamicCast<P4SwitchNetDevice>(p4SwitchNetDeviceContainer.Get(j));
       if (p4sw) {
         controller.RegisterSwitch(p4sw);
+        controller.ConnectToSwitchEvents(0); // connect early
 
-        // Optional: stagger per-switch actions to avoid log clutter
-        double baseTime = 0.5 + j * 0.2;
-
-        // Print table entry count
-        Simulator::Schedule(Seconds(baseTime + 0.5), [j, &controller]() {
-          controller.PrintTableEntryCount(3, "MyIngress.ipv4_nhop");
+        Simulator::Schedule(Seconds(2.0), [&controller]() {
+          controller.PrintTableEntryCount(0, "MyIngress.ipv4_nhop");
         });
 
-        Simulator::Schedule(Seconds(2.0), [j, &controller]() {
-          controller.PrintFlowEntries(j, "MyIngress.ipv4_nhop");
-        });
-        Simulator::Schedule(Seconds(2.5), [&controller]() {
-          controller.PrintDefaultEntry(0, "MyIngress.ipv4_nhop");
+        Simulator::Schedule(Seconds(3.0), [&controller]() {
+          controller.PrintFlowEntries(0, "MyIngress.ipv4_nhop");
         });
 
-        //                Simulator::Schedule(Seconds(1.0), [&controller]() {
-        //      // Create exact match on 0x0a010101 (10.1.1.1)
-        //     bm::MatchKeyParam param;
-        //     param.type = bm::MatchKeyParam::Type::EXACT;
-        //     param.key = bm::Data("0x0a010101");
-
-        //     std::vector<bm::MatchKeyParam> matchKey;
-        //     matchKey.push_back(param);
-
-        //     bm::Data mac("00:00:00:00:00:01");
-        //     bm::Data port("0x1");
-
-        //     bm::ActionData actionData;
-        //     actionData.push_back_action_data(mac);
-        //     actionData.push_back_action_data(port);
-
-        //     controller.AddFlowEntry(0, "ipv4_nhop", matchKey, "ipv4_forward",
-        //     std::move(actionData), -1);
-        // });
-
+        Simulator::Schedule(Seconds(4.0), [&, p4sw]() {
+          p4sw->EmitSwitchEvent(0, "Hello world from test event");
+        });
       } else {
         NS_LOG_WARN("Failed to cast device at index "
                     << j << " to P4SwitchNetDevice");

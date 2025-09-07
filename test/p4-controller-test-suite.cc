@@ -240,28 +240,62 @@ void P4ControllerActionProfileTestCase::DoRun() {
     bm::Data dstAddr(4);     // 4 bytes = 32 bits
     dstAddr.set(0x0a0a0a0a); // Example IP: 10.10.10.10
     actionData.push_back_action_data(dstAddr);
-    controller.PrintActionProfileMembers(0, profile);
-    bm::ActionProfile::mbr_hdl_t member;
+    std::vector<bm::ActionProfile::Member> members =
+        controller.GetActionProfileMembers(0, profile);
+    NS_TEST_ASSERT_MSG_EQ(members.size(), 0,
+                          "Action profile member creation failed");
+    bm::ActionProfile::mbr_hdl_t member = 0;
     controller.AddActionProfileMember(index, profile, action,
                                       std::move(actionData), member);
-    controller.PrintActionProfileMembers(0, profile);
-    NS_TEST_EXPECT_MSG_EQ(member, 0, "Action profile member creation failed");
+    members = controller.GetActionProfileMembers(0, profile);
+    NS_TEST_ASSERT_MSG_EQ(members.size(), 1,
+                          "Action profile member creation failed");
 
     controller.DeleteActionProfileMember(0, profile, member);
+    members = controller.GetActionProfileMembers(0, profile);
+    NS_TEST_ASSERT_MSG_EQ(members.size(), 0,
+                          "Action profile member creation failed");
+
+    // Modify the member
+    bm::ActionData modData;
+    dstAddr.set(0x0a0a0a0b);
+    modData.push_back_action_data(dstAddr);
     controller.PrintActionProfileMembers(0, profile);
+    controller.ModifyActionProfileMember(index, profile, member, action,
+                                         std::move(modData));
 
-    // // Modify the member
-    // bm::ActionData modData;
-    // modData.push_back_action_data(bm::Data("00:00:00:00:00:02"));
-    // modData.push_back_action_data(bm::Data(1));
-    // controller.ModifyActionProfileMember(index, profile, member, action,
-    // std::move(modData));
+    // Create action profile group
+  });
+  Simulator::Schedule(Seconds(2), [this, &controller]() {
+    uint32_t index = 0;
+    std::string profile = "action_profile_1";
+    std::string action = "cIngress.foo1";
+    bm::ActionProfile::mbr_hdl_t member = 0;
+    bm::ActionProfile::grp_hdl_t groupId;
 
-    // // Delete the member
-    // controller.DeleteActionProfileMember(index, profile, member);
+    // Create member first (required before adding to group)
+    bm::ActionData data;
+    bm::Data addrData;
+    addrData.set(0x0a0a0a0a); // example IP
+    data.push_back_action_data(addrData);
+    std::vector<bm::ActionProfile::Member> members =
+        controller.GetActionProfileMembers(0, profile);
+    NS_TEST_EXPECT_MSG_EQ(members.size(), 0,
+                          "Action profile member creation failed");
+    controller.AddActionProfileMember(index, profile, action, std::move(data),
+                                      member);
+    members = controller.GetActionProfileMembers(0, profile);
+    NS_TEST_EXPECT_MSG_EQ(members.size(), 1,
+                          "Action profile member creation failed");
+
+    controller.CreateActionProfileGroup(0, profile, &groupId);
+    controller.PrintActionProfileGroups(0, profile);
+
+    controller.AddMemberToGroup(0, profile, member, groupId);
+    controller.PrintActionProfileGroups(0, profile);
   });
 
-  Simulator::Stop(Seconds(2.0));
+  Simulator::Stop(Seconds(3.0));
   Simulator::Run();
   Simulator::Destroy();
 }
