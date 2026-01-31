@@ -228,3 +228,15 @@ build_lib_example(
     ${libnetwork} 
     ${libcsma}
 )
+
+#p4-source-routing 
+build_lib_example( Add commentMore actions
+  NAME p4-source-routing
+  SOURCE_FILES p4-source-routing.cc
+  LIBRARIES_TO_LINK
+    ${libp4sim}
+    ${libinternet}
+    ${libapplications}
+    ${libnetwork}
+    ${libcsma}
+)
