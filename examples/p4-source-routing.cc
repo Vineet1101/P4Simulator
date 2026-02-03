@@ -378,7 +378,7 @@ main(int argc, char* argv[])
     // Executable is in: build/contrib/p4sim/examples/
     // We need to go up 4 levels to reach project root, then down to contrib/p4sim/examples/p4src/source_routing
     std::string exePath = SystemPath::FindSelfDirectory();
-    std::string p4SrcDir = SystemPath::Append(exePath, "../../../../contrib/p4sim/examples/p4src/source_routing");
+    std::string p4SrcDir = SystemPath::Append(exePath, "../../contrib/p4sim/examples/p4src/source_routing");
     std::string p4JsonPath = SystemPath::Append(p4SrcDir, "source_routing.json");
     std::string topoInput = SystemPath::Append(p4SrcDir, "topo.txt");
     std::string topoFormat("CsmaTopo");
