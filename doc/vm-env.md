@@ -2,25 +2,25 @@
 
 ### Index
 
-- ⭐ [Local Deployment (ns-3.39)](#local-deployment-ns339)
+- [Local Deployment (ns-3.39)](#local-deployment-ns339)
 - Virtual Machine as Virtual Env
   - [ns-3 Version 3.x – 3.35](#setup-ns335)
-  - ⭐ [ns-3 Version 3.36 – 3.39](#setup-ns339)
+  -  [ns-3 Version 3.36 – 3.39](#setup-ns339)
 - [Appendix](#appendix)
 
 ## Installation & Usage Guide
 
 It is recommended to use a **virtual machine** with Vagrant to simplify the installation and ensure compatibility. 
 
-## <a name="local-deployment-ns339"></a> Local Deployment (ns-3.39) [⤴️](#index)
+## <a name="local-deployment-ns339"></a> Local Deployment (ns-3.39)
 
 This guide walks you through setting up a local environment to run the P4Sim integrated with `ns-3.39` on Ubuntu 24.04. The full setup includes installing the behavioral model (`bmv2`), setting up SSH for remote access, and building the ns-3 project with P4Sim support. This is tested with `Ubuntu 24.04 LTS Desktop`. 
 
-> ⚠️ Note: The bmv2 and P4 software installation step will take **~3 hours** and consume up to **15GB** of disk space.
+> Note: The bmv2 and P4 software installation step will take **~3 hours** and consume up to **15GB** of disk space.
 
 ---
 
-## 📁 1. Initialize the Working Directory
+## 1. Initialize the Working Directory
 
 Create a workspace and install basic development tools.
 
@@ -33,7 +33,7 @@ sudo apt install git vim cmake
 
 ---
 
-## 🛠️ 2. Install P4 Behavioral Model (bmv2) and Dependencies
+##  2. Install P4 Behavioral Model (bmv2) and Dependencies
 
 > This installs all necessary libraries and tools for P4 development (via the official `p4lang/tutorials` repo).
 
@@ -53,7 +53,7 @@ simple_switch
 
 ---
 
-## 🧪 3. Clone and Build ns-3.39 with P4Simulator
+## 3. Clone and Build ns-3.39 with P4Simulator
 
 ### Step 3.1: Clone ns-3.39
 
@@ -82,45 +82,68 @@ cd ../..
 ```
 
 ---
+## 4. Prepare an Example
 
-## ▶️ 4. Run an Example
+You can run any example from the `p4sim/examples` directory. In this guide, we use `p4-basic-controller.cc` as a demonstration, but the steps apply to any example file (with appropriate path adjustments).
 
-You can run a built-in example using:
+To run `p4-basic-controller.cc`, you must ensure the file paths inside the code match your local directory structure.
+
+The original file uses placeholder paths:
+```cpp
+  std::string p4JsonPath = "/home/p4/workdir/ns3.39/contrib/p4sim/examples/p4src/p4_basic/p4_basic.json";
+  std::string flowTableDirPath ="/home/p4/workdir/ns3.39/contrib/p4sim/examples/p4src/p4_basic/";
+  std::string topoInput ="/home/p4/workdir/ns3.39/contrib/p4sim/examples/p4src/p4_basic/topo.txt";
+```
+
+You can automatically copy the example to the `scratch` directory and update these paths using the commands below:
 
 ```bash
-./ns3 run "exampleA"  # This will run exampleA (name).
+# Ensure you are in the ns-3 root directory
+# Define the example you want to run (change this for other examples)
+EXAMPLE_NAME="p4-basic-controller.cc"
+
+# Ensure you are in the ns-3 root directory
+cd ~/workdir/ns3.39
+
+# 1. Copy the example to the scratch directory
+cp contrib/p4sim/examples/$EXAMPLE_NAME scratch/
+
+# 2. Update the hardcoded paths to match your current location
+# Get the absolute path to the examples directory
+P4_EXAMPLES_DIR=$(pwd)/contrib/p4sim/examples/
+
+# Use sed to replace the placeholder path with your actual path in the copied file
+sed -i "s|/home/p4/workdir/ns3.39/contrib/p4sim/examples/|$P4_EXAMPLES_DIR|g" scratch/$EXAMPLE_NAME
+
+# Notes: 
+# - The sed command assumes the example uses the specific placeholder path:
+#   "/home/p4/workdir/ns3.39/contrib/p4sim/examples/"
+# - If your example uses different paths, you may need to adjust the sed command or edit the file manually.
 ```
 
 ---
+## 5. Run the Example
 
-## 🔧 5. Configure P4 Files in Your Simulation
+With the file configured in the `scratch` folder, execute it using:
 
-You may need to **manually update file paths** for P4 artifacts in your simulation code.
+```bash
+# Run the example using the variable defined above, or type the name directly
+./ns3 run scratch/$EXAMPLE_NAME
 
-Example path updates:
-
-```cpp
-// p4 is the username 
-std::string p4JsonPath = "/home/p4/workdir/ns3.39/contrib/p4sim/test/test_simple/test_simple.json";
-std::string flowTablePath = "/home/p4/workdir/ns3.39/contrib/p4sim/test/test_simple/flowtable_0.txt";
-std::string topoInput = "/home/p4/workdir/ns3.39/contrib/p4sim/test/test_simple/topo.txt";
 ```
-
-Make sure these paths match your actual working directory and files.
-
 ---
 
-## ✅ Done!
+## Done!
 
 You now have a working ns-3.39 simulator with P4 integration ready for your experiments.
 
 ---
 
-## 📬 Feedback or Issues?
+## Feedback or Issues?
 
 If you encounter problems or have suggestions, feel free to open an issue or contact the maintainer.
 
-✉️ **Contact:** mingyu.ma@tu-dresden.de
+**Contact:** mingyu.ma@tu-dresden.de
 
 
 
@@ -141,7 +164,7 @@ Notes:
 
 ---
 
-## <a name="setup-ns335"></a>  Setup Instructions for ns-3 version 3.x - 3.35 (Build with `waf`) [⤴️](#index)
+## <a name="setup-ns335"></a>  Setup Instructions for ns-3 version 3.x - 3.35 (Build with `waf`)
 
 This has been tested with ns-3 repo Tag `ns-3.35`.
 
@@ -199,22 +222,29 @@ git apply ./contrib/p4sim/doc/changes.patch
 ./ns3 build
 ```
 
-### 7. Run a Simulation Example  
-```bash
-./ns3 run "exampleA" # This will run exampleA (name).
+### 7. Run a Simulation Example
 
-# In the p4sim example, you may need to adjust the path of p4 and other files.
-# For example:
-# std::string p4JsonPath =
-#       "/home/p4/workdir/ns3.35/contrib/p4sim/test/test_simple/test_simple.json";
-#   std::string flowTablePath =
-#       "/home/p4/workdir/ns3.35/contrib/p4sim/test/test_simple/flowtable_0.txt";
-#   std::string topoInput = "/home/p4/workdir/ns3.35/contrib/p4sim/test/test_simple/topo.txt";
+Instead of modifying the source files directly, it is recommended to copy the example to the `scratch` directory. We can then use a command to automatically update the hardcoded paths to match your environment.
+
+```bash
+# Ensure you are in the ns-3 root directory
+EXAMPLE_NAME="p4-basic-controller.cc"
+P4_EXAMPLES_DIR=$(pwd)/contrib/p4sim/examples/
+
+# 1. Copy the example to the scratch directory
+cp contrib/p4sim/examples/$EXAMPLE_NAME scratch/
+
+# 2. Update the paths automatically
+# Note: This command replaces the default placeholder path with your actual path
+sed -i "s|/home/p4/workdir/ns3.39/contrib/p4sim/examples/|$P4_EXAMPLES_DIR|g" scratch/$EXAMPLE_NAME
+
+# 3. Run the example
+./ns3 run scratch/$EXAMPLE_NAME
 ```
 
 ---
 
-## ⭐  <a name='setup-ns339'></a> Setup Instructions for ns-3 version 3.36 - 3.39 (Build with `Cmake`) [⤴️](#index) 
+##  <a name='setup-ns339'></a> Setup Instructions for ns-3 version 3.36 - 3.39 (Build with `Cmake`)
 
 This has been tested with ns-3 repo Tag `ns-3.39`. Because the virtual machine will build BMv2 and libs with **C++17**, and ns-3 p4simulator using the external inlucde file and libs, therefore the ns-3 also need to build with **C++17**.
 The include file is: `/usr/local/include/bm`, the libs is `/usr/local/lib/libbmall.so`.
@@ -276,17 +306,24 @@ sudo ./set_pkg_config_env.sh
 ./ns3 build
 ```
 
-### 7. Run a Simulation Example  
-```bash
-./ns3 run "exampleA" # This will run exampleA (name).
+### 7. Run a Simulation Example
 
-# In the p4sim example, you may need to adjust the path of p4 and other files.
-# For example:
-# std::string p4JsonPath =
-#       "/home/p4/workdir/ns3.35/contrib/p4sim/test/test_simple/test_simple.json";
-#   std::string flowTablePath =
-#       "/home/p4/workdir/ns3.35/contrib/p4sim/test/test_simple/flowtable_0.txt";
-#   std::string topoInput = "/home/p4/workdir/ns3.35/contrib/p4sim/test/test_simple/topo.txt";
+Instead of modifying the source files directly, it is recommended to copy the example to the `scratch` directory. We can then use a command to automatically update the hardcoded paths to match your environment.
+
+```bash
+# Ensure you are in the ns-3 root directory
+EXAMPLE_NAME="p4-basic-controller.cc"
+P4_EXAMPLES_DIR=$(pwd)/contrib/p4sim/examples/
+
+# 1. Copy the example to the scratch directory
+cp contrib/p4sim/examples/$EXAMPLE_NAME scratch/
+
+# 2. Update the paths automatically
+# Note: This command replaces the default placeholder path with your actual path
+sed -i "s|/home/p4/workdir/ns3.39/contrib/p4sim/examples/|$P4_EXAMPLES_DIR|g" scratch/$EXAMPLE_NAME
+
+# 3. Run the example
+./ns3 run scratch/$EXAMPLE_NAME
 ```
 
 ---
@@ -301,7 +338,7 @@ Not been tested yet.
 
 [2] [P4Lang Tutorials repository](https://github.com/p4lang/tutorials/tree/master)
 
-#  <a name='appendix'></a> Appendix [⤴️](#index) 
+#  <a name='appendix'></a> Appendix 
 
 After `Install P4 Behavioral Model (bmv2) and Dependencies`, you should have that:
 
