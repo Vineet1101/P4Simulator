@@ -258,6 +258,7 @@ main(int argc, char* argv[])
     uint32_t clientIndex = 0;          ///< Index of the sending host.
     uint32_t serverIndex = 1;          ///< Index of the receiving host.
     uint16_t serverPort = 9093;        ///< UDP destination port on the server.
+    uint32_t switchRate = 100000;      ///< P4 switch processing rate in packets per second.
     double flowDuration = 3.0;         ///< Duration of the OnOff flow (s).
     double simDuration = 20.0;         ///< Total simulation time (s).
     int model = 0;          ///< 0 = P4 V1Model switch;  1 = standard NS-3 bridge (baseline).
@@ -282,6 +283,9 @@ main(int argc, char* argv[])
     cmd.AddValue("clientIndex", "Sender host index (default 0)", clientIndex);
     cmd.AddValue("serverIndex", "Receiver host index (default 1)", serverIndex);
     cmd.AddValue("serverPort", "UDP destination port on the server (default 9093)", serverPort);
+    cmd.AddValue("switchRate",
+                 "P4 switch processing rate in packets per second (default 100000)",
+                 switchRate);
     cmd.AddValue("flowDuration", "Duration of the traffic flow (s, default 3)", flowDuration);
     cmd.AddValue("simDuration", "Total simulation duration (s, default 20)", simDuration);
     cmd.AddValue("model", "Switch model: 0=P4 V1Model, 1=NS-3 bridge baseline", model);
@@ -408,6 +412,10 @@ main(int argc, char* argv[])
         p4Helper.SetDeviceAttribute("FlowTablePath", StringValue(flowTablePath));
         p4Helper.SetDeviceAttribute("ChannelType", UintegerValue(0));
         p4Helper.SetDeviceAttribute("P4SwitchArch", UintegerValue(0)); // V1Model = 0
+        p4Helper.SetDeviceAttribute(
+            "SwitchRate",
+            UintegerValue(switchRate)); // 1000Mbps with 1000B packets = 1e6 pps, so 10k pps is a
+                                        // safe default for this simple test.
 
         for (uint32_t i = 0; i < switchNum; ++i)
             p4Helper.Install(switches.Get(i), switchDevices);
