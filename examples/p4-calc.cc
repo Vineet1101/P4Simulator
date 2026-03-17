@@ -1,47 +1,24 @@
-/*
- * Copyright (c) 2025 TU Dresden
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- * Authors: Mingyu Ma <mingyu.ma@tu-dresden.de>
- */
-
 /**
- * This example is same with "firewall exerciese" in p4lang/tutorials
- * URL: https://github.com/p4lang/tutorials/tree/master/exercises/firewall
- * The P4 program implements basic firewall.
+ * This example is same with "calc" in p4lang/tutorials
+ * URL: https://github.com/p4lang/tutorials/tree/master/exercises/calc
+ * The P4 program implements basic calculation.
  *
- *          ┌──────────┐              ┌──────────┐
- *          │ Switch 2 \\            /│ Switch 3 │
- *          └─────┬────┘  \        // └──────┬───┘
- *                │         \    /           │
- *                │           /              │
- *          ┌─────┴────┐   /   \      ┌──────┴───┐
- *          │ Switch 0 //         \ \ │ Switch 1 │
- *      ┌───┼ firewall │             \\          ┼────┐
- *      │   └────────┬─┘              └┬─────────┘    │
- *  ┌───┼────┐     ┌─┴──────┐    ┌─────┼──┐     ┌─────┼──┐
- *  │ host 4 │     │ host 5 │    │ host 6 │     │ host 7 │
- *  └────────┘     └────────┘    └────────┘     └────────┘
- *  |----Interal network----|
  *
+ *          ┌─────────┐
+ *          │ Switch 0|
+ *      ┌───┼         │
+ *      │   └────────┬┘
+ *  ┌───┼────┐     ┌─┴──────┐
+ *  │ host 1 │     │ host 2 │
+ *  └────────┘     └────────┘
  */
 
 #include "ns3/applications-module.h"
 #include "ns3/bridge-helper.h"
 #include "ns3/core-module.h"
 #include "ns3/csma-helper.h"
+#include "ns3/custom-header.h"
+#include "ns3/custom-p2p-net-device.h"
 #include "ns3/format-utils.h"
 #include "ns3/internet-module.h"
 #include "ns3/network-module.h"
@@ -53,26 +30,7 @@
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("P4BasicExample");
-
-unsigned long start = getTickCount();
-double global_start_time = 1.0;
-double sink_start_time = global_start_time + 1.0;
-double client_start_time = sink_start_time + 1.0;
-double client_stop_time = client_start_time + 3;
-double sink_stop_time = client_stop_time + 5;
-double global_stop_time = sink_stop_time + 5;
-
-bool first_tx = true;
-bool first_rx = true;
-int counter_sender_10 = 10;
-int counter_receiver_10 = 10;
-double first_packet_send_time_tx = 0.0;
-double last_packet_send_time_tx = 0.0;
-double first_packet_received_time_rx = 0.0;
-double last_packet_received_time_rx = 0.0;
-uint64_t totalTxBytes = 0;
-uint64_t totalRxBytes = 0;
+NS_LOG_COMPONENT_DEFINE("p4-calc");
 
 // Convert IP address to hexadecimal format
 std::string
@@ -105,6 +63,61 @@ ConvertMacToHex(Address macAddr)
     return hexStream.str();
 }
 
+static uint32_t
+ReadBe32(const uint8_t* p)
+{
+    return (static_cast<uint32_t>(p[0]) << 24) | (static_cast<uint32_t>(p[1]) << 16) |
+           (static_cast<uint32_t>(p[2]) << 8) | static_cast<uint32_t>(p[3]);
+}
+
+void
+DecodeP4CalcFrame(Ptr<const Packet> packet)
+{
+    Ptr<Packet> copy = packet->Copy();
+
+    EthernetHeader eth;
+    if (!copy->RemoveHeader(eth))
+    {
+        return;
+    }
+
+    if (eth.GetLengthType() != 0x1234)
+    {
+        return;
+    }
+
+    if (copy->GetSize() < 16)
+    {
+        NS_LOG_INFO("p4calc frame too short: " << copy->GetSize());
+        return;
+    }
+
+    uint8_t calcBytes[16];
+    copy->CopyData(calcBytes, sizeof(calcBytes));
+
+    if (calcBytes[0] != 0x50 || calcBytes[1] != 0x34 || calcBytes[2] != 0x01)
+    {
+        NS_LOG_INFO("p4calc signature/version mismatch");
+        return;
+    }
+
+    uint8_t op = calcBytes[3];
+    uint32_t opA = ReadBe32(&calcBytes[4]);
+    uint32_t opB = ReadBe32(&calcBytes[8]);
+    uint32_t result = ReadBe32(&calcBytes[12]);
+
+    NS_LOG_INFO("P4Calc RX: op=0x" << std::hex << static_cast<uint32_t>(op) << std::dec
+                                   << " opA=" << opA << " opB=" << opB << " result=" << result);
+}
+
+void
+SendTestPacket(Ptr<NetDevice> sender, Ptr<Packet> packet, Address dst, uint16_t protocol)
+{
+    bool ok = sender->Send(packet, dst, protocol);
+    NS_LOG_INFO("SendTestPacket status=" << ok << ", dst=" << ConvertMacToHex(dst)
+                                         << ", protocol=0x" << std::hex << protocol);
+}
+
 // ============================ data struct ============================
 struct SwitchNodeC_t
 {
@@ -124,26 +137,32 @@ struct HostNodeC_t
 int
 main(int argc, char* argv[])
 {
-    LogComponentEnable("P4BasicExample", LOG_LEVEL_INFO);
+    LogComponentEnable("p4-calc", LOG_LEVEL_INFO);
+    ns3::PacketMetadata::Enable(); // Enable packet metadata tracing support
 
-    // ============================ parameters ============================
-    uint16_t pktSize = 1000;           // in Bytes. 1458 to prevent fragments, default 512
-    std::string appDataRate = "1Mbps"; // Default application data rate
+    // simulation parameters
+    std::string appDataRate = "2.0Mbps";
     std::string ns3_link_rate = "1000Mbps";
-    bool enableTracePcap = true;
 
     // Use P4SIM_DIR environment variable for portable paths
-    std::string p4SrcDir = GetP4ExamplePath() + "/p4_basic";
-    std::string p4JsonPath = p4SrcDir + "/p4_basic.json";
+    std::string p4SrcDir = GetP4ExamplePath() + "/calc";
+    std::string p4JsonPath = p4SrcDir + "/calc.json";
     std::string flowTableDirPath = p4SrcDir + "/";
     std::string topoInput = p4SrcDir + "/topo.txt";
     std::string topoFormat("CsmaTopo");
 
-    // ============================  command line ============================
+    // simulation time configuration
+    double global_start_time = 1.0;
+    double global_stop_time = global_start_time + 10;
+
+    uint32_t operandA = 1;
+    uint32_t operandB = 2;
+    std::string operation = "+";
+
     CommandLine cmd;
-    cmd.AddValue("pktSize", "Packet size in bytes (default 1000)", pktSize);
-    cmd.AddValue("appDataRate", "Application data rate in bps (default 1Mbps)", appDataRate);
-    cmd.AddValue("pcap", "Trace packet pacp [true] or not[false]", enableTracePcap);
+    cmd.AddValue("opA", "Operand A", operandA);
+    cmd.AddValue("opB", "Operand B", operandB);
+    cmd.AddValue("opCode", "Operation Code (+,-,&,|,^) ", operation);
     cmd.Parse(argc, argv);
 
     // ============================ topo -> network ============================
@@ -176,6 +195,8 @@ main(int argc, char* argv[])
     csma.SetChannelAttribute("DataRate", StringValue(ns3_link_rate));
     csma.SetChannelAttribute("Delay", TimeValue(MilliSeconds(0.01)));
 
+    // NetDeviceContainer hostDevices;
+    // NetDeviceContainer switchDevices;
     P4TopologyReader::ConstLinksIterator_t iter;
     SwitchNodeC_t switchNodes[switchNum];
     HostNodeC_t hostNodes[hostNum];
@@ -308,82 +329,68 @@ main(int argc, char* argv[])
         p4SwitchHelper.Install(switchNode.Get(i), switchNodes[i].switchDevices);
     }
 
-    // === Configuration for Link: h0 -----> h3
-    unsigned int serverI = 3;
-    unsigned int clientI = 0;
-    uint16_t servPort = 9093; // UDP port for the server
-
-    // === Retrieve Server Address ===
-    Ptr<Node> node = terminals.Get(serverI);
-    Ptr<Ipv4> ipv4_adder = node->GetObject<Ipv4>();
-    Ipv4Address serverAddr1 = ipv4_adder->GetAddress(1, 0).GetLocal();
-    InetSocketAddress dst1 = InetSocketAddress(serverAddr1, servPort);
-    PacketSinkHelper sink1("ns3::TcpSocketFactory", dst1);
-    ApplicationContainer sinkApp1 = sink1.Install(terminals.Get(serverI));
-    sinkApp1.Start(Seconds(sink_start_time));
-    sinkApp1.Stop(Seconds(sink_stop_time));
-    OnOffHelper onOff1("ns3::TcpSocketFactory", dst1);
-    onOff1.SetAttribute("PacketSize", UintegerValue(pktSize));
-    onOff1.SetAttribute("DataRate", StringValue(appDataRate));
-    onOff1.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
-    onOff1.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
-    ApplicationContainer app1 = onOff1.Install(terminals.Get(clientI));
-    app1.Start(Seconds(client_start_time));
-    app1.Stop(Seconds(client_stop_time));
-
-    // Normal Stream == Second == send link h3 -----> h0
-    serverI = 0;
-    clientI = 3;
-    servPort = 9200; // change the application port
-    InetSocketAddress dst2 = InetSocketAddress(serverAddr1, servPort);
-    PacketSinkHelper sink2 = PacketSinkHelper("ns3::UdpSocketFactory", dst2);
-    ApplicationContainer sinkApp2 = sink2.Install(terminals.Get(serverI));
-    sinkApp2.Start(Seconds(sink_start_time));
-    sinkApp2.Stop(Seconds(sink_stop_time));
-    OnOffHelper onOff2("ns3::UdpSocketFactory", dst2);
-    onOff2.SetAttribute("PacketSize", UintegerValue(pktSize));
-    onOff2.SetAttribute("DataRate", StringValue(appDataRate));
-    onOff2.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
-    onOff2.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
-    ApplicationContainer app2 = onOff2.Install(terminals.Get(clientI));
-    app2.Start(Seconds(client_start_time));
-    app2.Stop(Seconds(client_stop_time));
-
-    // Normal Stream == Second == send link h3 -----> h0
-    serverI = 0;
-    clientI = 1;
-    servPort = 9003; // change the application port
-    InetSocketAddress dst3 = InetSocketAddress(serverAddr1, servPort);
-    PacketSinkHelper sink3 = PacketSinkHelper("ns3::UdpSocketFactory", dst3);
-    ApplicationContainer sinkApp3 = sink3.Install(terminals.Get(serverI));
-    sinkApp3.Start(Seconds(sink_start_time));
-    sinkApp3.Stop(Seconds(sink_stop_time));
-    OnOffHelper onOff3("ns3::UdpSocketFactory", dst3);
-    onOff3.SetAttribute("PacketSize", UintegerValue(pktSize));
-    onOff3.SetAttribute("DataRate", StringValue(appDataRate));
-    onOff3.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
-    onOff3.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
-    ApplicationContainer app3 = onOff3.Install(terminals.Get(clientI));
-    app3.Start(Seconds(client_start_time));
-    app3.Stop(Seconds(client_stop_time));
-
-    if (enableTracePcap)
+    // Build raw p4calc header bytes expected by calc.p4 parser.
+    uint8_t opCode; // '+' operation code defined in calc.p4
+    switch (operation[0])
     {
-        csma.EnablePcapAll("p4-firewall");
+    case '+':
+        opCode = 0x2b;
+        break;
+    case '-':
+        opCode = 0x2d;
+        break;
+    case '&':
+        opCode = 0x26;
+        break;
+    case '|':
+        opCode = 0x7c;
+        break;
+    case '^':
+        opCode = 0x5e;
+        break;
+    default:
+        NS_LOG_ERROR("Unsupported operation: " << operation);
+        return -1;
     }
+    uint8_t calcBytes[16] = {
+        0x50,   // p
+        0x34,   // four
+        0x01,   // ver
+        opCode, // op ('+')
+        static_cast<uint8_t>((operandA >> 24) & 0xff),
+        static_cast<uint8_t>((operandA >> 16) & 0xff),
+        static_cast<uint8_t>((operandA >> 8) & 0xff),
+        static_cast<uint8_t>(operandA & 0xff),
+        static_cast<uint8_t>((operandB >> 24) & 0xff),
+        static_cast<uint8_t>((operandB >> 16) & 0xff),
+        static_cast<uint8_t>((operandB >> 8) & 0xff),
+        static_cast<uint8_t>(operandB & 0xff),
+        0x00,
+        0x00,
+        0x00,
+        0x00 // res (filled by switch)
+    };
 
-    // Run simulation
-    NS_LOG_INFO("Running simulation...");
-    unsigned long simulate_start = getTickCount();
+    Ptr<Packet> testPacket = Create<Packet>(calcBytes, sizeof(calcBytes));
+
+    // Use topology-resolved devices for sending and reception trace.
+    Ptr<NetDevice> hostTxDevice = hostNodes[0].hostDevice.Get(0);
+    Ptr<NetDevice> switchIngressDevice =
+        switchNodes[hostNodes[0].linkSwitchIndex].switchDevices.Get(hostNodes[0].linkSwitchPort);
+
+    hostTxDevice->TraceConnectWithoutContext("PromiscSniffer", MakeCallback(&DecodeP4CalcFrame));
+
+    // Send from host 0 to switch after simulation starts.
+    Simulator::Schedule(Seconds(global_start_time + 0.1),
+                        &SendTestPacket,
+                        hostTxDevice,
+                        testPacket->Copy(),
+                        switchIngressDevice->GetAddress(),
+                        static_cast<uint16_t>(0x1234));
+
     Simulator::Stop(Seconds(global_stop_time));
     Simulator::Run();
     Simulator::Destroy();
-
-    unsigned long end = getTickCount();
-    NS_LOG_INFO("Simulate Running time: " << end - simulate_start << "ms" << std::endl
-                                          << "Total Running time: " << end - start << "ms"
-                                          << std::endl
-                                          << "Run successfully!");
 
     return 0;
 }

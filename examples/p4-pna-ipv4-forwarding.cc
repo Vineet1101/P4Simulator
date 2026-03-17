@@ -109,15 +109,15 @@ static constexpr int kWarmupPackets = 10;
 
 static bool g_txWarmupDone = false;          ///< True once Tx warmup is complete.
 static bool g_rxWarmupDone = false;          ///< True once Rx warmup is complete.
-static int  g_txWarmupCount = kWarmupPackets; ///< Remaining warmup packets (Tx).
-static int  g_rxWarmupCount = kWarmupPackets; ///< Remaining warmup packets (Rx).
+static int g_txWarmupCount = kWarmupPackets; ///< Remaining warmup packets (Tx).
+static int g_rxWarmupCount = kWarmupPackets; ///< Remaining warmup packets (Rx).
 
-static double   g_firstTxTime  = 0.0; ///< Timestamp of first post-warmup Tx packet (s).
-static double   g_lastTxTime   = 0.0; ///< Timestamp of last  post-warmup Tx packet (s).
-static double   g_firstRxTime  = 0.0; ///< Timestamp of first post-warmup Rx packet (s).
-static double   g_lastRxTime   = 0.0; ///< Timestamp of last  post-warmup Rx packet (s).
-static uint64_t g_totalTxBytes = 0;   ///< Accumulated payload bytes sent (post-warmup).
-static uint64_t g_totalRxBytes = 0;   ///< Accumulated payload bytes received (post-warmup).
+static double g_firstTxTime = 0.0;  ///< Timestamp of first post-warmup Tx packet (s).
+static double g_lastTxTime = 0.0;   ///< Timestamp of last  post-warmup Tx packet (s).
+static double g_firstRxTime = 0.0;  ///< Timestamp of first post-warmup Rx packet (s).
+static double g_lastRxTime = 0.0;   ///< Timestamp of last  post-warmup Rx packet (s).
+static uint64_t g_totalTxBytes = 0; ///< Accumulated payload bytes sent (post-warmup).
+static uint64_t g_totalRxBytes = 0; ///< Accumulated payload bytes received (post-warmup).
 
 // ---------------------------------------------------------------------------
 // Helper utilities
@@ -129,11 +129,9 @@ ConvertIpToHex(Ipv4Address ipAddr)
 {
     std::ostringstream s;
     uint32_t ip = ipAddr.Get();
-    s << "0x" << std::hex << std::setfill('0')
-      << std::setw(2) << ((ip >> 24) & 0xFF)
-      << std::setw(2) << ((ip >> 16) & 0xFF)
-      << std::setw(2) << ((ip >>  8) & 0xFF)
-      << std::setw(2) << ( ip        & 0xFF);
+    s << "0x" << std::hex << std::setfill('0') << std::setw(2) << ((ip >> 24) & 0xFF)
+      << std::setw(2) << ((ip >> 16) & 0xFF) << std::setw(2) << ((ip >> 8) & 0xFF) << std::setw(2)
+      << (ip & 0xFF);
     return s.str();
 }
 
@@ -166,7 +164,7 @@ TxCallback(Ptr<const Packet> packet)
         return;
     }
     g_totalTxBytes += packet->GetSize();
-    g_lastTxTime    = Simulator::Now().GetSeconds();
+    g_lastTxTime = Simulator::Now().GetSeconds();
 }
 
 static void
@@ -181,7 +179,7 @@ RxCallback(Ptr<const Packet> packet, const Address& /*addr*/)
         return;
     }
     g_totalRxBytes += packet->GetSize();
-    g_lastRxTime    = Simulator::Now().GetSeconds();
+    g_lastRxTime = Simulator::Now().GetSeconds();
 }
 
 // ---------------------------------------------------------------------------
@@ -191,28 +189,26 @@ RxCallback(Ptr<const Packet> packet, const Address& /*addr*/)
 static void
 PrintFinalResults()
 {
-    double txWindow = g_lastTxTime  - g_firstTxTime;
-    double rxWindow = g_lastRxTime  - g_firstRxTime;
+    double txWindow = g_lastTxTime - g_firstTxTime;
+    double rxWindow = g_lastRxTime - g_firstRxTime;
 
     std::cout << "\n======================================\n"
               << "  Final Simulation Results\n"
               << "======================================\n";
-    std::cout << "  Tx window : " << g_firstTxTime << " s  ->  " << g_lastTxTime
-              << " s  (" << txWindow << " s)\n";
-    std::cout << "  Rx window : " << g_firstRxTime << " s  ->  " << g_lastRxTime
-              << " s  (" << rxWindow << " s)\n";
+    std::cout << "  Tx window : " << g_firstTxTime << " s  ->  " << g_lastTxTime << " s  ("
+              << txWindow << " s)\n";
+    std::cout << "  Rx window : " << g_firstRxTime << " s  ->  " << g_lastRxTime << " s  ("
+              << rxWindow << " s)\n";
     std::cout << "  Total Tx  : " << g_totalTxBytes << " bytes\n";
     std::cout << "  Total Rx  : " << g_totalRxBytes << " bytes\n";
 
     if (txWindow > 0)
-        std::cout << "  Tx goodput: "
-                  << (g_totalTxBytes * 8.0) / (txWindow * 1e6) << " Mbps\n";
+        std::cout << "  Tx goodput: " << (g_totalTxBytes * 8.0) / (txWindow * 1e6) << " Mbps\n";
     else
         std::cout << "  Tx goodput: N/A (measurement window is zero)\n";
 
     if (rxWindow > 0)
-        std::cout << "  Rx goodput: "
-                  << (g_totalRxBytes * 8.0) / (rxWindow * 1e6) << " Mbps\n";
+        std::cout << "  Rx goodput: " << (g_totalRxBytes * 8.0) / (rxWindow * 1e6) << " Mbps\n";
     else
         std::cout << "  Rx goodput: N/A (measurement window is zero)\n";
 
@@ -229,51 +225,55 @@ main(int argc, char* argv[])
     LogComponentEnable("P4PnaIpv4Forwarding", LOG_LEVEL_INFO);
 
     // ---- tuneable parameters ----
-    int         runNum        = 0;
-    int         model         = 0;      // 0 = P4 PNA switch, 1 = ns-3 BridgeHelper
-    uint16_t    pktSize       = 1000;   // bytes per UDP payload
-    uint32_t    clientIndex   = 0;
-    uint32_t    serverIndex   = 1;
-    uint16_t    serverPort    = 9093;
-    double      flowDuration  = 3.0;    // s
-    double      simDuration   = 20.0;   // s
-    std::string appDataRate   = "3Mbps";
-    std::string linkRate      = "1000Mbps";
-    std::string linkDelay     = "0.01ms";
-    bool        enablePcap    = true;
+    int runNum = 0;
+    int model = 0;           // 0 = P4 PNA switch, 1 = ns-3 BridgeHelper
+    uint16_t pktSize = 1000; // bytes per UDP payload
+    uint32_t clientIndex = 0;
+    uint32_t serverIndex = 1;
+    uint16_t serverPort = 9093;
+    double flowDuration = 3.0;    // s
+    double simDuration = 20.0;    // s
+    uint32_t switchRate = 100000; ///< P4 switch processing rate in packets per second.
+    std::string appDataRate = "3Mbps";
+    std::string linkRate = "1000Mbps";
+    std::string linkDelay = "0.01ms";
+    bool enablePcap = true;
 
     // P4 program paths — relative to the p4src directory discovered at runtime.
     // The PNA NIC does NOT support external flow-table loading (Thrift CLI is
     // unavailable), so flowTablePath is intentionally left empty.  All
     // forwarding rules are encoded as "const entries" in simple_pna_ipv4.p4.
-    std::string p4SrcDir      = GetP4ExamplePath() + "/simple_pna";
-    std::string p4JsonPath    = p4SrcDir + "/simple_pna.json";
+    std::string p4SrcDir = GetP4ExamplePath() + "/simple_pna";
+    std::string p4JsonPath = p4SrcDir + "/simple_pna.json";
     std::string flowTablePath = ""; // not used for PNA
-    std::string topoInput     = p4SrcDir + "/topo.txt";
-    std::string topoFormat    = "CsmaTopo";
+    std::string topoInput = p4SrcDir + "/topo.txt";
+    std::string topoFormat = "CsmaTopo";
 
     // ---- command line ----
     CommandLine cmd;
-    cmd.AddValue("runnum",      "Run index used in loop experiments",          runNum);
-    cmd.AddValue("model",       "0 = P4 PNA switch,  1 = ns-3 BridgeHelper",  model);
-    cmd.AddValue("pktSize",     "UDP payload size in bytes",                   pktSize);
-    cmd.AddValue("appDataRate", "OnOff application data rate",                 appDataRate);
-    cmd.AddValue("linkRate",    "CSMA link data rate",                         linkRate);
-    cmd.AddValue("linkDelay",   "CSMA link propagation delay",                 linkDelay);
-    cmd.AddValue("clientIndex", "Host index acting as UDP sender",             clientIndex);
-    cmd.AddValue("serverIndex", "Host index acting as UDP receiver",           serverIndex);
-    cmd.AddValue("serverPort",  "UDP destination port",                        serverPort);
-    cmd.AddValue("flowDuration","Duration of the OnOff flow (s)",              flowDuration);
-    cmd.AddValue("simDuration", "Total simulation duration (s)",               simDuration);
-    cmd.AddValue("pcap",        "Enable PCAP tracing",                         enablePcap);
+    cmd.AddValue("runnum", "Run index used in loop experiments", runNum);
+    cmd.AddValue("model", "0 = P4 PNA switch,  1 = ns-3 BridgeHelper", model);
+    cmd.AddValue("pktSize", "UDP payload size in bytes", pktSize);
+    cmd.AddValue("appDataRate", "OnOff application data rate", appDataRate);
+    cmd.AddValue("linkRate", "CSMA link data rate", linkRate);
+    cmd.AddValue("linkDelay", "CSMA link propagation delay", linkDelay);
+    cmd.AddValue("clientIndex", "Host index acting as UDP sender", clientIndex);
+    cmd.AddValue("switchRate",
+                 "P4 switch processing rate in packets per second (default 100000)",
+                 switchRate);
+    cmd.AddValue("serverIndex", "Host index acting as UDP receiver", serverIndex);
+    cmd.AddValue("serverPort", "UDP destination port", serverPort);
+    cmd.AddValue("flowDuration", "Duration of the OnOff flow (s)", flowDuration);
+    cmd.AddValue("simDuration", "Total simulation duration (s)", simDuration);
+    cmd.AddValue("pcap", "Enable PCAP tracing", enablePcap);
     cmd.Parse(argc, argv);
 
     // Derive timing from parameters
-    g_sinkStartTime   = g_simStartTime + 1.0;
+    g_sinkStartTime = g_simStartTime + 1.0;
     g_clientStartTime = g_sinkStartTime + 1.0;
-    g_clientStopTime  = g_clientStartTime + flowDuration;
-    g_sinkStopTime    = g_clientStopTime  + 5.0;
-    g_simStopTime     = g_sinkStopTime    + 5.0;
+    g_clientStopTime = g_clientStartTime + flowDuration;
+    g_sinkStopTime = g_clientStopTime + 5.0;
+    g_simStopTime = g_sinkStopTime + 5.0;
 
     // ---- topology ----
     P4TopologyReaderHelper p4TopoHelper;
@@ -288,16 +288,16 @@ main(int argc, char* argv[])
         return -1;
     }
 
-    NodeContainer terminals  = topoReader->GetHostNodeContainer();
+    NodeContainer terminals = topoReader->GetHostNodeContainer();
     NodeContainer switchNodes = topoReader->GetSwitchNodeContainer();
-    const uint32_t hostNum   = terminals.GetN();
+    const uint32_t hostNum = terminals.GetN();
     const uint32_t switchNum = switchNodes.GetN();
     NS_LOG_INFO("Hosts: " << hostNum << "  Switches: " << switchNum);
 
     // ---- link installation ----
     CsmaHelper csma;
     csma.SetChannelAttribute("DataRate", StringValue(linkRate));
-    csma.SetChannelAttribute("Delay",    TimeValue(Time(linkDelay)));
+    csma.SetChannelAttribute("Delay", TimeValue(Time(linkDelay)));
 
     NetDeviceContainer hostDevices;
     NetDeviceContainer switchDevices;
@@ -306,11 +306,26 @@ main(int argc, char* argv[])
         NetDeviceContainer link =
             csma.Install(NodeContainer(iter->GetFromNode(), iter->GetToNode()));
         char from = iter->GetFromType();
-        char to   = iter->GetToType();
-        if      (from == 's' && to == 's') { switchDevices.Add(link.Get(0)); switchDevices.Add(link.Get(1)); }
-        else if (from == 's' && to == 'h') { switchDevices.Add(link.Get(0)); hostDevices.Add(link.Get(1)); }
-        else if (from == 'h' && to == 's') { hostDevices.Add(link.Get(0));   switchDevices.Add(link.Get(1)); }
-        else { NS_ABORT_MSG("Unexpected link type: " << from << "-" << to); }
+        char to = iter->GetToType();
+        if (from == 's' && to == 's')
+        {
+            switchDevices.Add(link.Get(0));
+            switchDevices.Add(link.Get(1));
+        }
+        else if (from == 's' && to == 'h')
+        {
+            switchDevices.Add(link.Get(0));
+            hostDevices.Add(link.Get(1));
+        }
+        else if (from == 'h' && to == 's')
+        {
+            hostDevices.Add(link.Get(0));
+            switchDevices.Add(link.Get(1));
+        }
+        else
+        {
+            NS_ABORT_MSG("Unexpected link type: " << from << "-" << to);
+        }
     }
 
     // ---- IP stack ----
@@ -327,26 +342,25 @@ main(int argc, char* argv[])
     NS_LOG_INFO("Node IP / MAC addresses:");
     for (uint32_t i = 0; i < hostNum; ++i)
     {
-        Ptr<Node>    node   = terminals.Get(i);
-        Ipv4Address  ipAddr = node->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
-        Mac48Address mac    = Mac48Address::ConvertFrom(node->GetDevice(0)->GetAddress());
-        NS_LOG_INFO("  Host[" << i << "]  IP=" << ipAddr
-                    << " (" << ConvertIpToHex(ipAddr) << ")"
-                    << "  MAC=" << mac
-                    << " (" << ConvertMacToHex(mac) << ")");
+        Ptr<Node> node = terminals.Get(i);
+        Ipv4Address ipAddr = node->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
+        Mac48Address mac = Mac48Address::ConvertFrom(node->GetDevice(0)->GetAddress());
+        NS_LOG_INFO("  Host[" << i << "]  IP=" << ipAddr << " (" << ConvertIpToHex(ipAddr) << ")"
+                              << "  MAC=" << mac << " (" << ConvertMacToHex(mac) << ")");
     }
 
     // ---- P4 switch or ns-3 bridge ----
     if (model == 0)
     {
         NS_LOG_INFO("Configuring P4 PNA switch: " << p4JsonPath);
-        P4Helper p4SwitchHelper;
-        p4SwitchHelper.SetDeviceAttribute("JsonPath",      StringValue(p4JsonPath));
-        p4SwitchHelper.SetDeviceAttribute("FlowTablePath", StringValue(flowTablePath));
-        p4SwitchHelper.SetDeviceAttribute("ChannelType",   UintegerValue(0)); // CSMA
-        p4SwitchHelper.SetDeviceAttribute("P4SwitchArch",  UintegerValue(2)); // PNA
+        P4Helper p4Helper;
+        p4Helper.SetDeviceAttribute("JsonPath", StringValue(p4JsonPath));
+        p4Helper.SetDeviceAttribute("FlowTablePath", StringValue(flowTablePath));
+        p4Helper.SetDeviceAttribute("ChannelType", UintegerValue(0));  // CSMA
+        p4Helper.SetDeviceAttribute("P4SwitchArch", UintegerValue(2)); // PNA
+        p4Helper.SetDeviceAttribute("SwitchRate", UintegerValue(switchRate));
         for (uint32_t i = 0; i < switchNum; ++i)
-            p4SwitchHelper.Install(switchNodes.Get(i), switchDevices);
+            p4Helper.Install(switchNodes.Get(i), switchDevices);
     }
     else
     {
@@ -357,8 +371,8 @@ main(int argc, char* argv[])
     }
 
     // ---- applications ----
-    Ptr<Node>      serverNode = terminals.Get(serverIndex);
-    Ipv4Address    serverAddr = serverNode->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
+    Ptr<Node> serverNode = terminals.Get(serverIndex);
+    Ipv4Address serverAddr = serverNode->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
     InetSocketAddress dst(serverAddr, serverPort);
 
     // Packet sink (server)
@@ -370,9 +384,9 @@ main(int argc, char* argv[])
     // OnOff source (client)
     OnOffHelper onOff("ns3::UdpSocketFactory", dst);
     onOff.SetAttribute("PacketSize", UintegerValue(pktSize));
-    onOff.SetAttribute("DataRate",   StringValue(appDataRate));
-    onOff.SetAttribute("OnTime",     StringValue("ns3::ConstantRandomVariable[Constant=1]"));
-    onOff.SetAttribute("OffTime",    StringValue("ns3::ConstantRandomVariable[Constant=0]"));
+    onOff.SetAttribute("DataRate", StringValue(appDataRate));
+    onOff.SetAttribute("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1]"));
+    onOff.SetAttribute("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
 
     ApplicationContainer clientApp = onOff.Install(terminals.Get(clientIndex));
     clientApp.Start(Seconds(g_clientStartTime));
@@ -381,8 +395,7 @@ main(int argc, char* argv[])
     // ---- tracing ----
     DynamicCast<OnOffApplication>(clientApp.Get(0))
         ->TraceConnectWithoutContext("Tx", MakeCallback(&TxCallback));
-    sinkApp.Get(0)
-        ->TraceConnectWithoutContext("Rx", MakeCallback(&RxCallback));
+    sinkApp.Get(0)->TraceConnectWithoutContext("Rx", MakeCallback(&RxCallback));
 
     if (enablePcap)
         csma.EnablePcapAll("p4-pna-ipv4-forwarding");
