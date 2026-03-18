@@ -63,10 +63,13 @@ build_lib(
         model/p4-switch-net-device.cc
         model/custom-p2p-net-device.cc
         model/p4-controller.cc
+        model/dummy-switch-port.cc
+        model/dummy-switch-net-device.cc
         helper/p4-helper.cc
         helper/p4-topology-reader-helper.cc
         helper/p4-p2p-helper.cc
         helper/build-flowtable-helper.cc
+        helper/dummy-switch-helper.cc
     HEADER_FILES # equivalent to headers.source
         utils/p4-queue.h
         utils/format-utils.h
@@ -86,9 +89,12 @@ build_lib(
         model/p4-switch-net-device.h
         model/custom-p2p-net-device.h
         model/p4-controller.h
+        model/dummy-switch-port.h
+        model/dummy-switch-net-device.h
         helper/p4-helper.h
         helper/p4-topology-reader-helper.h
         helper/p4-p2p-helper.h
+        helper/dummy-switch-helper.h
         helper/build-flowtable-helper.h
     LIBRARIES_TO_LINK 
         ${libcore} 
@@ -99,9 +105,9 @@ build_lib(
         ${third_party_libs}
     TEST_SOURCES # equivalent to module_test.source
         test/p4-controller-test-suite.cc
-        # test/p4sim-test-suite.cc
-        # test/format-utils-test-suite.cc
-        # test/p4-topology-reader-test-suite.cc
-        # test/p4-p2p-channel-test-suite.cc
+         test/p4sim-test-suite.cc
+         test/format-utils-test-suite.cc
+         test/p4-topology-reader-test-suite.cc
+         test/p4-p2p-channel-test-suite.cc
         ${examples_as_tests_sources}
 )

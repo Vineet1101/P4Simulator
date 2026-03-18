@@ -17,6 +17,12 @@ set(P4SIM_BASE_LIBS
 set(P4SIM_CSMA_LIBS ${P4SIM_BASE_LIBS} ${libcsma})
 
 # ========================= V1model Architecture =======================
+# 2 hosts, 1 switch - Calculator P4 program
+build_lib_example(
+  NAME p4-calc
+  SOURCE_FILES p4-calc.cc
+  LIBRARIES_TO_LINK ${P4SIM_CSMA_LIBS}
+)
 
 # 2 hosts, 1 switch — IPv4 forwarding
 build_lib_example(
@@ -107,6 +113,17 @@ build_lib_example(
   NAME p4-ipv4-animation
   SOURCE_FILES p4-ipv4-animation.cc
   LIBRARIES_TO_LINK ${P4SIM_CSMA_LIBS} ${libnetanim} ${libmobility}
+)
+build_lib_example(
+  NAME dummy-switch-example
+  SOURCE_FILES dummy-switch-example.cc
+  LIBRARIES_TO_LINK
+    ${libp4sim}
+    ${libinternet}
+    ${libapplications}
+    ${libnetwork}
+    ${libcsma}
+    ${libtraffic-control}
 )
 
 # ========================= PSA Architecture ===========================
