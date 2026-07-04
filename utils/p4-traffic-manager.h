@@ -21,6 +21,7 @@
 #define P4_TRAFFIC_MANAGER_H
 
 #include "ns3/data-rate.h"
+#include "ns3/event-id.h"
 #include "ns3/nstime.h"
 #include "ns3/object.h"
 #include "ns3/traced-callback.h"
@@ -28,6 +29,7 @@
 #include <array>
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -49,9 +51,19 @@ namespace ns3
  *       -> egress pipeline -> ns-3 NetDevice
  *
  * This file implements phases P1 (VOQ + finite-buffer accounting + drop
- * reasons + stats/traces) and P2 (priority-first maximal-matching fabric
- * scheduler).  The event-driven timing model and the egress side are added in
- * later phases.
+ * reasons + stats/traces), P2 (priority-first maximal-matching fabric
+ * scheduler), P3 (ns-3 event-driven fabric-round timing) and P4 (per-output
+ * strict-priority egress queues + serialising egress scheduler).
+ *
+ * Two ways to drive the pipeline:
+ *   - Manual (default): call RunFabricScheduler()/DequeueFromVoq() yourself.
+ *     Nothing is scheduled on the ns-3 event queue.  Used by the low-level
+ *     unit tests.
+ *   - Event-driven (attribute "EventDriven" = true): EnqueueToVoq() arms a
+ *     self-clocking fabric loop (Simulator::Schedule, no threads) that moves
+ *     packets VOQ -> egress -> wire, respecting fabric/port rates and the
+ *     arbitration/pipeline delays.  Transmitted packets are handed to the
+ *     TransmitCallback (wired to an ns-3 NetDevice at integration time).
  *
  * Packet-format boundary: the Traffic Manager does NOT assume ns3::Packet.  It
  * carries an opaque, move-only ::ns3::TmPayload (see BmPacketPayload for the
@@ -149,6 +161,18 @@ class P4TrafficManager : public Object
     /// TracedCallback signature for waiting-delay measurements.
     typedef void (*DelayCallback)(Time delay);
 
+    /**
+     * \brief Delivery hook invoked when the egress scheduler serialises a
+     *        packet onto the wire (event-driven mode only).
+     *
+     * The Traffic Manager transfers ownership of the payload to the callback.
+     * At integration time this is wired to the ns-3 NetDevice send path; the
+     * unit tests use it to observe transmit order.  std::function (not
+     * ns3::Callback) because it carries a move-only unique_ptr argument.
+     */
+    using TransmitCallback =
+        std::function<void(uint32_t outPort, uint8_t priority, std::unique_ptr<TmPayload> payload)>;
+
     static TypeId GetTypeId();
 
     P4TrafficManager();
@@ -165,6 +189,12 @@ class P4TrafficManager : public Object
      */
     void SetNumPorts(uint32_t numPorts);
     uint32_t GetNumPorts() const;
+
+    /**
+     * \brief Set the delivery hook for transmitted packets (event-driven mode).
+     * \param cb callback receiving (outPort, priority, payload).
+     */
+    void SetTransmitCallback(TransmitCallback cb);
 
     // ---- Ingress boundary ----
 
@@ -226,6 +256,13 @@ class P4TrafficManager : public Object
     /// Bytes occupied by VOQ[in][out][prio].
     uint64_t VoqBytes(uint32_t inPort, uint32_t outPort, uint8_t priority) const;
 
+    /// Number of packets queued in egress[out][prio].
+    size_t EgressLength(uint32_t outPort, uint8_t priority) const;
+    /// Bytes occupied by all egress queues of a given output port.
+    uint64_t EgressPortBytes(uint32_t outPort) const;
+    /// Bytes occupied by egress[out][prio].
+    uint64_t EgressQueueBytes(uint32_t outPort, uint8_t priority) const;
+
     // ---- Statistics ----
 
     /**
@@ -236,7 +273,8 @@ class P4TrafficManager : public Object
         uint64_t totalReceived{0};       ///< packets offered to EnqueueToVoq
         uint64_t totalVoqEnqueued{0};    ///< packets accepted into a VOQ
         uint64_t totalMovedToEgress{0};  ///< packets dequeued from VOQ (granted)
-        uint64_t totalTransmitted{0};    ///< packets handed to the wire (later phases)
+        uint64_t totalEgressEnqueued{0}; ///< packets accepted into an egress queue
+        uint64_t totalTransmitted{0};    ///< packets serialised onto the wire
         uint64_t totalDropped{0};        ///< packets dropped for any reason
         std::array<uint64_t, 5> dropsByReason{}; ///< indexed by TmDropReason
         std::array<uint64_t, P4_TM_NUM_PRIORITIES> perPriorityTransmitted{};
@@ -289,7 +327,28 @@ class P4TrafficManager : public Object
         return static_cast<size_t>(inPort) * m_numPorts + outPort;
     }
 
+    // ---- P3: event-driven fabric loop ----
+    /// Arm a fabric round if one is not already pending (event-driven mode).
+    void ScheduleFabricRound();
+    /// One fabric round: apply grants (VOQ -> egress), then re-arm if work remains.
+    void RunFabricRoundEvent();
+    /// True if any VOQ holds at least one packet.
+    bool AnyVoqNonEmpty() const;
+
+    // ---- P4: egress side ----
+    /// Move a granted item into egress[out][prio]; false (and dropped) if full.
+    bool EnqueueToEgress(TmItem&& item);
+    /// Arm the serialising egress scheduler for one output port, if idle.
+    void ScheduleEgressService(uint32_t outPort);
+    /// Serialise the highest-priority egress packet of a port, then re-arm.
+    void EgressServiceEvent(uint32_t outPort);
+    /// Highest non-empty egress priority of a port, or -1 if all empty.
+    int SelectEgressPriority(uint32_t outPort) const;
+
     uint32_t m_numPorts{0};
+
+    /// Event-driven mode flag (attribute "EventDriven"); see class doc.
+    bool m_eventDriven{false};
 
     // Finite-buffer limits (bytes).  0 means "no limit".
     uint64_t m_globalBufferLimit{0};
@@ -311,13 +370,23 @@ class P4TrafficManager : public Object
     using PriQueues = std::array<std::deque<TmItem>, P4_TM_NUM_PRIORITIES>;
     std::vector<PriQueues> m_voq; ///< [Idx(in,out)] -> 8 priority deques
 
+    // ---- Egress storage: per output port, 8 strict-priority queues ----
+    std::vector<PriQueues> m_egress; ///< [out] -> 8 priority deques
+
     // ---- Byte accounting ----
     uint64_t m_globalBufferBytes{0};
     std::vector<uint64_t> m_inputBufferBytes; ///< [in]
     using PriBytes = std::array<uint64_t, P4_TM_NUM_PRIORITIES>;
     std::vector<PriBytes> m_voqBytes;         ///< [Idx(in,out)] -> 8 counters
-    std::vector<uint64_t> m_egressPortBytes;  ///< [out] (reserved for P4)
-    std::vector<PriBytes> m_egressQueueBytes; ///< [out] -> 8 counters (reserved for P4)
+    std::vector<uint64_t> m_egressPortBytes;  ///< [out]
+    std::vector<PriBytes> m_egressQueueBytes; ///< [out] -> 8 counters
+
+    // ---- Event-driven scheduling state ----
+    bool m_fabricScheduled{false};        ///< a fabric round is pending
+    EventId m_fabricEvent;                ///< pending fabric-round event
+    std::vector<bool> m_egressBusy;       ///< [out] port is serialising
+    std::vector<EventId> m_egressEvent;   ///< [out] pending egress-service event
+    TransmitCallback m_transmitCallback;  ///< delivery hook (set by integration)
 
     uint64_t m_nextUid{0};
     TmStats m_stats;
