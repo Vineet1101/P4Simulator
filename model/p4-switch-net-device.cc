@@ -111,6 +111,14 @@ P4SwitchNetDevice::GetTypeId()
                           MakeUintegerAccessor(&P4SwitchNetDevice::m_switchRate),
                           MakeUintegerChecker<uint64_t>())
 
+            .AddAttribute("EnableVoqFabric",
+                          "If true, a V1model switch routes post-ingress traffic through the "
+                          "VOQ + fabric Traffic Manager instead of the legacy output queues. "
+                          "Default false keeps the legacy output-queued datapath.",
+                          BooleanValue(false),
+                          MakeBooleanAccessor(&P4SwitchNetDevice::m_enableVoqFabric),
+                          MakeBooleanChecker())
+
             .AddAttribute(
                 "Mtu",
                 "Maximum Transmission Unit.",
@@ -221,6 +229,7 @@ P4SwitchNetDevice::DoInitialize()
                                             m_queueBufferSize);
         m_v1modelSwitch->InitializeSwitchFromP4Json(m_jsonPath);
         m_v1modelSwitch->LoadFlowTableToSwitch(m_flowTablePath);
+        m_v1modelSwitch->SetEnableVoqFabric(m_enableVoqFabric);
         m_v1modelSwitch->start_and_return_();
         break;
 

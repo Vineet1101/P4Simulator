@@ -274,6 +274,12 @@ class P4SwitchNetDevice : public NetDevice
     size_t m_queueBufferSize;
     uint64_t m_switchRate;
 
+    /// When true, a V1model core routes traffic through the VOQ + fabric
+    /// Traffic Manager instead of the legacy output queues (attribute
+    /// "EnableVoqFabric"; default false).  Propagated to the core in
+    /// DoInitialize() before start_and_return_().
+    bool m_enableVoqFabric{false};
+
     // -----------------------------------------------------------------------
     // NetDevice state
     // -----------------------------------------------------------------------
