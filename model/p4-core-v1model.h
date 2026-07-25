@@ -24,6 +24,7 @@
 #include "ns3/p4-queue.h"
 #include "ns3/p4-switch-core.h"
 #include "ns3/p4-switch-queue-item.h"
+#include "ns3/p4-traffic-manager.h"
 #include "ns3/queue-disc.h"
 #include "ns3/switched-ethernet-channel.h"
 
@@ -83,6 +84,28 @@ class P4CoreV1model : public P4SwitchCore
     void ScheduleEgressIfNeeded(uint32_t port);
     void PortTxComplete(uint32_t port);
     void TryTransmitFromQueueDisc(uint32_t port);
+
+    // === Optional VOQ + fabric Traffic Manager (opt-in, default OFF) ===
+    //
+    // Additive integration layer.  When disabled (the default), the switch uses
+    // the legacy output-queued path (egress_buffer + event-driven dequeue) and
+    // NONE of the methods below have any effect.  When enabled via
+    // SetEnableVoqFabric(true) before the switch starts, packets leaving the
+    // ingress pipeline are steered into a P4TrafficManager (VOQ -> priority-first
+    // fabric -> strict-priority egress) instead of egress_buffer.  The legacy
+    // path is left fully intact for side-by-side comparison / review.
+
+    /**
+     * @brief Enable or disable the VOQ + fabric Traffic Manager path.
+     *
+     * Must be called before start_and_return_() (the TM is constructed there,
+     * once the ports/link rate are known).  Default is disabled.
+     */
+    void SetEnableVoqFabric(bool enable);
+    bool GetEnableVoqFabric() const;
+
+    /** @brief The Traffic Manager instance, or nullptr if the VOQ path is off. */
+    Ptr<P4TrafficManager> GetTrafficManager() const;
 
     // === Per-port QueueDisc ===
 
@@ -171,6 +194,22 @@ class P4CoreV1model : public P4SwitchCore
     /// Physical link rate read from port 0 at startup; used for logging/diagnostics only.
     /// Actual serialisation delay is now modelled by the port NetDevice itself.
     uint64_t m_linkRateBps{1000000000ULL};
+
+    // ---- VOQ + fabric Traffic Manager (opt-in) ----
+
+    /// When true, HandleIngressPipeline's Enqueue() steers packets into m_trafficManager
+    /// instead of egress_buffer.  Default false keeps the legacy output-queued path.
+    bool m_enableVoqFabric{false};
+
+    /// The Traffic Manager (VOQ + fabric + egress).  Null unless m_enableVoqFabric.
+    Ptr<P4TrafficManager> m_trafficManager;
+
+    /// Steer a post-ingress bm::Packet into the Traffic Manager's VOQ.
+    void EnqueueToTrafficManager(uint32_t egress_port, std::unique_ptr<bm::Packet>&& packet);
+
+    /// TransmitCallback target: run egress pipeline + deparse + send for a packet
+    /// the Traffic Manager has serialised onto the wire.
+    void TmTransmit(uint32_t outPort, uint8_t priority, std::unique_ptr<TmPayload> payload);
 }; // class P4CoreV1model
 
 } // namespace ns3

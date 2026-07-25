@@ -20,6 +20,7 @@
 
 #include "ns3/p4-core-v1model.h"
 
+#include "ns3/boolean.h"
 #include "ns3/data-rate.h"
 #include "ns3/p4-switch-net-device.h"
 #include "ns3/p4-switch-queue-item.h"
@@ -27,11 +28,13 @@
 #include "ns3/register-access-v1model.h"
 #include "ns3/simulator.h"
 #include "ns3/switched-ethernet-channel.h"
+#include "ns3/uinteger.h"
 #include "p4-switch-net-device.h"
 
 #include <cstdint>
 #include <fstream> // tracing info to file
 #include <sstream>
+#include <utility>
 
 NS_LOG_COMPONENT_DEFINE("P4CoreV1model");
 
@@ -76,6 +79,26 @@ REGISTER_HASH(hash_ex_v1model);
 REGISTER_HASH(bmv2_hash_v1model);
 
 extern int import_primitives();
+
+// ---------------------------------------------------------------------------
+// bm::Packet payload wrapper for the Traffic Manager.
+//
+// The Traffic Manager carries opaque, move-only TmPayload objects and never
+// inspects them (preserving the packet-format boundary).  BmPacketPayload is
+// the concrete payload used by the real switch core: it owns the bm::Packet
+// while it sits in the VOQ / egress queues.  TmTransmit() downcasts back to
+// recover the bm::Packet when the packet is serialised onto the wire.
+// ---------------------------------------------------------------------------
+class BmPacketPayload : public TmPayload
+{
+  public:
+    explicit BmPacketPayload(std::unique_ptr<bm::Packet> pkt)
+        : m_packet(std::move(pkt))
+    {
+    }
+
+    std::unique_ptr<bm::Packet> m_packet;
+};
 
 P4CoreV1model::P4CoreV1model(P4SwitchNetDevice* net_device,
                              bool enable_swap,
@@ -150,6 +173,34 @@ P4CoreV1model::start_and_return_()
     NS_LOG_DEBUG("Switch ID: " << m_p4SwitchId << " using event-driven egress scheduler"
                                << " (queue rate = " << m_switchRate << " pps"
                                << ", link rate = " << m_linkRateBps << " bps)");
+
+    // Construct the VOQ + fabric Traffic Manager now that the ports and link
+    // rate are known.  Opt-in only; the legacy egress_buffer path is unaffected.
+    if (m_enableVoqFabric)
+    {
+        uint32_t nPorts = m_switchNetDevice ? m_switchNetDevice->GetNPorts() : 0u;
+        if (nPorts == 0)
+        {
+            NS_LOG_WARN("Switch ID: " << m_p4SwitchId
+                                      << " EnableVoqFabric set but no ports attached; "
+                                         "VOQ path stays disabled");
+            m_enableVoqFabric = false;
+        }
+        else
+        {
+            m_trafficManager = CreateObject<P4TrafficManager>();
+            m_trafficManager->SetAttribute("EventDriven", BooleanValue(true));
+            m_trafficManager->SetAttribute("NumPorts", UintegerValue(nPorts));
+            m_trafficManager->SetAttribute("PortRate", DataRateValue(DataRate(m_linkRateBps)));
+            m_trafficManager->SetTransmitCallback(
+                [this](uint32_t outPort, uint8_t priority, std::unique_ptr<TmPayload> payload) {
+                    this->TmTransmit(outPort, priority, std::move(payload));
+                });
+            NS_LOG_INFO("Switch ID: " << m_p4SwitchId << " VOQ + fabric Traffic Manager enabled ("
+                                      << nPorts << " ports, port rate = " << m_linkRateBps
+                                      << " bps)");
+        }
+    }
 }
 
 void
@@ -782,6 +833,25 @@ P4CoreV1model::HandleIngressPipeline()
 void
 P4CoreV1model::Enqueue(uint32_t egress_port, std::unique_ptr<bm::Packet>&& packet)
 {
+    // Opt-in VOQ + fabric path.  Steer normal port traffic into the Traffic
+    // Manager; anything with an out-of-range port (e.g. CPU / drop ports beyond
+    // the VOQ's N*N matrix) falls through to the legacy output-queued path
+    // below.  When m_enableVoqFabric is false this branch is never taken and the
+    // switch behaves exactly as before.
+    if (m_enableVoqFabric && m_trafficManager)
+    {
+        const uint32_t n = m_trafficManager->GetNumPorts();
+        const uint32_t in_port = static_cast<uint32_t>(packet->get_ingress_port());
+        if (egress_port < n && in_port < n)
+        {
+            EnqueueToTrafficManager(egress_port, std::move(packet));
+            return;
+        }
+        NS_LOG_DEBUG("VOQ path: port out of range (in=" << in_port << ", out=" << egress_port
+                                                        << ", N=" << n
+                                                        << "); using legacy egress_buffer");
+    }
+
     packet->set_egress_port(egress_port);
 
     bm::PHV* phv = packet->get_phv();
@@ -965,6 +1035,203 @@ P4CoreV1model::SetPortQueueDisc(uint32_t port, Ptr<QueueDisc> qd)
     }
 
     m_portQueueDiscs[port] = qd;
+}
+
+// ---------------------------------------------------------------------------
+// VOQ + fabric Traffic Manager (opt-in) integration
+// ---------------------------------------------------------------------------
+
+void
+P4CoreV1model::SetEnableVoqFabric(bool enable)
+{
+    NS_LOG_FUNCTION(this << enable);
+    m_enableVoqFabric = enable;
+}
+
+bool
+P4CoreV1model::GetEnableVoqFabric() const
+{
+    return m_enableVoqFabric;
+}
+
+Ptr<P4TrafficManager>
+P4CoreV1model::GetTrafficManager() const
+{
+    return m_trafficManager;
+}
+
+void
+P4CoreV1model::EnqueueToTrafficManager(uint32_t egress_port, std::unique_ptr<bm::Packet>&& packet)
+{
+    NS_LOG_FUNCTION(this << egress_port);
+
+    packet->set_egress_port(egress_port);
+    bm::PHV* phv = packet->get_phv();
+
+    // Priority 0..7 from the P4 program (7 = highest), matching the Traffic
+    // Manager's priority convention.  Clamp defensively.
+    size_t priority = phv->has_field("intrinsic_metadata.priority")
+                          ? phv->get_field("intrinsic_metadata.priority").get<size_t>()
+                          : 0u;
+    if (priority >= P4_TM_NUM_PRIORITIES)
+    {
+        priority = P4_TM_NUM_PRIORITIES - 1;
+    }
+
+    const uint32_t in_port = static_cast<uint32_t>(packet->get_ingress_port());
+    const uint32_t size_bytes = static_cast<uint32_t>(packet->get_data_size());
+
+    if (m_enableQueueingMetadata)
+    {
+        phv->get_field("queueing_metadata.enq_timestamp").set(GetTimeStamp());
+        phv->get_field("queueing_metadata.enq_qdepth")
+            .set(m_trafficManager->VoqLength(in_port, egress_port,
+                                             static_cast<uint8_t>(priority)));
+    }
+
+    auto payload = std::make_unique<BmPacketPayload>(std::move(packet));
+    bool accepted = m_trafficManager->EnqueueToVoq(std::move(payload),
+                                                   size_bytes,
+                                                   in_port,
+                                                   egress_port,
+                                                   static_cast<uint8_t>(priority));
+    if (!accepted)
+    {
+        NS_LOG_DEBUG("Traffic Manager dropped packet (in=" << in_port << ", out=" << egress_port
+                                                           << ", prio=" << priority << ")");
+    }
+}
+
+void
+P4CoreV1model::TmTransmit(uint32_t outPort, uint8_t priority, std::unique_ptr<TmPayload> payload)
+{
+    NS_LOG_FUNCTION(this << outPort << static_cast<uint32_t>(priority));
+
+    // Recover the bm::Packet handed to the Traffic Manager at enqueue time.
+    auto* wrapper = dynamic_cast<BmPacketPayload*>(payload.get());
+    if (!wrapper || !wrapper->m_packet)
+    {
+        NS_LOG_ERROR("TmTransmit: unexpected/empty payload, dropping");
+        return;
+    }
+    std::unique_ptr<bm::Packet> bm_packet = std::move(wrapper->m_packet);
+
+    // ---- Run the egress pipeline on the serialised packet ----
+    bm::PHV* phv = bm_packet->get_phv();
+    bm::Pipeline* egress_mau = this->get_pipeline("egress");
+    bm::Deparser* deparser = this->get_deparser("deparser");
+
+    if (phv->has_field("intrinsic_metadata.egress_global_timestamp"))
+    {
+        phv->get_field("intrinsic_metadata.egress_global_timestamp").set(GetTimeStamp());
+    }
+
+    if (m_enableQueueingMetadata)
+    {
+        uint64_t enq_timestamp = phv->get_field("queueing_metadata.enq_timestamp").get<uint64_t>();
+        phv->get_field("queueing_metadata.deq_timedelta").set(GetTimeStamp() - enq_timestamp);
+        phv->get_field("queueing_metadata.deq_qdepth")
+            .set(m_trafficManager->EgressLength(outPort, priority));
+        if (phv->has_field("queueing_metadata.qid") && priority < m_nbQueuesPerPort)
+        {
+            phv->get_field("queueing_metadata.qid").set(m_nbQueuesPerPort - 1 - priority);
+        }
+    }
+
+    phv->get_field("standard_metadata.egress_port").set(outPort);
+
+    bm::Field& f_egress_spec = phv->get_field("standard_metadata.egress_spec");
+    f_egress_spec.set(0);
+
+    phv->get_field("standard_metadata.packet_length")
+        .set(bm_packet->get_register(RegisterAccess::PACKET_LENGTH_REG_IDX));
+
+    egress_mau->apply(bm_packet.get());
+
+    // EGRESS CLONING
+    auto clone_mirror_session_id = RegisterAccess::get_clone_mirror_session_id(bm_packet.get());
+    auto clone_field_list = RegisterAccess::get_clone_field_list(bm_packet.get());
+    if (clone_mirror_session_id)
+    {
+        NS_LOG_DEBUG("Cloning packet at egress, Packet ID: " << bm_packet->get_packet_id());
+        RegisterAccess::set_clone_mirror_session_id(bm_packet.get(), 0);
+        RegisterAccess::set_clone_field_list(bm_packet.get(), 0);
+        MirroringSessionConfig config;
+        clone_mirror_session_id &= RegisterAccess::MIRROR_SESSION_ID_MASK;
+        bool is_session_configured =
+            GetMirroringSession(static_cast<int>(clone_mirror_session_id), &config);
+        if (is_session_configured)
+        {
+            std::unique_ptr<bm::Packet> packet_copy =
+                bm_packet->clone_with_phv_reset_metadata_ptr();
+            bm::PHV* phv_copy = packet_copy->get_phv();
+            bm::FieldList* field_list = this->get_field_list(clone_field_list);
+            field_list->copy_fields_between_phvs(phv_copy, phv);
+            phv_copy->get_field("standard_metadata.instance_type")
+                .set(PKT_INSTANCE_TYPE_EGRESS_CLONE);
+            auto packet_size = bm_packet->get_register(RegisterAccess::PACKET_LENGTH_REG_IDX);
+            RegisterAccess::clear_all(packet_copy.get());
+            packet_copy->set_register(RegisterAccess::PACKET_LENGTH_REG_IDX, packet_size);
+            if (config.mgid_valid)
+            {
+                NS_LOG_DEBUG("Cloning packet to MGID " << config.mgid);
+                MulticastPacket(packet_copy.get(), config.mgid);
+            }
+            if (config.egress_port_valid)
+            {
+                NS_LOG_DEBUG("Cloning packet to egress port " << config.egress_port);
+                Enqueue(config.egress_port, std::move(packet_copy));
+            }
+        }
+    }
+
+    uint32_t egress_spec = f_egress_spec.get_uint();
+    if (egress_spec == m_dropPort)
+    {
+        NS_LOG_DEBUG("Dropping packet at the end of egress (VOQ path)");
+        return;
+    }
+
+    deparser->deparse(bm_packet.get());
+
+    // RECIRCULATE
+    auto recirculate_flag = RegisterAccess::get_recirculate_flag(bm_packet.get());
+    if (recirculate_flag)
+    {
+        NS_LOG_DEBUG("Recirculating packet (VOQ path)");
+        int field_list_id = recirculate_flag;
+        RegisterAccess::set_recirculate_flag(bm_packet.get(), 0);
+        bm::FieldList* field_list = this->get_field_list(field_list_id);
+        std::unique_ptr<bm::Packet> packet_copy = bm_packet->clone_no_phv_ptr();
+        bm::PHV* phv_copy = packet_copy->get_phv();
+        phv_copy->reset_metadata();
+        field_list->copy_fields_between_phvs(phv_copy, phv);
+        phv_copy->get_field("standard_metadata.instance_type").set(PKT_INSTANCE_TYPE_RECIRC);
+        size_t packet_size = packet_copy->get_data_size();
+        RegisterAccess::clear_all(packet_copy.get());
+        packet_copy->set_register(RegisterAccess::PACKET_LENGTH_REG_IDX, packet_size);
+        phv_copy->get_field("standard_metadata.packet_length").set(packet_size);
+        packet_copy->set_ingress_length(packet_size);
+        input_buffer->push_front(InputBuffer::PacketType::RECIRCULATE, std::move(packet_copy));
+        HandleIngressPipeline();
+        return;
+    }
+
+    // Convert to an ns-3 packet and hand it to the NetDevice.  The Traffic
+    // Manager has already modelled output-port serialisation (PortRate), so we
+    // transmit directly without the legacy per-port busy / PortTxComplete gate.
+    uint16_t protocol = RegisterAccess::get_ns_protocol(bm_packet.get());
+    int addr_index = RegisterAccess::get_ns_address(bm_packet.get());
+    Ptr<Packet> ns_packet = this->ConvertToNs3Packet(std::move(bm_packet));
+
+    NS_LOG_DEBUG("VOQ path TX to NS-3 stack, Packet ID: " << ns_packet->GetUid() << ", Size: "
+                                                          << ns_packet->GetSize()
+                                                          << " bytes, Port: " << outPort);
+
+    m_switchNetDevice->SendNs3Packet(ns_packet,
+                                     static_cast<int>(outPort),
+                                     protocol,
+                                     m_destinationList[addr_index]);
 }
 
 } // namespace ns3
