@@ -144,6 +144,15 @@ P4CoreV1model::~P4CoreV1model()
 {
     NS_LOG_FUNCTION(this << " Destructing P4CoreV1model...");
 
+    // Dispose the Traffic Manager first: this cancels its pending fabric/egress
+    // events and clears its transmit callback (which captures this core), so no
+    // scheduled TM event can fire on a partially destroyed core.
+    if (m_trafficManager)
+    {
+        m_trafficManager->Dispose();
+        m_trafficManager = nullptr;
+    }
+
     if (input_buffer)
     {
         input_buffer->push_front(InputBuffer::PacketType::SENTINEL, nullptr);
@@ -190,6 +199,10 @@ P4CoreV1model::start_and_return_()
         {
             m_trafficManager = CreateObject<P4TrafficManager>();
             m_trafficManager->SetAttribute("EventDriven", BooleanValue(true));
+            // Completion-driven egress: the TM selects the next frame, but the
+            // channel/PHY decides when it has finished serialising and signals
+            // back via TmNotifyTxDone() -> NotifyEgressTxComplete().
+            m_trafficManager->SetAttribute("EgressCompletionDriven", BooleanValue(true));
             m_trafficManager->SetAttribute("NumPorts", UintegerValue(nPorts));
             m_trafficManager->SetAttribute("PortRate", DataRateValue(DataRate(m_linkRateBps)));
             m_trafficManager->SetTransmitCallback(
@@ -1112,6 +1125,8 @@ P4CoreV1model::TmTransmit(uint32_t outPort, uint8_t priority, std::unique_ptr<Tm
     if (!wrapper || !wrapper->m_packet)
     {
         NS_LOG_ERROR("TmTransmit: unexpected/empty payload, dropping");
+        // Nothing to serialise: free the port immediately so egress advances.
+        Simulator::ScheduleNow(&P4CoreV1model::TmNotifyTxDone, this, outPort);
         return;
     }
     std::unique_ptr<bm::Packet> bm_packet = std::move(wrapper->m_packet);
@@ -1189,6 +1204,8 @@ P4CoreV1model::TmTransmit(uint32_t outPort, uint8_t priority, std::unique_ptr<Tm
     if (egress_spec == m_dropPort)
     {
         NS_LOG_DEBUG("Dropping packet at the end of egress (VOQ path)");
+        // Dropped at egress: no wire time, free the port immediately.
+        Simulator::ScheduleNow(&P4CoreV1model::TmNotifyTxDone, this, outPort);
         return;
     }
 
@@ -1214,24 +1231,44 @@ P4CoreV1model::TmTransmit(uint32_t outPort, uint8_t priority, std::unique_ptr<Tm
         packet_copy->set_ingress_length(packet_size);
         input_buffer->push_front(InputBuffer::PacketType::RECIRCULATE, std::move(packet_copy));
         HandleIngressPipeline();
+        // Recirculated, not transmitted: free the port immediately.
+        Simulator::ScheduleNow(&P4CoreV1model::TmNotifyTxDone, this, outPort);
         return;
     }
 
     // Convert to an ns-3 packet and hand it to the NetDevice.  The Traffic
-    // Manager has already modelled output-port serialisation (PortRate), so we
-    // transmit directly without the legacy per-port busy / PortTxComplete gate.
+    // Manager chose this frame; the channel/PHY now decides its serialisation
+    // time and we report completion back so the TM can serve the next frame.
     uint16_t protocol = RegisterAccess::get_ns_protocol(bm_packet.get());
     int addr_index = RegisterAccess::get_ns_address(bm_packet.get());
     Ptr<Packet> ns_packet = this->ConvertToNs3Packet(std::move(bm_packet));
+    uint32_t frameBytes = ns_packet->GetSize();
 
-    NS_LOG_DEBUG("VOQ path TX to NS-3 stack, Packet ID: " << ns_packet->GetUid() << ", Size: "
-                                                          << ns_packet->GetSize()
+    NS_LOG_DEBUG("VOQ path TX to NS-3 stack, Packet ID: " << ns_packet->GetUid()
+                                                          << ", Size: " << frameBytes
                                                           << " bytes, Port: " << outPort);
 
     m_switchNetDevice->SendNs3Packet(ns_packet,
                                      static_cast<int>(outPort),
                                      protocol,
                                      m_destinationList[addr_index]);
+
+    // Serialisation time is set by the port's channel (the PHY), not by the TM.
+    // Report completion when the last bit has been serialised; the sender is
+    // then free to send the next frame (the channel allows this while the frame
+    // is still propagating).
+    Ptr<SwitchedEthernetChannel> ch = m_switchNetDevice->GetPortChannel(outPort);
+    Time txTime = ch ? ch->GetDataRate().CalculateBytesTxTime(frameBytes) : Time(0);
+    Simulator::Schedule(txTime, &P4CoreV1model::TmNotifyTxDone, this, outPort);
+}
+
+void
+P4CoreV1model::TmNotifyTxDone(uint32_t outPort)
+{
+    if (m_trafficManager)
+    {
+        m_trafficManager->NotifyEgressTxComplete(outPort, true);
+    }
 }
 
 } // namespace ns3

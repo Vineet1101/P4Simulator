@@ -208,8 +208,14 @@ class P4CoreV1model : public P4SwitchCore
     void EnqueueToTrafficManager(uint32_t egress_port, std::unique_ptr<bm::Packet>&& packet);
 
     /// TransmitCallback target: run egress pipeline + deparse + send for a packet
-    /// the Traffic Manager has serialised onto the wire.
+    /// the Traffic Manager has selected for transmission.
     void TmTransmit(uint32_t outPort, uint8_t priority, std::unique_ptr<TmPayload> payload);
+
+    /// Datapath -> Traffic Manager completion hook.  Scheduled by TmTransmit()
+    /// for the moment the output port finishes serialising the current frame;
+    /// forwards to P4TrafficManager::NotifyEgressTxComplete() so the TM counts
+    /// the frame and serves the next one.
+    void TmNotifyTxDone(uint32_t outPort);
 }; // class P4CoreV1model
 
 } // namespace ns3
