@@ -39,6 +39,13 @@ build_lib_example(
   LIBRARIES_TO_LINK ${P4SIM_CSMA_LIBS}
 )
 
+# 2 hosts, 1 switch — throughput benchmark for the VOQ + fabric datapath
+build_lib_example(
+  NAME p4-voq-fabric-throughput
+  SOURCE_FILES p4-voq-fabric-throughput.cc
+  LIBRARIES_TO_LINK ${P4SIM_CSMA_LIBS}
+)
+
 # # 3 hosts, 3 routers (line topology) — L3 forwarding
 # build_lib_example(
 #   NAME p4-l3-router
