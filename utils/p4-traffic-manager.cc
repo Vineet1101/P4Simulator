@@ -150,6 +150,15 @@ P4TrafficManager::GetTypeId()
                           BooleanValue(false),
                           MakeBooleanAccessor(&P4TrafficManager::m_eventDriven),
                           MakeBooleanChecker())
+            .AddAttribute("EgressCompletionDriven",
+                          "If true (and EventDriven), the egress scheduler hands each "
+                          "frame to the TransmitCallback and waits for "
+                          "NotifyEgressTxComplete() before counting it transmitted and "
+                          "serving the next frame (the datapath/PHY decides the timing). "
+                          "If false, egress self-clocks serialisation at PortRate.",
+                          BooleanValue(false),
+                          MakeBooleanAccessor(&P4TrafficManager::m_egressCompletionDriven),
+                          MakeBooleanChecker())
             .AddTraceSource("VoqEnqueue",
                             "A packet was enqueued into a VOQ (in, out, prio, bytes).",
                             MakeTraceSourceAccessor(&P4TrafficManager::m_voqEnqueueTrace),
@@ -211,6 +220,9 @@ P4TrafficManager::DoDispose()
     m_inputBufferBytes.clear();
     m_egressPortBytes.clear();
     m_egressQueueBytes.clear();
+    m_egressInFlight.clear();
+    m_inFlightBytes.clear();
+    m_inFlightPrio.clear();
     Object::DoDispose();
 }
 
@@ -265,6 +277,9 @@ P4TrafficManager::AllocateStructures()
     m_egressQueueBytes.assign(n, PriBytes{});
     m_egressBusy.assign(n, false);
     m_egressEvent = std::vector<EventId>(n);
+    m_egressInFlight.assign(n, false);
+    m_inFlightBytes.assign(n, 0);
+    m_inFlightPrio.assign(n, 0);
 
     m_globalBufferBytes = 0;
     m_stats.perPortTxBytes.assign(n, 0);
@@ -465,7 +480,11 @@ P4TrafficManager::ScheduleFabricRound()
         return;
     }
     m_fabricScheduled = true;
-    m_fabricEvent = Simulator::Schedule(m_fabricArbitrationDelay,
+    // A freshly arrived packet must traverse the ingress pipeline before it can
+    // be arbitrated by the fabric, so the first round after the fabric goes idle
+    // is delayed by the ingress pipeline delay in addition to the arbitration
+    // delay.  (Re-arms from RunFabricRoundEvent add only the arbitration delay.)
+    m_fabricEvent = Simulator::Schedule(m_ingressPipelineDelay + m_fabricArbitrationDelay,
                                         &P4TrafficManager::RunFabricRoundEvent,
                                         this);
 }
@@ -615,6 +634,13 @@ P4TrafficManager::EgressServiceEvent(uint32_t outPort)
     q.pop_front();
 
     const uint32_t sizeBytes = item.sizeBytes;
+    const uint32_t inPort = item.inPort;
+
+    // The packet leaves the egress queue now: release its buffer occupancy and
+    // record its queueing delays.  The "on the wire" counters (totalTransmitted
+    // etc.) are handled only once the frame is actually transmitted -- below in
+    // self-clocked mode, or on NotifyEgressTxComplete() in completion-driven
+    // mode.
     m_egressPortBytes[outPort] -= sizeBytes;
     m_egressQueueBytes[outPort][static_cast<size_t>(prio)] -= sizeBytes;
     m_globalBufferBytes -= sizeBytes;
@@ -623,9 +649,6 @@ P4TrafficManager::EgressServiceEvent(uint32_t outPort)
     const Time egressDelay = now - item.egressEnqueueTime;
     const Time totalDelay = now - item.voqEnqueueTime;
 
-    m_stats.totalTransmitted++;
-    m_stats.perPriorityTransmitted[static_cast<size_t>(prio)]++;
-    m_stats.perPortTxBytes[outPort] += sizeBytes;
     m_stats.sumEgressDelay += egressDelay;
     m_stats.cntEgressDelay++;
     m_stats.sumTotalDelay += totalDelay;
@@ -635,24 +658,72 @@ P4TrafficManager::EgressServiceEvent(uint32_t outPort)
         m_stats.maxQueueingDelay = totalDelay;
     }
 
-    m_egressDequeueTrace(item.inPort, outPort, static_cast<uint8_t>(prio), sizeBytes);
+    m_egressDequeueTrace(inPort, outPort, static_cast<uint8_t>(prio), sizeBytes);
     m_egressDelayTrace(egressDelay);
     m_totalDelayTrace(totalDelay);
 
-    // Deliver the payload (integration wires this to the ns-3 NetDevice send).
+    // Hand the frame to the datapath FIRST; it is counted as transmitted only
+    // after that (self-clocked below, or on the completion signal).
     if (m_transmitCallback)
     {
         m_transmitCallback(outPort, static_cast<uint8_t>(prio), std::move(item.payload));
     }
 
-    // Serialisation: the port is busy for this packet's transmission time; the
-    // next packet is serviced when transmission completes.  The service event
-    // finding the port empty is what finally clears m_egressBusy.
+    if (m_egressCompletionDriven)
+    {
+        // Completion-driven: the datapath (PHY/MAC) decides when the frame has
+        // finished serialising and calls NotifyEgressTxComplete(), which counts
+        // it and serves the next frame.  The port stays marked busy meanwhile.
+        m_egressInFlight[outPort] = true;
+        m_inFlightBytes[outPort] = sizeBytes;
+        m_inFlightPrio[outPort] = static_cast<uint8_t>(prio);
+        return;
+    }
+
+    // Self-clocked: count the frame as transmitted and re-arm after this port's
+    // serialisation time (PortRate).  The next service finding the port empty is
+    // what finally clears m_egressBusy.
+    m_stats.totalTransmitted++;
+    m_stats.perPriorityTransmitted[static_cast<size_t>(prio)]++;
+    m_stats.perPortTxBytes[outPort] += sizeBytes;
+
     const Time txTime = m_portRate.CalculateBytesTxTime(sizeBytes);
     m_egressEvent[outPort] = Simulator::Schedule(txTime,
                                                  &P4TrafficManager::EgressServiceEvent,
                                                  this,
                                                  outPort);
+}
+
+void
+P4TrafficManager::NotifyEgressTxComplete(uint32_t outPort, bool success)
+{
+    NS_LOG_FUNCTION(this << outPort << success);
+
+    if (!ValidPort(outPort) || !m_egressCompletionDriven || !m_egressInFlight[outPort])
+    {
+        // Nothing in flight for this port, or not in completion-driven mode.
+        return;
+    }
+
+    if (success)
+    {
+        const uint8_t prio = m_inFlightPrio[outPort];
+        m_stats.totalTransmitted++;
+        m_stats.perPriorityTransmitted[prio]++;
+        m_stats.perPortTxBytes[outPort] += m_inFlightBytes[outPort];
+    }
+    else
+    {
+        NS_LOG_WARN("Egress tx failed on port " << outPort << " (frame not sent)");
+    }
+
+    m_egressInFlight[outPort] = false;
+
+    // The datapath signalled us at the moment the port became free, so serve
+    // the next frame now.  m_egressBusy stays true across the in-flight gap;
+    // the next EgressServiceEvent clears it if the port has drained.
+    m_egressEvent[outPort] =
+        Simulator::ScheduleNow(&P4TrafficManager::EgressServiceEvent, this, outPort);
 }
 
 // ---------------------------------------------------------------------------

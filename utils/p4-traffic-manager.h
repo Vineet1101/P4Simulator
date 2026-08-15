@@ -196,6 +196,25 @@ class P4TrafficManager : public Object
      */
     void SetTransmitCallback(TransmitCallback cb);
 
+    /**
+     * \brief Datapath -> Traffic Manager transmit-completion signal.
+     *
+     * In completion-driven egress mode (attribute "EgressCompletionDriven"),
+     * EgressServiceEvent() hands each frame to the TransmitCallback and then
+     * waits: it is the datapath (PHY/MAC) that decides when the frame has
+     * finished serialising onto the wire and calls this to report it.  Only on
+     * that signal does the Traffic Manager count the frame as transmitted and
+     * release the port to serve the next frame.  This decouples "which packet
+     * goes next" (the TM's decision) from "when the wire is free" (the PHY's).
+     *
+     * No-op unless the port has a frame in flight in completion-driven mode.
+     *
+     * \param outPort  output port whose in-flight frame just finished.
+     * \param success  true if the frame was accepted onto the wire; false if
+     *                 the datapath could not send it (counted as a tx failure).
+     */
+    void NotifyEgressTxComplete(uint32_t outPort, bool success);
+
     // ---- Ingress boundary ----
 
     /**
@@ -350,6 +369,14 @@ class P4TrafficManager : public Object
     /// Event-driven mode flag (attribute "EventDriven"); see class doc.
     bool m_eventDriven{false};
 
+    /// Completion-driven egress (attribute "EgressCompletionDriven").  When
+    /// true, the egress scheduler hands each frame to the TransmitCallback and
+    /// waits for NotifyEgressTxComplete() before counting it as transmitted and
+    /// serving the next frame (the PHY decides the timing).  When false
+    /// (default), egress self-clocks its serialisation at PortRate.  Only
+    /// meaningful together with EventDriven.
+    bool m_egressCompletionDriven{false};
+
     // Finite-buffer limits (bytes).  0 means "no limit".
     uint64_t m_globalBufferLimit{0};
     uint64_t m_inputBufferLimit{0};
@@ -387,6 +414,12 @@ class P4TrafficManager : public Object
     std::vector<bool> m_egressBusy;       ///< [out] port is serialising
     std::vector<EventId> m_egressEvent;   ///< [out] pending egress-service event
     TransmitCallback m_transmitCallback;  ///< delivery hook (set by integration)
+
+    // Completion-driven egress: the frame currently handed to the datapath and
+    // awaiting a NotifyEgressTxComplete() for that output port.
+    std::vector<bool> m_egressInFlight;    ///< [out] a frame is on the wire
+    std::vector<uint32_t> m_inFlightBytes; ///< [out] size of the in-flight frame
+    std::vector<uint8_t> m_inFlightPrio;   ///< [out] priority of the in-flight frame
 
     uint64_t m_nextUid{0};
     TmStats m_stats;
