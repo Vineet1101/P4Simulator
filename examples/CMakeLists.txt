@@ -53,6 +53,13 @@ build_lib_example(
   LIBRARIES_TO_LINK ${P4SIM_CSMA_LIBS}
 )
 
+# 4 hosts, 1 switch — DDoS mitigation via QoS priority over the VOQ path
+build_lib_example(
+  NAME p4-voq-fabric-ddos
+  SOURCE_FILES p4-voq-fabric-ddos.cc
+  LIBRARIES_TO_LINK ${P4SIM_CSMA_LIBS}
+)
+
 # # 3 hosts, 3 routers (line topology) — L3 forwarding
 # build_lib_example(
 #   NAME p4-l3-router
