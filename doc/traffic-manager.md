@@ -275,6 +275,41 @@ The delivered goodput sits right at the header-overhead ceiling at both rates,
 confirming the completion-driven egress serialises at true line rate with no
 artificial timer bottleneck and no internal loss.
 
+### 6.4 Strict-priority demo — `examples/p4-voq-fabric-priority.cc`
+
+Two saturating UDP flows from two **separate sender hosts** converge on one
+receiver through a switch running the `qos` P4 program, which classifies by UDP
+destination port (`dport 4000 → priority 3` HIGH, `dport 2000 → priority 1`
+LOW). Each flow enters on its own ingress port — so each has its own host NIC
+and its own VOQ — and they contend only inside the switch, at the shared
+oversubscribed output port. A finite egress buffer turns the excess into
+Traffic-Manager drops rather than unbounded queueing.
+
+```
+$ ./ns3 run "p4-voq-fabric-priority"
+  egressLink=100Mbps  perFlow=0.7x egress line (combined 1.4x)
+  HIGH=dport 4000 (prio 3) from host0   LOW=dport 2000 (prio 1) from host1
+  HIGH: rx=1678600 B  ~67.14 Mbps  (offered ~70.00 Mbps, retained 95.92%)
+  LOW : rx=739200 B  ~29.57 Mbps  (offered ~70.00 Mbps)
+  [TM] received=2421 transmitted prio3=1199 prio1=528 dropped=690
+  [PASS] Both priority classes carried some traffic
+  [PASS] HIGH priority delivered more than LOW under congestion
+  [PASS] TM transmitted more prio-3 frames than prio-1 frames
+  [PASS] HIGH priority protected (retained offered load)
+  [PASS] TM dropped the excess low-priority load (port oversubscribed)
+=== STRICT PRIORITY OBSERVED (0 failure(s)) ===
+```
+
+| Class | Priority | Offered | Delivered | Result |
+| --- | --- | --- | --- | --- |
+| HIGH | 3 | ~70 Mbps | ~67.1 Mbps (95.9 %) | protected — served in full |
+| LOW | 1 | ~70 Mbps | ~29.6 Mbps | throttled to leftover (~line − HIGH) |
+
+With the port oversubscribed at 1.4×, the HIGH class keeps essentially all of its
+offered load while the LOW class is squeezed to the ~30 Mbps the link has left
+after HIGH is served, and 690 excess low-priority frames are dropped — exactly
+the strict-priority contract.
+
 ---
 
 ## 7. How to run
@@ -293,6 +328,9 @@ From the ns-3 root (with this module in `contrib/p4sim`):
 # re-initialised within a single process)
 ./ns3 run "p4-voq-fabric-throughput --linkRate=100Mbps"
 ./ns3 run "p4-voq-fabric-throughput --linkRate=1000Mbps"
+
+# Strict-priority demo (HIGH vs LOW flow on a congested output)
+./ns3 run "p4-voq-fabric-priority"
 ```
 
 ---
@@ -308,3 +346,4 @@ From the ns-3 root (with this module in `contrib/p4sim`):
 | `test/p4-traffic-manager-test-suite.cc` | 9-case unit suite |
 | `examples/p4-voq-fabric-integration.cc` | End-to-end additive-contract check |
 | `examples/p4-voq-fabric-throughput.cc` | Near-line-rate goodput benchmark |
+| `examples/p4-voq-fabric-priority.cc` | Strict-priority demo (HIGH protected, LOW throttled) |
