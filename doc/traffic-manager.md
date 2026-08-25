@@ -85,16 +85,24 @@ is decoupled instead:
 
 1. `EgressServiceEvent()` hands the frame to the `TransmitCallback` **first**,
    then waits — it does **not** immediately count the frame or re-arm the port.
-2. The datapath (the switched-Ethernet channel / PHY) decides when the frame has
-   finished serialising onto the wire and calls
-   `NotifyEgressTxComplete(outPort, success)`.
-3. Only on that signal does the TM count the frame as transmitted
-   (`totalTransmitted`, `perPriorityTransmitted`, `perPortTxBytes`), clear the
-   in-flight slot, and serve the next frame.
+2. The datapath (the switched-Ethernet channel / PHY) runs the egress pipeline
+   and decides what became of the frame, then calls
+   `NotifyEgressTxComplete(outPort, outcome)` with a `TmTxOutcome`.
+3. Only on that signal does the TM account for the frame by outcome, clear the
+   in-flight slot, and serve the next frame:
+   - `TRANSMITTED` — the frame reached the wire: count it toward
+     `totalTransmitted`, `perPriorityTransmitted`, `perPortTxBytes`.
+   - `DROPPED` — the egress pipeline `drop()`ped it, or the datapath could not
+     send it (channel busy / bad port): count it as a drop
+     (`totalDropped`, `dropsByReason[EGRESS_POST_DEQUEUE_DROP]`).
+   - `RECIRCULATED` — the frame went back to ingress instead of onto the wire:
+     count it in `totalRecirculated`. It is sent for real on a later pass, so
+     counting it as transmitted here would double-count it.
 
 This separates *"which packet goes next"* (the TM's decision) from *"when the
 wire is free"* (the PHY's), and guarantees `totalTransmitted` counts a frame only
-**after** it is actually on the wire — never before.
+**after** it is actually on the wire — never a frame that was dropped or
+recirculated after leaving the egress queue.
 
 The accounting is split accordingly: **queue-residence** work (buffer release,
 egress/total delay, egress-dequeue trace) happens at dequeue; **on-wire**
@@ -172,8 +180,9 @@ Switch-level knob (on `ns3::P4SwitchNetDevice`):
 | `totalMovedToEgress` | dequeued from VOQ (granted by the fabric) |
 | `totalEgressEnqueued` | accepted into an egress queue |
 | `totalTransmitted` | serialised onto the wire (counted **after** transmit) |
+| `totalRecirculated` | recirculated after egress dequeue (not transmitted) |
 | `totalDropped` | dropped for any reason |
-| `dropsByReason[5]` | per-`TmDropReason` breakdown |
+| `dropsByReason[6]` | per-`TmDropReason` breakdown |
 | `perPriorityTransmitted[8]` | transmitted per priority level |
 | `perPortTxBytes[]` | bytes transmitted per output port |
 | `AvgVoqDelay/AvgEgressDelay/AvgTotalDelay`, `maxQueueingDelay` | delay accumulators |
@@ -181,13 +190,16 @@ Switch-level knob (on `ns3::P4SwitchNetDevice`):
 Trace sources: `VoqEnqueue`, `VoqDequeue`, `EgressEnqueue`, `EgressDequeue`,
 `Drop`, `VoqWaitingDelay`, `EgressWaitingDelay`, `TotalDelay`.
 
-Drop reasons (`TmDropReason`), checked in admission order:
+Drop reasons (`TmDropReason`). Reasons 1–5 are admission drops, checked in
+admission order; reason 6 is a post-dequeue drop reported by the datapath:
 
 1. `VOQ_GLOBAL_BUFFER_FULL` — global buffer would overflow
 2. `VOQ_INPUT_BUFFER_FULL` — per-input-port buffer would overflow
 3. `VOQ_QUEUE_FULL` — the target `VOQ[in][out][prio]` would overflow
 4. `EGRESS_PORT_BUFFER_FULL` — per-output-port egress buffer would overflow
 5. `EGRESS_QUEUE_FULL` — the target egress queue would overflow
+6. `EGRESS_POST_DEQUEUE_DROP` — dropped after egress dequeue: the egress
+   pipeline `drop()`ped the frame, or the datapath could not send it
 
 ---
 
