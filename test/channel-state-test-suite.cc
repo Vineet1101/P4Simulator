@@ -100,9 +100,12 @@ void ChannelStateTransitionTest::CheckPropagating(
   NS_TEST_ASSERT_MSG_EQ(ch->GetState(slot), PROPAGATING_STATE,
                         "Slot " << slot
                                 << " should be PROPAGATING after TransmitEnd");
+  // Serialisation is done, so the sender is free to start the next frame even
+  // though this one is still propagating: IsBusy() reports false while only
+  // PROPAGATING (see SwitchedEthernetChannel::IsBusy()).
   NS_TEST_ASSERT_MSG_EQ(
-      ch->IsBusy(slot), true,
-      "Slot " << slot << " IsBusy() should be true while PROPAGATING");
+      ch->IsBusy(slot), false,
+      "Slot " << slot << " IsBusy() should be false while only PROPAGATING");
 }
 
 void ChannelStateTransitionTest::CheckIdleAfterProp(

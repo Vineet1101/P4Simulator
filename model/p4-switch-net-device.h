@@ -23,6 +23,7 @@
 
 #include "ns3/mac48-address.h"
 #include "ns3/net-device.h"
+#include "ns3/nstime.h"
 #include "ns3/traced-callback.h"
 
 #include <cstdint>
@@ -149,11 +150,18 @@ class P4SwitchNetDevice : public NetDevice
      * The packet must still carry the Ethernet header produced by the
      * P4 pipeline.  Port 511 is the conventional drop port.
      * Transmission timing is computed from the channel's DataRate.
+     *
+     * \param [out] txTime  if non-null, set to the frame's serialisation time
+     *                      when the frame was accepted onto the channel (left
+     *                      unchanged when the frame was dropped).
+     * \return true if the frame was handed to the channel; false if it was
+     *         dropped (null packet, drop port, invalid port, or channel busy).
      */
-    void SendNs3Packet(Ptr<Packet> packetOut,
+    bool SendNs3Packet(Ptr<Packet> packetOut,
                        int outPort,
                        uint16_t protocol,
-                       const Address& destination);
+                       const Address& destination,
+                       Time* txTime = nullptr);
 
     // -----------------------------------------------------------------------
     // Port accessors
@@ -249,8 +257,16 @@ class P4SwitchNetDevice : public NetDevice
     /**
      * \brief Transmit \p packet on \p channel using slot \p devId.
      *        Schedules TransmitEnd() based on the channel's DataRate.
+     *
+     * \param [out] txTime  if non-null, set to the frame's serialisation time
+     *                      when the transmission started (unchanged on failure).
+     * \return true if the channel accepted the frame; false if it was busy or
+     *         the device was inactive (frame dropped).
      */
-    void TransmitOn(Ptr<SwitchedEthernetChannel> channel, uint32_t devId, Ptr<Packet> packet);
+    bool TransmitOn(Ptr<SwitchedEthernetChannel> channel,
+                    uint32_t devId,
+                    Ptr<Packet> packet,
+                    Time* txTime = nullptr);
 
     // -----------------------------------------------------------------------
     // P4 switch configuration

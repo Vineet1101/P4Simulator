@@ -49,6 +49,8 @@ TmDropReasonToString(TmDropReason r)
         return "EGRESS_PORT_BUFFER_FULL";
     case TmDropReason::EGRESS_QUEUE_FULL:
         return "EGRESS_QUEUE_FULL";
+    case TmDropReason::EGRESS_POST_DEQUEUE_DROP:
+        return "EGRESS_POST_DEQUEUE_DROP";
     }
     return "UNKNOWN";
 }
@@ -695,9 +697,9 @@ P4TrafficManager::EgressServiceEvent(uint32_t outPort)
 }
 
 void
-P4TrafficManager::NotifyEgressTxComplete(uint32_t outPort, bool success)
+P4TrafficManager::NotifyEgressTxComplete(uint32_t outPort, TmTxOutcome outcome)
 {
-    NS_LOG_FUNCTION(this << outPort << success);
+    NS_LOG_FUNCTION(this << outPort << static_cast<uint32_t>(outcome));
 
     if (!ValidPort(outPort) || !m_egressCompletionDriven || !m_egressInFlight[outPort])
     {
@@ -705,16 +707,30 @@ P4TrafficManager::NotifyEgressTxComplete(uint32_t outPort, bool success)
         return;
     }
 
-    if (success)
+    const uint8_t prio = m_inFlightPrio[outPort];
+    switch (outcome)
     {
-        const uint8_t prio = m_inFlightPrio[outPort];
+    case TmTxOutcome::TRANSMITTED:
+        // The frame reached the wire: count it toward the transmit totals.
         m_stats.totalTransmitted++;
         m_stats.perPriorityTransmitted[prio]++;
         m_stats.perPortTxBytes[outPort] += m_inFlightBytes[outPort];
-    }
-    else
-    {
-        NS_LOG_WARN("Egress tx failed on port " << outPort << " (frame not sent)");
+        break;
+    case TmTxOutcome::RECIRCULATED:
+        // The frame went back to ingress rather than onto the wire.  Count it
+        // separately so it is conflated with neither a transmit nor a drop (a
+        // recirculated frame is sent for real on a later pass, and counting it
+        // here as transmitted would double-count it).
+        m_stats.totalRecirculated++;
+        break;
+    case TmTxOutcome::DROPPED:
+        // The egress pipeline dropped the frame, or the datapath could not send
+        // it; it never reached the wire.  Account for it as a drop instead of
+        // silently losing it from the conservation totals.
+        NS_LOG_WARN("Egress frame not sent on port " << outPort << " (dropped after dequeue)");
+        m_stats.totalDropped++;
+        m_stats.dropsByReason[static_cast<size_t>(TmDropReason::EGRESS_POST_DEQUEUE_DROP)]++;
+        break;
     }
 
     m_egressInFlight[outPort] = false;

@@ -92,6 +92,7 @@ build_lib(
     TEST_SOURCES # equivalent to module_test.source
         test/p4-switch-queue-item-test-suite.cc
         test/p4-traffic-manager-test-suite.cc
+        test/channel-state-test-suite.cc
         # test/p4-controller-test-suite.cc
         #  test/p4sim-test-suite.cc
         #  test/format-utils-test-suite.cc

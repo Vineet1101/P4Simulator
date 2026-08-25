@@ -85,10 +85,31 @@ enum class TmDropReason : uint8_t
     VOQ_QUEUE_FULL,             ///< the target VOQ[in][out][prio] would overflow
     EGRESS_PORT_BUFFER_FULL,    ///< per-output-port egress buffer would overflow
     EGRESS_QUEUE_FULL,          ///< the target egress queue[out][prio] would overflow
+    EGRESS_POST_DEQUEUE_DROP,   ///< dropped after egress dequeue (egress-pipeline drop()
+                                ///< or the datapath could not send the frame)
 };
+
+/// Number of distinct TmDropReason values (size of the dropsByReason array).
+constexpr size_t P4_TM_NUM_DROP_REASONS = 6;
 
 /// Human-readable name for a drop reason (for logging/tracing).
 const char* TmDropReasonToString(TmDropReason r);
+
+/**
+ * \brief Outcome the datapath reports back once it has finished handling a
+ * frame handed out by the completion-driven egress scheduler.
+ *
+ * A frame taken off an egress queue does not always reach the wire: the egress
+ * pipeline may drop() it, the P4 program may recirculate() it, or the send may
+ * fail (channel busy).  NotifyEgressTxComplete() uses this to account for the
+ * frame correctly instead of counting every dequeued frame as transmitted.
+ */
+enum class TmTxOutcome : uint8_t
+{
+    TRANSMITTED = 0, ///< frame was serialised onto the wire
+    DROPPED,         ///< frame was dropped after egress (egress drop() / send failure)
+    RECIRCULATED,    ///< frame was recirculated to ingress, not sent onto the wire
+};
 
 /**
  * \brief Opaque, move-only payload carried by the Traffic Manager.
@@ -210,10 +231,12 @@ class P4TrafficManager : public Object
      * No-op unless the port has a frame in flight in completion-driven mode.
      *
      * \param outPort  output port whose in-flight frame just finished.
-     * \param success  true if the frame was accepted onto the wire; false if
-     *                 the datapath could not send it (counted as a tx failure).
+     * \param outcome  what the datapath did with the frame: serialised it onto
+     *                 the wire (TRANSMITTED), dropped it after egress
+     *                 (DROPPED), or recirculated it (RECIRCULATED).  Only a
+     *                 TRANSMITTED frame is counted toward the transmit totals.
      */
-    void NotifyEgressTxComplete(uint32_t outPort, bool success);
+    void NotifyEgressTxComplete(uint32_t outPort, TmTxOutcome outcome);
 
     // ---- Ingress boundary ----
 
@@ -294,8 +317,9 @@ class P4TrafficManager : public Object
         uint64_t totalMovedToEgress{0};  ///< packets dequeued from VOQ (granted)
         uint64_t totalEgressEnqueued{0}; ///< packets accepted into an egress queue
         uint64_t totalTransmitted{0};    ///< packets serialised onto the wire
+        uint64_t totalRecirculated{0};   ///< packets recirculated instead of transmitted
         uint64_t totalDropped{0};        ///< packets dropped for any reason
-        std::array<uint64_t, 5> dropsByReason{}; ///< indexed by TmDropReason
+        std::array<uint64_t, P4_TM_NUM_DROP_REASONS> dropsByReason{}; ///< indexed by TmDropReason
         std::array<uint64_t, P4_TM_NUM_PRIORITIES> perPriorityTransmitted{};
 
         // delay accumulators (sums + counts -> averages via helpers)
