@@ -50,6 +50,7 @@ build_lib(
         utils/format-utils.cc
         utils/switch-api.cc
         utils/p4-queue.cc
+        utils/p4-traffic-manager.cc
         utils/fattree-topo-helper.cc
         model/switched-ethernet-channel.cc
         model/eth-net-device.cc
@@ -64,6 +65,7 @@ build_lib(
         helper/build-flowtable-helper.cc
     HEADER_FILES # equivalent to headers.source
         utils/p4-queue.h
+        utils/p4-traffic-manager.h
         utils/format-utils.h
         utils/switch-api.h
         utils/register-access-v1model.h
@@ -89,6 +91,7 @@ build_lib(
         ${third_party_libs}
     TEST_SOURCES # equivalent to module_test.source
         test/p4-switch-queue-item-test-suite.cc
+        test/p4-traffic-manager-test-suite.cc
         # test/p4-controller-test-suite.cc
         #  test/p4sim-test-suite.cc
         #  test/format-utils-test-suite.cc
