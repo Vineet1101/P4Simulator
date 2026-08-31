@@ -109,6 +109,8 @@ SwitchedEthernetChannel::SwitchedEthernetChannel()
     m_State[1] = IDLE_STATE;
     m_currentSrc[0] = 0;
     m_currentSrc[1] = 0;
+    m_propCount[0] = 0;
+    m_propCount[1] = 0;
     m_deviceList.clear();
 }
 
@@ -223,9 +225,12 @@ SwitchedEthernetChannel::TransmitStart(Ptr<Packet> p, uint32_t srcId)
     NS_LOG_FUNCTION(this << p << srcId);
     NS_LOG_INFO("UID=" << p->GetUid());
 
-    if (m_State[srcId] != IDLE_STATE)
+    // Refused only while the slot is still serialising a frame.  A slot that is
+    // merely propagating earlier frames may start a new one (full-duplex serial
+    // link: bits keep flowing behind the frames already on the wire).
+    if (m_State[srcId] == TRANSMITTING_STATE)
     {
-        NS_LOG_WARN("TransmitStart: wire not IDLE for slot " << srcId);
+        NS_LOG_WARN("TransmitStart: slot " << srcId << " still serialising a frame");
         return false;
     }
     if (!IsActive(srcId))
@@ -247,14 +252,20 @@ SwitchedEthernetChannel::TransmitEnd(uint32_t srcId)
     NS_LOG_FUNCTION(this << srcId);
     NS_ASSERT(m_State[srcId] == TRANSMITTING_STATE);
 
-    m_State[srcId] = PROPAGATING_STATE;
-    NS_LOG_LOGIC("Slot " << srcId << " -> PROPAGATING_STATE");
+    // Serialisation is complete: the sender is free to start the next frame
+    // right away, even though this frame is still propagating to the far end.
+    m_State[srcId] = IDLE_STATE;
 
     if (!IsActive(m_currentSrc[srcId]))
     {
         NS_LOG_ERROR("TransmitEnd: source slot " << srcId << " was detached before TX completed");
         return false;
     }
+
+    // This frame is now in flight (one more outstanding propagation on the slot).
+    m_propCount[srcId]++;
+    NS_LOG_LOGIC("Slot " << srcId << " serialisation complete; in-flight frames="
+                         << m_propCount[srcId]);
 
     // Schedule delivery to every active device that is NOT the sender.
     for (uint32_t i = 0; i < m_deviceList.size(); ++i)
@@ -299,9 +310,13 @@ void
 SwitchedEthernetChannel::PropagationCompleteEvent(uint32_t srcId)
 {
     NS_LOG_FUNCTION(this << srcId);
-    NS_ASSERT(m_State[srcId] == PROPAGATING_STATE);
-    m_State[srcId] = IDLE_STATE;
-    NS_LOG_LOGIC("Slot " << srcId << " -> IDLE_STATE");
+    // Retire one in-flight frame.  We do NOT touch m_State here: the slot may
+    // already be serialising a newer frame (TRANSMITTING_STATE), and that must
+    // not be reset by an earlier frame finishing its propagation.
+    NS_ASSERT(m_propCount[srcId] > 0);
+    m_propCount[srcId]--;
+    NS_LOG_LOGIC("Slot " << srcId << " propagation complete; in-flight frames="
+                         << m_propCount[srcId]);
 }
 
 // ---------------------------------------------------------------------------
@@ -311,7 +326,8 @@ SwitchedEthernetChannel::PropagationCompleteEvent(uint32_t srcId)
 bool
 SwitchedEthernetChannel::IsBusy(uint32_t deviceId) const
 {
-    return m_State[deviceId] != IDLE_STATE;
+    // Only serialisation blocks a new frame; propagation does not.
+    return m_State[deviceId] == TRANSMITTING_STATE;
 }
 
 bool
@@ -327,7 +343,17 @@ SwitchedEthernetChannel::IsActive(uint32_t deviceId) const
 FullDuplexWireState
 SwitchedEthernetChannel::GetState(uint32_t deviceId) const
 {
-    return m_State[deviceId];
+    // m_State only tracks serialisation; PROPAGATING is derived from the count
+    // of frames still in flight on the slot.
+    if (m_State[deviceId] == TRANSMITTING_STATE)
+    {
+        return TRANSMITTING_STATE;
+    }
+    if (m_propCount[deviceId] > 0)
+    {
+        return PROPAGATING_STATE;
+    }
+    return IDLE_STATE;
 }
 
 int32_t

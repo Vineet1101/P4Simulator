@@ -100,9 +100,12 @@ void ChannelStateTransitionTest::CheckPropagating(
   NS_TEST_ASSERT_MSG_EQ(ch->GetState(slot), PROPAGATING_STATE,
                         "Slot " << slot
                                 << " should be PROPAGATING after TransmitEnd");
+  // Serialisation is done, so the sender is free to start the next frame even
+  // though this one is still propagating: IsBusy() reports false while only
+  // PROPAGATING (see SwitchedEthernetChannel::IsBusy()).
   NS_TEST_ASSERT_MSG_EQ(
-      ch->IsBusy(slot), true,
-      "Slot " << slot << " IsBusy() should be true while PROPAGATING");
+      ch->IsBusy(slot), false,
+      "Slot " << slot << " IsBusy() should be false while only PROPAGATING");
 }
 
 void ChannelStateTransitionTest::CheckIdleAfterProp(
@@ -264,8 +267,13 @@ void FullDuplexIndependenceTest::DoRun() {
   Simulator::Schedule(MicroSeconds(5) + NanoSeconds(1), [this, ch]() {
     NS_TEST_ASSERT_MSG_EQ(ch->GetState(0), IDLE_STATE,
                           "Slot 0 should be IDLE after prop");
-    // Slot 1 still propagating (started prop at ~4 µs + 100 ns).
-    NS_TEST_ASSERT_MSG_EQ(ch->IsBusy(1), true, "Slot 1 should still be busy");
+    // Slot 1 finished serialising at ~4 µs + 100 ns and is still propagating
+    // (until ~5 µs + 100 ns).  Propagation does not make the sender busy, so
+    // IsBusy() is false, but GetState() still reports PROPAGATING.
+    NS_TEST_ASSERT_MSG_EQ(ch->IsBusy(1), false,
+                          "Slot 1 is not busy while only propagating");
+    NS_TEST_ASSERT_MSG_EQ(ch->GetState(1), PROPAGATING_STATE,
+                          "Slot 1 should still be propagating");
   });
 
   Simulator::Run();
@@ -346,10 +354,12 @@ void PortDeviceIdAccessorTest::DoRun() {
 }
 
 // ===========================================================================
-// Test 4: TransmitStart fails on a busy wire
+// Test 4: TransmitStart is blocked only while serialising
 //
-// Verifies that a second TransmitStart on the same slot returns false
-// while the wire is TRANSMITTING or PROPAGATING.
+// A slot refuses a new frame only while it is still serialising (TRANSMITTING).
+// Once serialisation is done it may start the next frame immediately, even
+// while an earlier frame is still PROPAGATING to the far end (full-duplex
+// serial link).
 // ===========================================================================
 
 class TransmitStartBusyTest : public TestCase {
@@ -361,7 +371,7 @@ private:
 };
 
 TransmitStartBusyTest::TransmitStartBusyTest()
-    : TestCase("TransmitStart returns false when wire is busy") {}
+    : TestCase("TransmitStart blocked only while serialising, not while propagating") {}
 
 void TransmitStartBusyTest::DoRun() {
   Ptr<Node> nodeA = CreateObject<Node>();
@@ -407,22 +417,27 @@ void TransmitStartBusyTest::DoRun() {
   // 200 bytes at 100 Mbps = 16 µs.  Call TransmitEnd.
   Simulator::Schedule(MicroSeconds(16), [ch]() { ch->TransmitEnd(0); });
 
-  // Try TransmitStart while PROPAGATING → should also fail.
+  // While PROPAGATING, a new TransmitStart is now allowed: serialisation is
+  // done so the sender is free even though the first frame is still in flight.
   Simulator::Schedule(MicroSeconds(16) + NanoSeconds(1), [this, ch, pkt2]() {
     NS_TEST_ASSERT_MSG_EQ(ch->GetState(0), PROPAGATING_STATE,
-                          "Should be PROPAGATING");
-    bool ok = ch->TransmitStart(pkt2, 0);
-    NS_TEST_ASSERT_MSG_EQ(ok, false,
-                          "TransmitStart should fail while PROPAGATING");
-  });
-
-  // After propagation (16 µs + 5 µs = 21 µs), should be IDLE again.
-  Simulator::Schedule(MicroSeconds(21) + NanoSeconds(1), [this, ch, pkt2]() {
-    NS_TEST_ASSERT_MSG_EQ(ch->GetState(0), IDLE_STATE,
-                          "Should be IDLE after propagation");
+                          "Should be PROPAGATING after serialisation");
     bool ok = ch->TransmitStart(pkt2, 0);
     NS_TEST_ASSERT_MSG_EQ(ok, true,
-                          "TransmitStart should succeed once IDLE again");
+                          "TransmitStart should succeed while only PROPAGATING");
+    // pkt2 is now serialising, so the slot is TRANSMITTING again.
+    NS_TEST_ASSERT_MSG_EQ(ch->GetState(0), TRANSMITTING_STATE,
+                          "Slot should be TRANSMITTING pkt2");
+  });
+
+  // While pkt2 is serialising, a further start must fail (mid-serialisation).
+  Simulator::Schedule(MicroSeconds(16) + NanoSeconds(100),
+                      [this, ch, pkt1]() {
+    NS_TEST_ASSERT_MSG_EQ(ch->GetState(0), TRANSMITTING_STATE,
+                          "Still serialising pkt2");
+    bool ok = ch->TransmitStart(pkt1, 0);
+    NS_TEST_ASSERT_MSG_EQ(ok, false,
+                          "TransmitStart should fail while serialising pkt2");
   });
 
   Simulator::Run();

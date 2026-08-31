@@ -164,20 +164,31 @@ class SwitchedEthernetChannel : public Channel
     /**
      * \brief Start transmitting packet \p p from slot \p srcId.
      *
-     * Marks the wire as TRANSMITTING_STATE for slot \p srcId.  The caller
-     * must schedule TransmitEnd() after the appropriate serialisation delay.
+     * Marks the slot as TRANSMITTING_STATE (serialisation in progress).  The
+     * caller must schedule TransmitEnd() after the serialisation delay.
+     *
+     * A slot may start a new frame as soon as the previous frame has finished
+     * serialising, even while earlier frames are still PROPAGATING to the far
+     * end: a full-duplex serial link keeps pumping new bits behind the ones
+     * already travelling down the wire.  Transmission is therefore refused only
+     * while the slot is still serialising a frame (TRANSMITTING_STATE), not
+     * while it is merely PROPAGATING.
      *
      * \param p     Packet to transmit (full Ethernet frame).
      * \param srcId Slot ID of the transmitting device.
-     * \return true if the wire was idle and the device is active.
+     * \return true if the slot was not mid-serialisation and the device is active.
      */
     bool TransmitStart(Ptr<Packet> p, uint32_t srcId);
 
     /**
      * \brief Signal end of serialisation for slot \p srcId.
      *
-     * Switches the wire to PROPAGATING_STATE and schedules delivery of the
-     * packet to the far-end device after the propagation delay.
+     * The slot's serialisation is complete, so the sender is immediately free
+     * to start the next frame (the slot leaves TRANSMITTING_STATE).  The frame
+     * just serialised is now in flight: one more propagation becomes
+     * outstanding and delivery to the far-end device is scheduled after the
+     * propagation delay.  GetState() reports PROPAGATING_STATE while any frame
+     * is still in flight on the slot.
      *
      * \param srcId Slot ID of the transmitting device.
      * \return true unless the source was detached before completion.
@@ -185,8 +196,9 @@ class SwitchedEthernetChannel : public Channel
     bool TransmitEnd(uint32_t srcId);
 
     /**
-     * \brief Called after propagation delay; frees the wire and delivers the
-     *        packet to the far-end P4SwitchNetDevice via its Receive() method.
+     * \brief Called after the propagation delay; retires one in-flight frame
+     *        for slot \p srcId.  Delivery to the far end was already scheduled
+     *        in TransmitEnd(); this only clears the propagation bookkeeping.
      * \param srcId Slot ID that originated the transmission.
      */
     void PropagationCompleteEvent(uint32_t srcId);
@@ -195,7 +207,11 @@ class SwitchedEthernetChannel : public Channel
     // Queries
     // -----------------------------------------------------------------------
 
-    /** \return true if slot \p deviceId is currently transmitting or propagating. */
+    /**
+     * \return true if slot \p deviceId is mid-serialisation (TRANSMITTING_STATE)
+     *         and therefore cannot start a new frame.  A slot that is only
+     *         PROPAGATING earlier frames is NOT busy: it can start a new frame.
+     */
     bool IsBusy(uint32_t deviceId) const;
 
     /** \return true if slot \p deviceId is active. */
@@ -229,9 +245,15 @@ class SwitchedEthernetChannel : public Channel
 
     std::vector<P4SwitchDeviceRec> m_deviceList; ///< Attached device records (max 2)
 
-    Ptr<Packet> m_currentPkt[2];    ///< Packet currently on the wire for each slot
+    Ptr<Packet> m_currentPkt[2];    ///< Packet currently being serialised on each slot
     uint32_t m_currentSrc[2];       ///< Source slot ID for each wire
-    FullDuplexWireState m_State[2]; ///< Wire state for each slot
+    FullDuplexWireState m_State[2]; ///< Serialisation state: IDLE or TRANSMITTING only
+
+    /// Number of frames still propagating on each slot (TransmitEnd -> its
+    /// PropagationCompleteEvent).  Serialisation frees the slot immediately, so
+    /// several frames can be in flight at once; GetState() derives
+    /// PROPAGATING_STATE from a positive count.
+    uint32_t m_propCount[2];
 };
 
 } // namespace ns3

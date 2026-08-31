@@ -208,8 +208,25 @@ class P4CoreV1model : public P4SwitchCore
     void EnqueueToTrafficManager(uint32_t egress_port, std::unique_ptr<bm::Packet>&& packet);
 
     /// TransmitCallback target: run egress pipeline + deparse + send for a packet
-    /// the Traffic Manager has serialised onto the wire.
+    /// the Traffic Manager has selected for transmission.
     void TmTransmit(uint32_t outPort, uint8_t priority, std::unique_ptr<TmPayload> payload);
+
+    /// Datapath -> Traffic Manager completion hook.  Scheduled by TmTransmit()
+    /// for the moment the output port finishes serialising the current frame;
+    /// forwards to P4TrafficManager::NotifyEgressTxComplete() so the TM accounts
+    /// for the frame (transmitted, dropped, or recirculated) and serves the next
+    /// one.  \p outcome tells the TM what actually happened to the frame.
+    void TmNotifyTxDone(uint32_t outPort, TmTxOutcome outcome);
+
+    /// Schedule a TmNotifyTxDone() for \p outPort after \p delay, recording its
+    /// EventId in m_pendingTxDone so the destructor can cancel it before the TM
+    /// is disposed (a pending completion must never fire on a torn-down core).
+    void ScheduleTmNotifyTxDone(uint32_t outPort, Time delay, TmTxOutcome outcome);
+
+    /// Pending TmNotifyTxDone events, keyed by output port.  At most one frame
+    /// is in flight per port in completion-driven egress, so at most one entry
+    /// per port.  Cancelled in the destructor before m_trafficManager->Dispose().
+    std::unordered_map<uint32_t, EventId> m_pendingTxDone;
 }; // class P4CoreV1model
 
 } // namespace ns3

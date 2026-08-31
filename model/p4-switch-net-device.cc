@@ -111,6 +111,14 @@ P4SwitchNetDevice::GetTypeId()
                           MakeUintegerAccessor(&P4SwitchNetDevice::m_switchRate),
                           MakeUintegerChecker<uint64_t>())
 
+            .AddAttribute("EnableVoqFabric",
+                          "If true, a V1model switch routes post-ingress traffic through the "
+                          "VOQ + fabric Traffic Manager instead of the legacy output queues. "
+                          "Default false keeps the legacy output-queued datapath.",
+                          BooleanValue(false),
+                          MakeBooleanAccessor(&P4SwitchNetDevice::m_enableVoqFabric),
+                          MakeBooleanChecker())
+
             .AddAttribute(
                 "Mtu",
                 "Maximum Transmission Unit.",
@@ -221,6 +229,7 @@ P4SwitchNetDevice::DoInitialize()
                                             m_queueBufferSize);
         m_v1modelSwitch->InitializeSwitchFromP4Json(m_jsonPath);
         m_v1modelSwitch->LoadFlowTableToSwitch(m_flowTablePath);
+        m_v1modelSwitch->SetEnableVoqFabric(m_enableVoqFabric);
         m_v1modelSwitch->start_and_return_();
         break;
 
@@ -379,18 +388,19 @@ P4SwitchNetDevice::SendPacket(Ptr<Packet> packetOut,
     SendNs3Packet(packetOut, outPort, protocol, destination);
 }
 
-void
+bool
 P4SwitchNetDevice::SendNs3Packet(Ptr<Packet> packetOut,
                                  int outPort,
                                  uint16_t /*protocol*/,
-                                 const Address& /*destination*/)
+                                 const Address& /*destination*/,
+                                 Time* txTime)
 {
     NS_LOG_DEBUG("SendNs3Packet: port=" << outPort);
 
     if (!packetOut)
     {
         NS_LOG_DEBUG("Null packet — dropping");
-        return;
+        return false;
     }
 
     // Port 511 = P4 convention for drop.
@@ -398,7 +408,7 @@ P4SwitchNetDevice::SendNs3Packet(Ptr<Packet> packetOut,
     {
         NS_LOG_DEBUG("Drop port (511) — packet discarded");
         m_macTxDropTrace(packetOut);
-        return;
+        return false;
     }
 
     if (outPort < 0 || static_cast<size_t>(outPort) >= m_portChannels.size())
@@ -406,7 +416,7 @@ P4SwitchNetDevice::SendNs3Packet(Ptr<Packet> packetOut,
         NS_LOG_WARN("SendNs3Packet: invalid port " << outPort << " (" << m_portChannels.size()
                                                    << " ports available)");
         m_macTxDropTrace(packetOut);
-        return;
+        return false;
     }
 
     m_macTxTrace(packetOut);
@@ -417,26 +427,33 @@ P4SwitchNetDevice::SendNs3Packet(Ptr<Packet> packetOut,
     // Transmit it directly onto the channel.
     Ptr<SwitchedEthernetChannel> ch = m_portChannels[static_cast<size_t>(outPort)];
     uint32_t devId = m_portDeviceIds[static_cast<size_t>(outPort)];
-    TransmitOn(ch, devId, packetOut);
+    return TransmitOn(ch, devId, packetOut, txTime);
 }
 
-void
+bool
 P4SwitchNetDevice::TransmitOn(Ptr<SwitchedEthernetChannel> channel,
                               uint32_t devId,
-                              Ptr<Packet> packet)
+                              Ptr<Packet> packet,
+                              Time* txTime)
 {
     if (!channel->TransmitStart(packet, devId))
     {
         NS_LOG_WARN("TransmitOn: channel busy or device inactive — packet dropped");
         m_macTxDropTrace(packet);
-        return;
+        return false;
     }
 
     // Compute serialisation delay from the channel's data rate.
     DataRate bps = channel->GetDataRate();
-    Time txTime = bps.CalculateBytesTxTime(packet->GetSize());
+    Time serialisationTime = bps.CalculateBytesTxTime(packet->GetSize());
 
-    Simulator::Schedule(txTime, &SwitchedEthernetChannel::TransmitEnd, channel, devId);
+    Simulator::Schedule(serialisationTime, &SwitchedEthernetChannel::TransmitEnd, channel, devId);
+
+    if (txTime)
+    {
+        *txTime = serialisationTime;
+    }
+    return true;
 }
 
 // ---------------------------------------------------------------------------
