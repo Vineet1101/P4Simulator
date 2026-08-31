@@ -20,9 +20,12 @@
 #include "p4-traffic-manager.h"
 
 #include "ns3/abort.h"
+#include "ns3/boolean.h"
 #include "ns3/log.h"
 #include "ns3/simulator.h"
 #include "ns3/uinteger.h"
+
+#include <algorithm>
 
 namespace ns3
 {
@@ -140,6 +143,13 @@ P4TrafficManager::GetTypeId()
                           TimeValue(Time(0)),
                           MakeTimeAccessor(&P4TrafficManager::m_egressPipelineDelay),
                           MakeTimeChecker())
+            .AddAttribute("EventDriven",
+                          "If true, EnqueueToVoq self-clocks the fabric + egress "
+                          "scheduler via ns-3 events; if false, the fabric is driven "
+                          "manually via RunFabricScheduler()/DequeueFromVoq().",
+                          BooleanValue(false),
+                          MakeBooleanAccessor(&P4TrafficManager::m_eventDriven),
+                          MakeBooleanChecker())
             .AddTraceSource("VoqEnqueue",
                             "A packet was enqueued into a VOQ (in, out, prio, bytes).",
                             MakeTraceSourceAccessor(&P4TrafficManager::m_voqEnqueueTrace),
@@ -189,12 +199,25 @@ void
 P4TrafficManager::DoDispose()
 {
     NS_LOG_FUNCTION(this);
+    m_fabricEvent.Cancel();
+    for (auto& ev : m_egressEvent)
+    {
+        ev.Cancel();
+    }
+    m_transmitCallback = nullptr;
     m_voq.clear();
+    m_egress.clear();
     m_voqBytes.clear();
     m_inputBufferBytes.clear();
     m_egressPortBytes.clear();
     m_egressQueueBytes.clear();
     Object::DoDispose();
+}
+
+void
+P4TrafficManager::SetTransmitCallback(TransmitCallback cb)
+{
+    m_transmitCallback = std::move(cb);
 }
 
 // ---------------------------------------------------------------------------
@@ -223,14 +246,25 @@ P4TrafficManager::AllocateStructures()
     const uint32_t n = m_numPorts;
     const size_t nn = static_cast<size_t>(n) * n;
 
+    // Reallocating cancels any in-flight scheduling from a previous sizing.
+    m_fabricEvent.Cancel();
+    for (auto& ev : m_egressEvent)
+    {
+        ev.Cancel();
+    }
+    m_fabricScheduled = false;
+
     // TmItem is move-only, so the VOQ element type cannot be relocated by
     // vector::resize/assign (those instantiate a copy fallback).  Direct sized
     // construction value-initialises each element in place, which is fine.
     m_voq = std::vector<PriQueues>(nn);
+    m_egress = std::vector<PriQueues>(n);
     m_voqBytes = std::vector<PriBytes>(nn, PriBytes{});
     m_inputBufferBytes.assign(n, 0);
     m_egressPortBytes.assign(n, 0);
     m_egressQueueBytes.assign(n, PriBytes{});
+    m_egressBusy.assign(n, false);
+    m_egressEvent = std::vector<EventId>(n);
 
     m_globalBufferBytes = 0;
     m_stats.perPortTxBytes.assign(n, 0);
@@ -315,6 +349,9 @@ P4TrafficManager::EnqueueToVoq(std::unique_ptr<TmPayload> payload,
 
     NS_LOG_DEBUG("Enqueued " << sizeBytes << "B into VOQ[" << inPort << "][" << outPort << "]["
                              << static_cast<uint32_t>(priority) << "]");
+
+    // Event-driven mode: wake the fabric so this packet gets scheduled.
+    ScheduleFabricRound();
     return true;
 }
 
@@ -417,6 +454,208 @@ P4TrafficManager::DequeueFromVoq(uint32_t inPort,
 }
 
 // ---------------------------------------------------------------------------
+// P3: event-driven fabric loop
+// ---------------------------------------------------------------------------
+
+void
+P4TrafficManager::ScheduleFabricRound()
+{
+    if (!m_eventDriven || m_fabricScheduled)
+    {
+        return;
+    }
+    m_fabricScheduled = true;
+    m_fabricEvent = Simulator::Schedule(m_fabricArbitrationDelay,
+                                        &P4TrafficManager::RunFabricRoundEvent,
+                                        this);
+}
+
+void
+P4TrafficManager::RunFabricRoundEvent()
+{
+    NS_LOG_FUNCTION(this);
+    m_fabricScheduled = false;
+
+    std::vector<Grant> grants = RunFabricScheduler();
+
+    // Apply grants: move each granted head packet from its VOQ to egress.  The
+    // fabric transfers all grants of a round in parallel, so its busy time is
+    // the transfer time of the largest granted packet.
+    uint32_t maxBytes = 0;
+    for (const Grant& g : grants)
+    {
+        TmItem item;
+        if (!DequeueFromVoq(g.inPort, g.outPort, g.priority, item))
+        {
+            continue; // defensive: VOQ emptied out from under the grant
+        }
+        maxBytes = std::max(maxBytes, item.sizeBytes);
+        EnqueueToEgress(std::move(item));
+    }
+
+    // Re-arm the next round while there is still demand.  The next arbitration
+    // happens after this round's fabric transfer plus the arbitration delay.
+    if (AnyVoqNonEmpty())
+    {
+        Time transfer = (maxBytes > 0) ? m_fabricRate.CalculateBytesTxTime(maxBytes) : Time(0);
+        m_fabricScheduled = true;
+        m_fabricEvent = Simulator::Schedule(m_fabricArbitrationDelay + transfer,
+                                            &P4TrafficManager::RunFabricRoundEvent,
+                                            this);
+    }
+}
+
+bool
+P4TrafficManager::AnyVoqNonEmpty() const
+{
+    for (const PriQueues& pq : m_voq)
+    {
+        for (const std::deque<TmItem>& q : pq)
+        {
+            if (!q.empty())
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// ---------------------------------------------------------------------------
+// P4: egress queues + serialising egress scheduler
+// ---------------------------------------------------------------------------
+
+bool
+P4TrafficManager::EnqueueToEgress(TmItem&& item)
+{
+    const uint32_t in = item.inPort;
+    const uint32_t out = item.outPort;
+    const uint8_t prio = item.priority;
+    const uint32_t sizeBytes = item.sizeBytes;
+
+    auto drop = [&](TmDropReason reason) {
+        m_stats.totalDropped++;
+        m_stats.dropsByReason[static_cast<size_t>(reason)]++;
+        m_dropTrace(static_cast<uint8_t>(reason), in, out, prio, sizeBytes);
+        NS_LOG_DEBUG("Egress drop " << sizeBytes << "B (" << TmDropReasonToString(reason)
+                                    << ") out=" << out << " prio="
+                                    << static_cast<uint32_t>(prio));
+        // The packet has already been removed from the VOQ (global was
+        // decremented there); dropping it here simply releases the payload.
+        return false;
+    };
+
+    // Admission: per-output-port then per-egress-queue.  Global is NOT
+    // re-checked: the VOQ->egress hand-off is byte-neutral for the global
+    // counter (DequeueFromVoq subtracted these bytes, we add them back below),
+    // so the packet was already counted globally throughout its residence.
+    if (m_egressPortLimit != 0 && m_egressPortBytes[out] + sizeBytes > m_egressPortLimit)
+    {
+        return drop(TmDropReason::EGRESS_PORT_BUFFER_FULL);
+    }
+    if (m_egressQueueLimit != 0 && m_egressQueueBytes[out][prio] + sizeBytes > m_egressQueueLimit)
+    {
+        return drop(TmDropReason::EGRESS_QUEUE_FULL);
+    }
+
+    item.egressEnqueueTime = Simulator::Now();
+    m_egress[out][prio].push_back(std::move(item));
+    m_egressPortBytes[out] += sizeBytes;
+    m_egressQueueBytes[out][prio] += sizeBytes;
+    m_globalBufferBytes += sizeBytes;
+
+    m_stats.totalEgressEnqueued++;
+    m_egressEnqueueTrace(in, out, prio, sizeBytes);
+
+    ScheduleEgressService(out);
+    return true;
+}
+
+int
+P4TrafficManager::SelectEgressPriority(uint32_t outPort) const
+{
+    for (int p = P4_TM_NUM_PRIORITIES - 1; p >= 0; --p)
+    {
+        if (!m_egress[outPort][static_cast<size_t>(p)].empty())
+        {
+            return p;
+        }
+    }
+    return -1;
+}
+
+void
+P4TrafficManager::ScheduleEgressService(uint32_t outPort)
+{
+    if (!m_eventDriven || m_egressBusy[outPort])
+    {
+        return;
+    }
+    m_egressBusy[outPort] = true;
+    m_egressEvent[outPort] = Simulator::Schedule(m_egressPipelineDelay,
+                                                 &P4TrafficManager::EgressServiceEvent,
+                                                 this,
+                                                 outPort);
+}
+
+void
+P4TrafficManager::EgressServiceEvent(uint32_t outPort)
+{
+    NS_LOG_FUNCTION(this << outPort);
+
+    const int prio = SelectEgressPriority(outPort);
+    if (prio < 0)
+    {
+        m_egressBusy[outPort] = false; // nothing to send: the port goes idle
+        return;
+    }
+
+    std::deque<TmItem>& q = m_egress[outPort][static_cast<size_t>(prio)];
+    TmItem item = std::move(q.front());
+    q.pop_front();
+
+    const uint32_t sizeBytes = item.sizeBytes;
+    m_egressPortBytes[outPort] -= sizeBytes;
+    m_egressQueueBytes[outPort][static_cast<size_t>(prio)] -= sizeBytes;
+    m_globalBufferBytes -= sizeBytes;
+
+    const Time now = Simulator::Now();
+    const Time egressDelay = now - item.egressEnqueueTime;
+    const Time totalDelay = now - item.voqEnqueueTime;
+
+    m_stats.totalTransmitted++;
+    m_stats.perPriorityTransmitted[static_cast<size_t>(prio)]++;
+    m_stats.perPortTxBytes[outPort] += sizeBytes;
+    m_stats.sumEgressDelay += egressDelay;
+    m_stats.cntEgressDelay++;
+    m_stats.sumTotalDelay += totalDelay;
+    m_stats.cntTotalDelay++;
+    if (totalDelay > m_stats.maxQueueingDelay)
+    {
+        m_stats.maxQueueingDelay = totalDelay;
+    }
+
+    m_egressDequeueTrace(item.inPort, outPort, static_cast<uint8_t>(prio), sizeBytes);
+    m_egressDelayTrace(egressDelay);
+    m_totalDelayTrace(totalDelay);
+
+    // Deliver the payload (integration wires this to the ns-3 NetDevice send).
+    if (m_transmitCallback)
+    {
+        m_transmitCallback(outPort, static_cast<uint8_t>(prio), std::move(item.payload));
+    }
+
+    // Serialisation: the port is busy for this packet's transmission time; the
+    // next packet is serviced when transmission completes.  The service event
+    // finding the port empty is what finally clears m_egressBusy.
+    const Time txTime = m_portRate.CalculateBytesTxTime(sizeBytes);
+    m_egressEvent[outPort] = Simulator::Schedule(txTime,
+                                                 &P4TrafficManager::EgressServiceEvent,
+                                                 this,
+                                                 outPort);
+}
+
+// ---------------------------------------------------------------------------
 // Occupancy queries
 // ---------------------------------------------------------------------------
 
@@ -456,6 +695,32 @@ P4TrafficManager::VoqBytes(uint32_t inPort, uint32_t outPort, uint8_t priority) 
         return 0;
     }
     return m_voqBytes[Idx(inPort, outPort)][priority];
+}
+
+size_t
+P4TrafficManager::EgressLength(uint32_t outPort, uint8_t priority) const
+{
+    if (!ValidPort(outPort) || !ValidPriority(priority))
+    {
+        return 0;
+    }
+    return m_egress[outPort][priority].size();
+}
+
+uint64_t
+P4TrafficManager::EgressPortBytes(uint32_t outPort) const
+{
+    return ValidPort(outPort) ? m_egressPortBytes[outPort] : 0;
+}
+
+uint64_t
+P4TrafficManager::EgressQueueBytes(uint32_t outPort, uint8_t priority) const
+{
+    if (!ValidPort(outPort) || !ValidPriority(priority))
+    {
+        return 0;
+    }
+    return m_egressQueueBytes[outPort][priority];
 }
 
 // ---------------------------------------------------------------------------

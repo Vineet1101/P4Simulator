@@ -17,6 +17,9 @@
  * Authors: Vineet Goel <vineetgoel692@gmail.com>
  */
 
+#include "ns3/boolean.h"
+#include "ns3/data-rate.h"
+#include "ns3/nstime.h"
 #include "ns3/p4-traffic-manager.h"
 #include "ns3/simulator.h"
 #include "ns3/test.h"
@@ -24,6 +27,7 @@
 
 #include <algorithm>
 #include <map>
+#include <vector>
 
 using namespace ns3;
 
@@ -373,6 +377,153 @@ class TmDelayMeasurementTest : public TestCase
 };
 
 // ---------------------------------------------------------------------------
+// 7. Event-driven end-to-end drain (P3 fabric loop + P4 egress scheduler)
+// ---------------------------------------------------------------------------
+class TmEventDrivenDrainTest : public TestCase
+{
+  public:
+    TmEventDrivenDrainTest()
+        : TestCase("TM: event-driven fabric+egress drains all packets to the wire")
+    {
+    }
+
+    void DoRun() override
+    {
+        Ptr<P4TrafficManager> tm = MakeTm(4);
+        tm->SetAttribute("EventDriven", BooleanValue(true));
+        tm->SetAttribute("PortRate", DataRateValue(DataRate("1Gbps")));
+        tm->SetAttribute("FabricRate", DataRateValue(DataRate("10Gbps")));
+
+        uint32_t delivered = 0;
+        tm->SetTransmitCallback(
+            [&delivered](uint32_t, uint8_t, std::unique_ptr<TmPayload>) { delivered++; });
+
+        // A perfect permutation: in i -> out (i+1)%4, so no egress contention.
+        for (uint32_t i = 0; i < 4; ++i)
+        {
+            Enq(tm, 100, i, (i + 1) % 4, 3, i);
+        }
+
+        Simulator::Run();
+
+        NS_TEST_ASSERT_MSG_EQ(delivered, 4, "all 4 packets delivered via TransmitCallback");
+        NS_TEST_ASSERT_MSG_EQ(tm->GlobalBufferBytes(), 0, "buffers empty after drain");
+        for (uint32_t out = 0; out < 4; ++out)
+        {
+            NS_TEST_ASSERT_MSG_EQ(tm->EgressPortBytes(out), 0, "egress port drained");
+        }
+
+        const auto& s = tm->GetStats();
+        NS_TEST_ASSERT_MSG_EQ(s.totalVoqEnqueued, 4, "4 enqueued");
+        NS_TEST_ASSERT_MSG_EQ(s.totalMovedToEgress, 4, "4 moved to egress");
+        NS_TEST_ASSERT_MSG_EQ(s.totalEgressEnqueued, 4, "4 accepted at egress");
+        NS_TEST_ASSERT_MSG_EQ(s.totalTransmitted, 4, "4 transmitted");
+        NS_TEST_ASSERT_MSG_EQ(s.totalDropped, 0, "no drops");
+
+        Simulator::Destroy();
+    }
+};
+
+// ---------------------------------------------------------------------------
+// 8. Egress strict-priority: a packet already in service is not preempted,
+//    but among waiting packets the highest priority goes next.
+// ---------------------------------------------------------------------------
+class TmEgressStrictPriorityTest : public TestCase
+{
+  public:
+    TmEgressStrictPriorityTest()
+        : TestCase("TM: egress scheduler serves waiting packets in strict priority")
+    {
+    }
+
+    void DoRun() override
+    {
+        Ptr<P4TrafficManager> tm = MakeTm(4);
+        tm->SetAttribute("EventDriven", BooleanValue(true));
+        // Slow port so the first packet is still transmitting when the others
+        // pile up behind it in the egress queue of output 0.
+        tm->SetAttribute("PortRate", DataRateValue(DataRate("10Mbps")));
+        tm->SetAttribute("FabricRate", DataRateValue(DataRate("100Gbps")));
+
+        std::vector<uint8_t> order;
+        tm->SetTransmitCallback(
+            [&order](uint32_t, uint8_t prio, std::unique_ptr<TmPayload>) { order.push_back(prio); });
+
+        // All target output 0 (distinct inputs so the fabric can move them).
+        // Low-priority packet enters service first; higher priorities queue.
+        Simulator::Schedule(Time(0), [tm]() { Enq(tm, 100, 0, 0, 2, 2); });
+        Simulator::Schedule(MicroSeconds(10), [tm]() { Enq(tm, 100, 1, 0, 5, 5); });
+        Simulator::Schedule(MicroSeconds(20), [tm]() { Enq(tm, 100, 2, 0, 7, 7); });
+
+        Simulator::Run();
+
+        NS_TEST_ASSERT_MSG_EQ(order.size(), 3, "all three packets transmitted");
+        // First to arrive (prio 2) is already on the wire; then strict priority.
+        NS_TEST_ASSERT_MSG_EQ(static_cast<uint32_t>(order[0]), 2, "prio 2 in service first");
+        NS_TEST_ASSERT_MSG_EQ(static_cast<uint32_t>(order[1]), 7, "prio 7 next (highest waiting)");
+        NS_TEST_ASSERT_MSG_EQ(static_cast<uint32_t>(order[2]), 5, "prio 5 last");
+
+        Simulator::Destroy();
+    }
+};
+
+// ---------------------------------------------------------------------------
+// 9. Egress buffer overflow produces EGRESS_QUEUE_FULL
+// ---------------------------------------------------------------------------
+class TmEgressDropTest : public TestCase
+{
+  public:
+    TmEgressDropTest()
+        : TestCase("TM: full egress queue drops with EGRESS_QUEUE_FULL")
+    {
+    }
+
+    void DoRun() override
+    {
+        Ptr<P4TrafficManager> tm = MakeTm(4);
+        tm->SetAttribute("EventDriven", BooleanValue(true));
+        // Very slow port so egress never drains during the test; fast fabric.
+        tm->SetAttribute("PortRate", DataRateValue(DataRate("1Kbps")));
+        tm->SetAttribute("FabricRate", DataRateValue(DataRate("100Gbps")));
+        // Room for one 100B packet waiting behind the one in service.
+        tm->SetAttribute("EgressQueueLimit", UintegerValue(150));
+
+        tm->TraceConnectWithoutContext("Drop", MakeCallback(&TmEgressDropTest::OnDrop, this));
+
+        // Three packets, distinct inputs, same output+priority. The fabric moves
+        // them one per round: #1 enters service, #2 waits (100B <= 150),
+        // #3 overflows the egress queue (200B > 150) -> EGRESS_QUEUE_FULL.
+        Enq(tm, 100, 0, 0, 3, 0);
+        Enq(tm, 100, 1, 0, 3, 1);
+        Enq(tm, 100, 2, 0, 3, 2);
+
+        Simulator::Run();
+
+        NS_TEST_ASSERT_MSG_EQ(m_egressDrops, 1, "exactly one egress drop");
+        const auto& s = tm->GetStats();
+        NS_TEST_ASSERT_MSG_EQ(
+            s.dropsByReason[static_cast<size_t>(TmDropReason::EGRESS_QUEUE_FULL)],
+            1,
+            "EGRESS_QUEUE_FULL counter == 1");
+        NS_TEST_ASSERT_MSG_EQ(s.totalMovedToEgress, 3, "all three granted out of the VOQ");
+        NS_TEST_ASSERT_MSG_EQ(s.totalEgressEnqueued, 2, "only two accepted into egress");
+
+        Simulator::Destroy();
+    }
+
+  private:
+    void OnDrop(uint8_t reason, uint32_t, uint32_t, uint8_t, uint32_t)
+    {
+        if (reason == static_cast<uint8_t>(TmDropReason::EGRESS_QUEUE_FULL))
+        {
+            m_egressDrops++;
+        }
+    }
+
+    uint32_t m_egressDrops{0};
+};
+
+// ---------------------------------------------------------------------------
 // Suite
 // ---------------------------------------------------------------------------
 class P4TrafficManagerTestSuite : public TestSuite
@@ -387,6 +538,9 @@ class P4TrafficManagerTestSuite : public TestSuite
         AddTestCase(new TmFabricMatchingTest, TestCase::QUICK);
         AddTestCase(new TmBufferDropTest, TestCase::QUICK);
         AddTestCase(new TmDelayMeasurementTest, TestCase::QUICK);
+        AddTestCase(new TmEventDrivenDrainTest, TestCase::QUICK);
+        AddTestCase(new TmEgressStrictPriorityTest, TestCase::QUICK);
+        AddTestCase(new TmEgressDropTest, TestCase::QUICK);
     }
 };
 
